@@ -1,0 +1,58 @@
+{
+  "name": "anywhere-desktop",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Anywhere standalone desktop app powered by Electron.",
+  "main": "electron/main.js",
+  "scripts": {
+    "install:all": "pnpm --dir Anywhere_main install && pnpm --dir Anywhere_window install && pnpm --dir backend install",
+    "build:web": "pnpm --dir Anywhere_main build && pnpm --dir Anywhere_window build",
+    "build:backend": "pnpm --dir backend build",
+    "sync:assets": "node scripts/sync-assets.cjs",
+    "build": "pnpm build:web && pnpm build:backend && pnpm sync:assets",
+    "start": "node scripts/run-electron.cjs",
+    "start:built": "pnpm build && node scripts/run-electron.cjs",
+    "pack": "pnpm build && electron-builder --dir",
+    "dist": "pnpm build && electron-builder"
+  },
+  "devDependencies": {
+    "electron": "30.5.1",
+    "electron-builder": "^24.13.3"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron"
+    ]
+  },
+  "build": {
+    "appId": "com.anywhere.desktop",
+    "productName": "Anywhere",
+    "asar": true,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "v2.0.0/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ]
+    }
+  }
+}

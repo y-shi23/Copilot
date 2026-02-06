@@ -52,13 +52,19 @@ async function saveSingleSetting(keyPath, value) {
   try {
     if (window.api && window.api.saveSetting) {
       // 调用 preload 暴露的新 API，只传递变更
-      await window.api.saveSetting(keyPath, value);
+      const result = await window.api.saveSetting(keyPath, value);
+      if (result && result.success === false) {
+        throw new Error(result.message || `Failed to save ${keyPath}`);
+      }
+      return true;
     } else {
       console.warn("window.api.saveSetting is not available.");
+      return false;
     }
   } catch (error) {
     console.error(`Error saving setting for ${keyPath}:`, error);
     ElMessage.error(`${t('setting.alerts.saveFailedPrefix')} ${keyPath}`);
+    return false;
   }
 }
 
@@ -220,6 +226,16 @@ async function handleThemeChange(mode) {
   // 3. 更新本地状态并保存布尔值（为了兼容旧逻辑和其他窗口）
   currentConfig.value.isDarkMode = newIsDarkMode;
   await saveSingleSetting('isDarkMode', newIsDarkMode);
+}
+
+async function handleLauncherHotkeyChange(value) {
+  if (!currentConfig.value) return;
+  const normalized = (value || '').trim() || 'CommandOrControl+Shift+Space';
+  currentConfig.value.launcherHotkey = normalized;
+  const saved = await saveSingleSetting('launcherHotkey', normalized);
+  if (!saved) {
+    currentConfig.value.launcherHotkey = 'CommandOrControl+Shift+Space';
+  }
 }
 
 // --- Voice Management (使用 saveFullConfig 因为它修改的是一个数组) ---
@@ -647,6 +663,23 @@ async function selectLocalChatPath() {
             </div>
             <el-switch v-model="currentConfig.fix_position"
               @change="(value) => saveSingleSetting('fix_position', value)" />
+          </div>
+          <div class="setting-option-item">
+            <div class="setting-text-content">
+              <span class="setting-option-label">{{ t('setting.launcher.enabledLabel') }}</span>
+              <span class="setting-option-description">{{ t('setting.launcher.enabledDescription') }}</span>
+            </div>
+            <el-switch v-model="currentConfig.launcherEnabled"
+              @change="(value) => saveSingleSetting('launcherEnabled', value)" />
+          </div>
+          <div class="setting-option-item no-border">
+            <div class="setting-text-content">
+              <span class="setting-option-label">{{ t('setting.launcher.hotkeyLabel') }}</span>
+              <span class="setting-option-description">{{ t('setting.launcher.hotkeyDescription') }}</span>
+            </div>
+            <el-input v-model="currentConfig.launcherHotkey" :disabled="!currentConfig.launcherEnabled"
+              :placeholder="t('setting.launcher.hotkeyPlaceholder')" style="width: 320px;"
+              @change="handleLauncherHotkeyChange" />
           </div>
         </el-card>
 

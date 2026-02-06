@@ -60,6 +60,13 @@ Anywhere 是一款为 **uTools** 打造的深度定制化 AI 助手插件。它�
 
 支持通过 uTools 关键字、快捷键、以及选中文本/文件/图片后的超级面板快速调用。
 
+桌面版（Electron）新增了 **全局快捷启动器**：
+
+* 默认 `Ctrl+Shift+Space`（macOS 为 `Command+Shift+Space`）唤出输入框。
+* 输入关键词实时匹配你在应用内注册的快捷助手。
+* 支持直接输入文本执行，或粘贴图片 / 拖拽文件后执行对应助手。
+* 支持在「设置 -> 通用设置」中启用/关闭并自定义快捷键。
+
 |           指令调用           |               快捷调用               |
 | :---------------------------: | :-----------------------------------: |
 | ![指令调用](image/指令调用.png) | ![快捷调用方法](image/快捷调用方法.png) |
@@ -113,7 +120,7 @@ Anywhere 是一款为 **uTools** 打造的深度定制化 AI 助手插件。它�
 
 ### 项目结构
 
-本项目是一个基于 Electron (uTools 环境) 的多窗口应用，主要包含以下部分：
+本项目现在提供 **独立 Electron 桌面版**，并保留原有 uTools 插件构建产物。主要结构如下：
 
 ```text
 Anywhere/
@@ -121,9 +128,11 @@ Anywhere/
 ├── Anywhere_main/      # 主界面前端 (Vue 3 + Element Plus)，用于设置、管理配置
 ├── Anywhere_window/    # 独立对话窗口前端 (Vue 3 + Element Plus)，核心交互区
 ├── Fast_window/        # 快捷输入条前端 (原生 HTML/JS)，轻量级交互
+├── electron/           # Electron 主进程与 IPC 桥接
 ├── docs/               # 项目文档
-├── build/              # 构建脚本与资源
-├── plugin.json         # uTools 插件入口配置
+├── scripts/            # 构建产物同步脚本
+├── v2.0.0/             # 统一运行目录（主界面/对话窗口/preload）
+├── plugin.json         # (兼容保留) uTools 插件入口配置
 └── ...
 ```
 
@@ -137,40 +146,44 @@ Anywhere/
    git clone https://github.com/Komorebi-yaodong/Anywhere.git
    cd Anywhere
    ```
-2. **安装依赖并构建前端**
-   Anywhere 由三个独立的前端项目组成，需要分别构建：
+2. **安装全部依赖**
 
-   * **主界面 (Anywhere_main)**
+   ```bash
+   pnpm install
+   pnpm run install:all
+   ```
 
-     ```bash
-     cd Anywhere_main
-     pnpm install && pnpm build
-     cd ..
-     ```
-   * **对话窗口 (Anywhere_window)**
+3. **构建桌面版运行资源**
 
-     ```bash
-     cd Anywhere_window
-     pnpm install && pnpm build
-     cd ..
-     ```
-   * **后端/Preload (backend)**
+   ```bash
+   pnpm build
+   ```
 
-     ```bash
-     cd backend
-     pnpm install && pnpm build
-     cd ..
-     ```
-3. **整合资源**
-   项目根目录提供了自动化的脚本，用于将构建好的文件移动到统一的发布目录（命名格式示例 `v2.0.0`）。
+   该命令会自动完成：
+   - `Anywhere_main` 前端构建
+   - `Anywhere_window` 前端构建
+   - `backend` preload 构建
+   - 构建产物同步到 `v2.0.0/`
 
-   * **Windows 用户**: 运行 `move.bat`
-   * **macOS / Linux 用户**: 运行 `move.sh` (需先赋予执行权限 `chmod +x move.sh`)
-4. **在 uTools 中加载**
+4. **启动 Electron 桌面版**
+
+   ```bash
+   pnpm start
+   ```
+
+5. **打包安装包（可选）**
+
+   ```bash
+   pnpm dist
+   ```
+
+### (可选) 继续以 uTools 插件方式调试
+
+如果你仍需使用 uTools 插件模式，可继续使用 `v2.0.0/plugin.json` 导入调试：
 
    1. 下载并安装 [uTools 开发者工具](https://www.u-tools.cn/plugins/detail/uTools%20%E5%BC%80%E5%8F%91%E8%80%85%E5%B7%A5%E5%85%B7/)。
    2. 在开发者工具中选择「新建项目」 -> 「导入项目」。
-   3. 选择第 3 步生成的文件夹（例如 `v2.0.0`）中的 `plugin.json` 文件。
+   3. 选择构建后的 `v2.0.0/plugin.json` 文件。
    4. 点击运行即可开始调试。
 
 ---

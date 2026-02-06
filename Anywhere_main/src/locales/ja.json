@@ -557,6 +557,13 @@
       "label": "ウィンドウ位置を固定",
       "description": "ダイアログウィンドウが表示される位置を固定します。"
     },
+    "launcher": {
+      "enabledLabel": "グローバルランチャー",
+      "enabledDescription": "有効にすると、グローバルホットキーでアシスタント入力を呼び出せます。",
+      "hotkeyLabel": "ランチャーのホットキー",
+      "hotkeyDescription": "Electron のアクセラレータ形式で入力してください（例: CommandOrControl+Shift+Space）。",
+      "hotkeyPlaceholder": "CommandOrControl+Shift+Space"
+    },
     "dataManagement": {
       "title": "データ管理",
       "exportLabel": "設定のエクスポート",

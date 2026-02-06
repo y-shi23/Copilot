@@ -1,3 +1,5 @@
+global.utools = require('./utools_shim.js');
+
 const {
   getConfig,
   updateConfig,
@@ -245,6 +247,11 @@ window.api = {
   pathJoin: (...args) => require('path').join(...args),
 };
 
+if (!window.utools) {
+  window.utools = {};
+}
+window.utools.shellOpenExternal = utools.shellOpenExternal;
+
 const commandHandlers = {
   'Anywhere Settings': async () => {
     // 使用 await
@@ -403,9 +410,10 @@ const commandHandlers = {
   }
 };
 
-// --- Main Plugin Entry ---
-utools.onPluginEnter(async (action) => {
+async function dispatchPluginAction(action) {
+  if (!action || !action.code) return;
   const { code } = action;
+
   if (commandHandlers[code]) {
     await commandHandlers[code](action);
   } else if (code.endsWith(feature_suffix)) { // 打开空白助手
@@ -413,10 +421,21 @@ utools.onPluginEnter(async (action) => {
   } else {  // 根据提示词匹配调用
     await commandHandlers.handlePrompt(action);
   }
+}
+
+// --- Main Plugin Entry ---
+utools.onPluginEnter(async (action) => {
+  await dispatchPluginAction(action);
 });
 
 const { ipcRenderer } = require('electron');
 const { windowMap } = require('./data.js');
+
+ipcRenderer.on('launcher:execute-action', (_event, action) => {
+  dispatchPluginAction(action).catch((error) => {
+    console.error('[Launcher] Failed to execute action:', error);
+  });
+});
 
 ipcRenderer.on('window-event', (e, { senderId, event }) => {
   const bw = windowMap.get(senderId);

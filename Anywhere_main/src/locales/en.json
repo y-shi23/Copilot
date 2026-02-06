@@ -557,6 +557,13 @@
       "label": "Fix Window Position",
       "description": "Enable to fix the position where the dialog window appears."
     },
+    "launcher": {
+      "enabledLabel": "Global Launcher",
+      "enabledDescription": "Enable a global quick launcher for your assistants.",
+      "hotkeyLabel": "Launcher Hotkey",
+      "hotkeyDescription": "Use Electron accelerator format, e.g. CommandOrControl+Shift+Space.",
+      "hotkeyPlaceholder": "CommandOrControl+Shift+Space"
+    },
     "dataManagement": {
       "title": "Data Management",
       "exportLabel": "Export Configuration",

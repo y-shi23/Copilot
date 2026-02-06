@@ -1,4 +1,4 @@
-const { webFrame, nativeImage } = require('electron');
+const { webFrame, nativeImage, ipcRenderer } = require('electron');
 const crypto = require('crypto');
 const windowMap = new Map();
 const feature_suffix = "anywhere助手^_^"
@@ -64,6 +64,8 @@ const defaultConfig = {
     isAlwaysOnTop_global: true,
     autoCloseOnBlur_global: true,
     autoSaveChat_global: false,
+    launcherEnabled: true,
+    launcherHotkey: "CommandOrControl+Shift+Space",
     zoom: 1,
     webdav: {
       url: "",
@@ -121,6 +123,41 @@ const defaultConfig = {
 
 function getLocalConfigId() {
   return 'config_local_' + utools.getNativeId();
+}
+
+function getLauncherRuntimeSettings(config = {}) {
+  return {
+    launcherEnabled: config.launcherEnabled === undefined ? true : !!config.launcherEnabled,
+    launcherHotkey: (
+      typeof config.launcherHotkey === 'string' && config.launcherHotkey.trim()
+        ? config.launcherHotkey.trim()
+        : 'CommandOrControl+Shift+Space'
+    ),
+  };
+}
+
+async function syncLauncherSettings(config = {}) {
+  if (!ipcRenderer || typeof ipcRenderer.invoke !== 'function') {
+    return { ok: true };
+  }
+
+  try {
+    const result = await ipcRenderer.invoke(
+      'launcher:update-settings',
+      getLauncherRuntimeSettings(config)
+    );
+
+    if (result && result.ok === false && result.error) {
+      console.warn('[Launcher] Hotkey update failed:', result.error);
+      utools.showNotification(result.error);
+      return result;
+    }
+
+    return result || { ok: true };
+  } catch (error) {
+    console.error('[Launcher] Hotkey sync failed:', error);
+    return { ok: false, error: String(error.message || error) };
+  }
 }
 
 /**
@@ -370,6 +407,8 @@ function checkConfig(config) {
     tags: {},
     isDarkMode: false,
     themeMode: "system",
+    launcherEnabled: true,
+    launcherHotkey: "CommandOrControl+Shift+Space",
     fastWindowPosition: null,
     // 直接引用 defaultConfig 中的完整列表，避免代码冗长
     voiceList: defaultConfig.config.voiceList || []
@@ -377,6 +416,14 @@ function checkConfig(config) {
 
   for (const [key, val] of Object.entries(rootDefaults)) {
     if (config[key] === undefined) { config[key] = val; flag = true; }
+  }
+
+  if (typeof config.launcherHotkey !== 'string' || !config.launcherHotkey.trim()) {
+    config.launcherHotkey = "CommandOrControl+Shift+Space";
+    flag = true;
+  } else if (config.launcherHotkey !== config.launcherHotkey.trim()) {
+    config.launcherHotkey = config.launcherHotkey.trim();
+    flag = true;
   }
 
   // --- 3. WebDAV 检查 ---
@@ -604,6 +651,14 @@ async function saveSetting(keyPath, value) {
         windowInstance.webContents.send('config-updated', fullConfig.config);
       }
     }
+
+    if (keyPath === 'launcherEnabled' || keyPath === 'launcherHotkey') {
+      const launcherResult = await syncLauncherSettings(fullConfig.config);
+      if (launcherResult && launcherResult.ok === false) {
+        return { success: false, message: launcherResult.error || "Failed to update launcher hotkey." };
+      }
+    }
+
     return { success: true };
   } else {
     return { success: false, message: result.message };
@@ -683,6 +738,10 @@ function updateConfigWithoutFeatures(newConfig) {
       windowInstance.webContents.send('config-updated', fullConfigForFrontend);
     }
   }
+
+  syncLauncherSettings(fullConfigForFrontend).catch((error) => {
+    console.error('[Launcher] Failed to sync settings after config update:', error);
+  });
 
   cleanUpBackgroundCache(newConfig);
 }

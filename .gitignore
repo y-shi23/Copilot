@@ -13,6 +13,7 @@ lerna-debug.log*
 /Anywhere_window/dist
 /backend/node_modules
 /backend/public
+/node_modules
 .DS_Store
 dist
 dist-ssr
@@ -61,7 +62,12 @@ v1.11.1
 /v2.0.0/preload.js
 /v2.0.0/window_preload.js
 /v2.0.0/fast_window_preload.js
+/release
 
 !/v2.0.0/window/.gitkeep
 !/v2.0.0/fast_window/.gitkeep
 !/v2.0.0/main/.gitkeep
+
+
+
+.claude/

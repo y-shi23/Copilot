@@ -557,6 +557,13 @@
       "label": "Фиксировать положение окна",
       "description": "Включить, чтобы зафиксировать позицию появления диалогового окна."
     },
+    "launcher": {
+      "enabledLabel": "Глобальный лаунчер",
+      "enabledDescription": "Включает глобальное окно быстрого запуска ассистентов по горячей клавише.",
+      "hotkeyLabel": "Горячая клавиша лаунчера",
+      "hotkeyDescription": "Используйте формат акселератора Electron, например CommandOrControl+Shift+Space.",
+      "hotkeyPlaceholder": "CommandOrControl+Shift+Space"
+    },
     "dataManagement": {
       "title": "Управление данными",
       "exportLabel": "Экспорт конфигурации",

@@ -1,3 +1,5 @@
+global.utools = require('./utools_shim.js');
+
 const { ipcRenderer } = require('electron');
 const {
     saveFastInputWindowPosition,
