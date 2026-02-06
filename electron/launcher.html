@@ -6,13 +6,13 @@
   <title>Anywhere Launcher</title>
   <style>
     :root {
-      --bg-main: #0f131b;
-      --border: rgba(136, 169, 217, 0.3);
+      --border: rgba(143, 180, 230, 0.34);
       --border-active: rgba(134, 194, 255, 0.76);
       --text-main: #eff6ff;
-      --text-sub: rgba(202, 220, 244, 0.82);
-      --item-hover: rgba(58, 85, 122, 0.42);
-      --item-active: rgba(82, 120, 170, 0.55);
+      --text-sub: rgba(191, 212, 240, 0.76);
+      --card-bg: rgba(13, 20, 31, 0.92);
+      --card-hover: rgba(26, 40, 60, 0.94);
+      --card-selected: rgba(45, 72, 108, 0.96);
     }
 
     * {
@@ -32,45 +32,32 @@
     }
 
     body {
-      padding: 12px;
+      padding: 8px;
     }
 
     .launcher-shell {
       width: 100%;
       height: 100%;
-      border-radius: 16px;
-      border: 1px solid var(--border);
-      background:
-        radial-gradient(circle at 92% 8%, rgba(127, 189, 255, 0.13), transparent 40%),
-        radial-gradient(circle at 10% 98%, rgba(112, 229, 210, 0.1), transparent 46%),
-        linear-gradient(164deg, #0d1118 0%, #141c27 62%, #0e1420 100%);
-      box-shadow:
-        0 22px 60px rgba(2, 5, 8, 0.45),
-        0 10px 22px rgba(2, 5, 8, 0.5);
-      padding: 14px;
-      display: grid;
-      grid-template-rows: auto 1fr;
-      gap: 10px;
-      overflow: hidden;
-      cursor: grab;
+      display: flex;
+      flex-direction: column;
+      cursor: default;
     }
 
-    .launcher-shell.dragging {
-      cursor: grabbing;
-    }
-
-    .input-shell {
-      width: 100%;
+    .launcher-shell.dragging,
+    .launcher-shell.dragging * {
+      cursor: grabbing !important;
     }
 
     #queryInput {
       width: 100%;
-      border: 1px solid rgba(143, 180, 230, 0.34);
-      border-radius: 12px;
-      background: rgba(15, 22, 33, 0.9);
+      height: 40px;
+      flex: 0 0 40px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(15, 22, 33, 0.95);
       color: var(--text-main);
-      font-size: 17px;
-      padding: 12px 14px;
+      font-size: 16px;
+      padding: 0 12px;
       outline: none;
       transition: border-color 0.16s ease, box-shadow 0.16s ease;
       font-family: inherit;
@@ -84,22 +71,24 @@
 
     #queryInput:focus {
       border-color: var(--border-active);
-      box-shadow: 0 0 0 3px rgba(129, 192, 255, 0.18);
+      box-shadow: none;
     }
 
     .result-list {
-      margin: 0;
-      padding: 0;
-      list-style: none;
-      overflow: auto;
-      border-radius: 12px;
-      border: 1px solid rgba(132, 170, 224, 0.2);
-      background: rgba(11, 16, 24, 0.5);
       display: none;
+      margin-top: 8px;
+      overflow: auto;
+      padding: 4px;
+      border-radius: 10px;
+      background: rgba(9, 14, 23, 0.7);
+      border: 1px solid rgba(116, 152, 202, 0.24);
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 8px;
+      align-content: start;
     }
 
     .result-list.visible {
-      display: block;
+      display: grid;
     }
 
     .result-list::-webkit-scrollbar {
@@ -111,36 +100,52 @@
       background: rgba(127, 168, 224, 0.34);
     }
 
-    .prompt-item {
-      display: grid;
-      grid-template-columns: auto 1fr;
+    .result-empty {
+      grid-column: 1 / -1;
+      font-size: 13px;
+      color: var(--text-sub);
+      text-align: center;
+      padding: 16px 10px;
+      border-radius: 8px;
+      background: rgba(13, 20, 31, 0.84);
+      border: 1px dashed rgba(116, 152, 202, 0.24);
+    }
+
+    .prompt-card {
+      appearance: none;
+      border: 1px solid rgba(115, 151, 200, 0.24);
+      border-radius: 8px;
+      background: var(--card-bg);
+      color: inherit;
+      display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px 12px;
-      border-bottom: 1px solid rgba(120, 157, 209, 0.12);
+      min-height: 50px;
+      padding: 8px 10px;
       cursor: pointer;
-      transition: background 0.14s ease;
+      transition: background 0.14s ease, border-color 0.14s ease;
+      text-align: left;
+      font-family: inherit;
     }
 
-    .prompt-item:last-child {
-      border-bottom: none;
+    .prompt-card:hover {
+      background: var(--card-hover);
+      border-color: rgba(129, 175, 235, 0.42);
     }
 
-    .prompt-item:hover {
-      background: var(--item-hover);
-    }
-
-    .prompt-item.selected {
-      background: var(--item-active);
+    .prompt-card.selected {
+      background: var(--card-selected);
+      border-color: rgba(149, 197, 255, 0.6);
     }
 
     .prompt-icon {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
+      width: 30px;
+      height: 30px;
+      flex: 0 0 30px;
+      border-radius: 7px;
       display: grid;
       place-items: center;
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 700;
       color: #dff0ff;
       background: rgba(43, 61, 84, 0.84);
@@ -155,8 +160,11 @@
       object-fit: cover;
     }
 
-    .prompt-title {
-      font-size: 15px;
+    .prompt-name {
+      flex: 1;
+      min-width: 0;
+      font-size: 13px;
+      line-height: 1.35;
       color: #f3f8ff;
       white-space: nowrap;
       overflow: hidden;
@@ -166,16 +174,14 @@
 </head>
 <body>
   <main class="launcher-shell" id="launcherShell">
-    <div class="input-shell">
-      <input
-        id="queryInput"
-        type="text"
-        autocomplete="off"
-        spellcheck="false"
-        placeholder="输入关键词"
-      />
-    </div>
-    <ul class="result-list" id="resultList"></ul>
+    <input
+      id="queryInput"
+      type="text"
+      autocomplete="off"
+      spellcheck="false"
+      placeholder="输入文本，或粘贴图片/文件"
+    />
+    <section class="result-list" id="resultList"></section>
   </main>
 
   <script>
@@ -184,6 +190,14 @@
       const shell = document.getElementById('launcherShell');
       const queryInput = document.getElementById('queryInput');
       const resultList = document.getElementById('resultList');
+      const layout = {
+        baseWindowHeight: 56,
+        listGap: 8,
+        maxListHeight: 320,
+        resizeRaf: 0,
+        queuedHeight: 0,
+        lastSentHeight: 0,
+      };
 
       const state = {
         prompts: [],
@@ -266,16 +280,69 @@
         return 0;
       }
 
+      function promptContextPriority(prompt, attachmentKind, textPayload) {
+        const type = normalizePromptType(prompt.type);
+
+        if (attachmentKind === 'img') {
+          if (type === 'img') return 2;
+          if (type === 'general') return 1;
+          return 0;
+        }
+
+        if (attachmentKind === 'files') {
+          if (type === 'files') return 2;
+          if (type === 'general') return 1;
+          return 0;
+        }
+
+        if (textPayload) {
+          if (type === 'over') return 2;
+          if (type === 'general') return 1;
+          return 0;
+        }
+
+        return 0;
+      }
+
+      function queueWindowResize(height) {
+        if (!launcherApi.setWindowSize) return;
+        const nextHeight = Math.round(height);
+        if (nextHeight === layout.lastSentHeight && !layout.resizeRaf) return;
+
+        layout.queuedHeight = nextHeight;
+        if (layout.resizeRaf) return;
+
+        layout.resizeRaf = requestAnimationFrame(() => {
+          layout.resizeRaf = 0;
+          if (layout.queuedHeight === layout.lastSentHeight) return;
+          launcherApi.setWindowSize({ height: layout.queuedHeight });
+          layout.lastSentHeight = layout.queuedHeight;
+        });
+      }
+
+      function syncWindowSize() {
+        let nextHeight = layout.baseWindowHeight;
+
+        if (state.showResults) {
+          const listHeight = Math.min(resultList.scrollHeight, layout.maxListHeight);
+          if (listHeight > 0) {
+            nextHeight = layout.baseWindowHeight + layout.listGap + listHeight;
+          }
+        }
+
+        queueWindowResize(nextHeight);
+      }
+
       function updateInputPlaceholder() {
         if (state.attachment?.kind === 'img') {
-          queryInput.placeholder = '已附加图片，输入关键词';
+          queryInput.placeholder = '已附加图片，选择截图/通用助手';
           return;
         }
         if (state.attachment?.kind === 'files') {
-          queryInput.placeholder = '已附加文件，输入关键词';
+          queryInput.placeholder = '已附加文件，选择文件/通用助手';
           return;
         }
-        queryInput.placeholder = '输入关键词';
+        queryInput.placeholder = '输入文本，或粘贴图片/文件';
       }
 
       function setAttachment(attachment) {
@@ -288,23 +355,43 @@
         setAttachment(null);
       }
 
-      function renderList() {
-        const shouldShowList = state.showResults && state.filtered.length > 0;
-        resultList.classList.toggle('visible', shouldShowList);
-        resultList.innerHTML = '';
+      function getPromptIconSource(prompt) {
+        const icon = typeof prompt.icon === 'string' ? prompt.icon : '';
+        if (!icon) return '';
+        if (icon.startsWith('data:')) return icon;
+        return `data:image/png;base64,${icon}`;
+      }
 
-        if (!shouldShowList) return;
+      function renderList() {
+        resultList.innerHTML = '';
+        resultList.classList.toggle('visible', state.showResults);
+
+        if (!state.showResults) {
+          syncWindowSize();
+          return;
+        }
+
+        if (state.filtered.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'result-empty';
+          empty.textContent = '无匹配助手';
+          resultList.appendChild(empty);
+          syncWindowSize();
+          return;
+        }
 
         state.filtered.forEach((prompt, index) => {
-          const item = document.createElement('li');
-          item.className = 'prompt-item';
+          const item = document.createElement('button');
+          item.type = 'button';
+          item.className = 'prompt-card';
           if (index === state.selectedIndex) item.classList.add('selected');
 
           const icon = document.createElement('div');
           icon.className = 'prompt-icon';
-          if (prompt.icon) {
+          const iconSource = getPromptIconSource(prompt);
+          if (iconSource) {
             const img = document.createElement('img');
-            img.src = prompt.icon.startsWith('data:') ? prompt.icon : `data:image/png;base64,${prompt.icon}`;
+            img.src = iconSource;
             img.alt = '';
             img.onerror = () => {
               icon.textContent = String(prompt.code || '?').slice(0, 2).toUpperCase();
@@ -315,7 +402,7 @@
           }
 
           const title = document.createElement('div');
-          title.className = 'prompt-title';
+          title.className = 'prompt-name';
           title.textContent = prompt.code;
 
           item.appendChild(icon);
@@ -331,6 +418,7 @@
           });
 
           item.addEventListener('click', () => {
+            state.selectedIndex = index;
             executeCurrent(true);
           });
 
@@ -338,20 +426,22 @@
         });
 
         scrollSelectedIntoView();
+        syncWindowSize();
       }
 
       function scrollSelectedIntoView() {
         if (state.selectedIndex < 0) return;
-        const selected = resultList.querySelector('.prompt-item.selected');
+        const selected = resultList.querySelector('.prompt-card.selected');
         if (selected && typeof selected.scrollIntoView === 'function') {
           selected.scrollIntoView({ block: 'nearest' });
         }
       }
 
       function applyFilter() {
-        const query = queryInput.value.trim().toLowerCase();
+        const queryText = queryInput.value.trim();
+        const query = queryText.toLowerCase();
         const attachmentKind = state.attachment ? state.attachment.kind : '';
-        const hasSearchContext = query.length > 0 || !!attachmentKind;
+        const hasSearchContext = queryText.length > 0 || !!attachmentKind;
 
         state.showResults = hasSearchContext;
         if (!hasSearchContext) {
@@ -364,17 +454,16 @@
         let list = state.prompts.slice();
         if (attachmentKind) {
           list = list.filter((prompt) => supportsAttachment(prompt, attachmentKind));
-        }
-
-        if (query) {
-          list = list.filter((prompt) => {
-            const code = String(prompt.code || '').toLowerCase();
-            const promptText = String(prompt.prompt || '').toLowerCase();
-            return code.includes(query) || promptText.includes(query);
-          });
+        } else {
+          list = list.filter((prompt) => supportsTextPayload(prompt, queryText));
         }
 
         list.sort((a, b) => {
+          const contextDiff =
+            promptContextPriority(b, attachmentKind, queryText) -
+            promptContextPriority(a, attachmentKind, queryText);
+          if (contextDiff !== 0) return contextDiff;
+
           const scoreDiff = promptScore(b, query) - promptScore(a, query);
           if (scoreDiff !== 0) return scoreDiff;
           return String(a.code || '').localeCompare(String(b.code || ''));
@@ -429,6 +518,14 @@
         if (state.selectedIndex < 0) state.selectedIndex = 0;
         else state.selectedIndex = (state.selectedIndex + step + state.filtered.length) % state.filtered.length;
         renderList();
+      }
+
+      function getGridColumnCount() {
+        if (!resultList.classList.contains('visible')) return 1;
+        const columns = getComputedStyle(resultList).gridTemplateColumns
+          .split(' ')
+          .filter(Boolean);
+        return Math.max(1, columns.length);
       }
 
       function queueWindowMove(x, y) {
@@ -517,9 +614,29 @@
         });
       }
 
+      function isImageFile(file) {
+        const type = String(file?.type || '').toLowerCase();
+        if (type.startsWith('image/')) return true;
+
+        const name = String(file?.name || '').toLowerCase();
+        return /\.(png|jpe?g|webp|gif|bmp|svg)$/.test(name);
+      }
+
       async function consumeFiles(fileList) {
         const files = Array.from(fileList || []);
         if (files.length === 0) return;
+
+        if (files.length === 1 && isImageFile(files[0])) {
+          const dataUrl = await fileToDataUrl(files[0]);
+          if (dataUrl) {
+            setAttachment({
+              kind: 'img',
+              dataUrl,
+              name: files[0].name || 'clipboard-image.png',
+            });
+            return;
+          }
+        }
 
         const filePayload = files
           .map((file) => ({
@@ -531,18 +648,6 @@
 
         if (filePayload.length > 0) {
           setAttachment({ kind: 'files', files: filePayload });
-          return;
-        }
-
-        if (files.length === 1 && String(files[0].type || '').startsWith('image/')) {
-          const dataUrl = await fileToDataUrl(files[0]);
-          if (dataUrl) {
-            setAttachment({
-              kind: 'img',
-              dataUrl,
-              name: files[0].name || 'clipboard-image.png',
-            });
-          }
         }
       }
 
@@ -586,11 +691,23 @@
 
         if (event.key === 'ArrowDown') {
           event.preventDefault();
-          shiftSelection(1);
+          shiftSelection(getGridColumnCount());
           return;
         }
 
         if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          shiftSelection(-getGridColumnCount());
+          return;
+        }
+
+        if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          shiftSelection(1);
+          return;
+        }
+
+        if (event.key === 'ArrowLeft') {
           event.preventDefault();
           shiftSelection(-1);
           return;

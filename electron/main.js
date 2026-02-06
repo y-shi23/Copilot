@@ -15,6 +15,9 @@ const DEFAULT_LAUNCHER_SETTINGS = {
 };
 
 const SUPPORTED_PROMPT_TYPES = new Set(['general', 'over', 'img', 'files']);
+const LAUNCHER_WIDTH = 680;
+const LAUNCHER_HEIGHT = 56;
+const LAUNCHER_MAX_HEIGHT = 420;
 
 function resolveAppFile(...parts) {
   return path.join(app.getAppPath(), ...parts);
@@ -128,15 +131,15 @@ function registerManagedWindow(win) {
 }
 
 function getLauncherBounds() {
-  const width = 760;
-  const height = 420;
+  const width = LAUNCHER_WIDTH;
+  const height = LAUNCHER_HEIGHT;
   const cursor = screen.getCursorScreenPoint();
   const display = screen.getDisplayNearestPoint(cursor) || screen.getPrimaryDisplay();
   const workArea = display.workArea || display.bounds;
   const padding = 12;
 
   const x = Math.round(workArea.x + (workArea.width - width) / 2);
-  const preferredY = Math.round(workArea.y + Math.max(44, workArea.height * 0.12));
+  const preferredY = Math.round(workArea.y + Math.max(96, workArea.height * 0.28));
   const maxY = workArea.y + workArea.height - height - padding;
   const y = Math.max(workArea.y + padding, Math.min(preferredY, maxY));
 
@@ -150,18 +153,18 @@ function createLauncherWindow() {
   const launcherHtml = resolveAppFile('electron', 'launcher.html');
 
   launcherWindow = new BrowserWindow({
-    width: 760,
-    height: 420,
+    width: LAUNCHER_WIDTH,
+    height: LAUNCHER_HEIGHT,
     show: false,
     frame: false,
-    transparent: false,
-    hasShadow: true,
+    transparent: true,
+    hasShadow: false,
     resizable: false,
     minimizable: false,
     maximizable: false,
     alwaysOnTop: true,
     skipTaskbar: true,
-    backgroundColor: '#0f1218',
+    backgroundColor: '#00000000',
     webPreferences: {
       preload: launcherPreload,
       contextIsolation: false,
@@ -567,6 +570,33 @@ ipcMain.on('launcher:set-position', (_event, payload = {}) => {
   const clampedY = Math.max(workArea.y, Math.min(Math.round(y), maxY));
 
   launcherWindow.setPosition(clampedX, clampedY, false);
+});
+
+ipcMain.on('launcher:set-size', (_event, payload = {}) => {
+  if (!launcherWindow || launcherWindow.isDestroyed()) return;
+  const rawHeight = Number(payload.height);
+  if (!Number.isFinite(rawHeight)) return;
+
+  const bounds = launcherWindow.getBounds();
+  const display = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y }) || screen.getPrimaryDisplay();
+  const workArea = display.workArea || display.bounds;
+  const maxAllowedHeight = Math.max(
+    LAUNCHER_HEIGHT,
+    Math.min(LAUNCHER_MAX_HEIGHT, workArea.height - 12)
+  );
+  const nextHeight = Math.max(
+    LAUNCHER_HEIGHT,
+    Math.min(Math.round(rawHeight), maxAllowedHeight)
+  );
+  const maxY = workArea.y + workArea.height - nextHeight;
+  const nextY = Math.max(workArea.y, Math.min(bounds.y, maxY));
+
+  launcherWindow.setBounds({
+    x: bounds.x,
+    y: nextY,
+    width: bounds.width,
+    height: nextHeight,
+  }, false);
 });
 
 ipcMain.on('launcher:execute', (_event, action = {}) => {
