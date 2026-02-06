@@ -9,6 +9,8 @@ function readClipboardImageDataUrl() {
 window.launcherApi = {
   platform: process.platform,
   getPrompts: () => ipcRenderer.invoke('launcher:get-prompts'),
+  getWindowBounds: () => ipcRenderer.invoke('launcher:get-bounds'),
+  setWindowPosition: ({ x, y }) => ipcRenderer.send('launcher:set-position', { x, y }),
   execute: (action) => ipcRenderer.send('launcher:execute', action),
   close: () => ipcRenderer.send('launcher:close'),
   toggle: () => ipcRenderer.send('launcher:toggle'),

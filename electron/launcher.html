@@ -6,18 +6,18 @@
   <title>Anywhere Launcher</title>
   <style>
     :root {
-      --bg-main: #11161f;
-      --bg-card: rgba(26, 34, 46, 0.86);
-      --bg-card-hover: rgba(37, 49, 67, 0.95);
-      --border: rgba(130, 168, 224, 0.26);
-      --text-main: #f6f9ff;
-      --text-sub: rgba(214, 227, 246, 0.72);
-      --accent: #77c3ff;
-      --danger: #ff8e8e;
+      --bg-main: #0f131b;
+      --border: rgba(136, 169, 217, 0.3);
+      --border-active: rgba(134, 194, 255, 0.76);
+      --text-main: #eff6ff;
+      --text-sub: rgba(202, 220, 244, 0.82);
+      --item-hover: rgba(58, 85, 122, 0.42);
+      --item-active: rgba(82, 120, 170, 0.55);
     }
 
     * {
       box-sizing: border-box;
+      user-select: none;
     }
 
     html,
@@ -38,144 +38,64 @@
     .launcher-shell {
       width: 100%;
       height: 100%;
-      border-radius: 18px;
+      border-radius: 16px;
       border: 1px solid var(--border);
       background:
-        radial-gradient(circle at 88% 4%, rgba(133, 193, 255, 0.16), transparent 42%),
-        radial-gradient(circle at 8% 98%, rgba(118, 244, 212, 0.12), transparent 45%),
-        linear-gradient(164deg, #0f141d 0%, #151d29 62%, #0f1521 100%);
+        radial-gradient(circle at 92% 8%, rgba(127, 189, 255, 0.13), transparent 40%),
+        radial-gradient(circle at 10% 98%, rgba(112, 229, 210, 0.1), transparent 46%),
+        linear-gradient(164deg, #0d1118 0%, #141c27 62%, #0e1420 100%);
       box-shadow:
-        0 30px 72px rgba(3, 6, 10, 0.42),
-        0 12px 24px rgba(2, 5, 8, 0.5);
+        0 22px 60px rgba(2, 5, 8, 0.45),
+        0 10px 22px rgba(2, 5, 8, 0.5);
+      padding: 14px;
       display: grid;
-      grid-template-rows: auto auto auto 1fr auto auto;
+      grid-template-rows: auto 1fr;
       gap: 10px;
-      padding: 16px;
-      position: relative;
       overflow: hidden;
-      -webkit-app-region: drag;
+      cursor: grab;
     }
 
-    .launcher-shell::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      background-image: radial-gradient(rgba(255, 255, 255, 0.05) 0.75px, transparent 0.75px);
-      background-size: 3px 3px;
-      opacity: 0.25;
-      mix-blend-mode: soft-light;
-    }
-
-    .header {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      position: relative;
-      z-index: 1;
-    }
-
-    .title {
-      font-size: 31px;
-      font-weight: 700;
-      letter-spacing: 0.02em;
-      color: #dff2ff;
-    }
-
-    .meta {
-      font-size: 12px;
-      color: var(--text-sub);
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+    .launcher-shell.dragging {
+      cursor: grabbing;
     }
 
     .input-shell {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .no-drag {
-      -webkit-app-region: no-drag;
+      width: 100%;
     }
 
     #queryInput {
-      flex: 1;
-      border: 1px solid rgba(147, 183, 230, 0.26);
+      width: 100%;
+      border: 1px solid rgba(143, 180, 230, 0.34);
       border-radius: 12px;
-      background: rgba(17, 24, 35, 0.9);
+      background: rgba(15, 22, 33, 0.9);
       color: var(--text-main);
       font-size: 17px;
       padding: 12px 14px;
       outline: none;
-      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+      transition: border-color 0.16s ease, box-shadow 0.16s ease;
       font-family: inherit;
+      user-select: text;
+      cursor: text;
     }
 
     #queryInput::placeholder {
-      color: rgba(195, 215, 242, 0.48);
+      color: rgba(191, 212, 240, 0.56);
     }
 
     #queryInput:focus {
-      border-color: rgba(132, 198, 255, 0.8);
-      box-shadow: 0 0 0 3px rgba(119, 195, 255, 0.16);
-    }
-
-    #clearAttachmentBtn {
-      border: 1px solid rgba(140, 178, 226, 0.32);
-      background: rgba(22, 30, 43, 0.92);
-      color: var(--text-main);
-      border-radius: 10px;
-      padding: 9px 12px;
-      font-size: 13px;
-      cursor: pointer;
-      transition: background 0.18s ease, border-color 0.18s ease;
-      font-family: inherit;
-    }
-
-    #clearAttachmentBtn:hover {
-      background: rgba(35, 47, 66, 0.96);
-      border-color: rgba(154, 199, 255, 0.58);
-    }
-
-    .payload-bar {
-      display: none;
-      align-items: center;
-      justify-content: space-between;
-      border-radius: 10px;
-      border: 1px solid rgba(130, 178, 238, 0.22);
-      padding: 9px 12px;
-      background: rgba(18, 25, 37, 0.82);
-      color: #d9ecff;
-      font-size: 13px;
-      position: relative;
-      z-index: 1;
-    }
-
-    .payload-bar.visible {
-      display: flex;
-    }
-
-    .payload-kind {
-      color: var(--accent);
-      margin-right: 8px;
-      font-weight: 600;
-      letter-spacing: 0.03em;
+      border-color: var(--border-active);
+      box-shadow: 0 0 0 3px rgba(129, 192, 255, 0.18);
     }
 
     .result-list {
-      display: none;
       margin: 0;
       padding: 0;
       list-style: none;
       overflow: auto;
-      position: relative;
-      z-index: 1;
       border-radius: 12px;
-      border: 1px solid rgba(134, 173, 230, 0.18);
-      background: rgba(10, 14, 21, 0.45);
+      border: 1px solid rgba(132, 170, 224, 0.2);
+      background: rgba(11, 16, 24, 0.5);
+      display: none;
     }
 
     .result-list.visible {
@@ -188,43 +108,43 @@
 
     .result-list::-webkit-scrollbar-thumb {
       border-radius: 8px;
-      background: rgba(126, 166, 220, 0.3);
+      background: rgba(127, 168, 224, 0.34);
     }
 
     .prompt-item {
       display: grid;
-      grid-template-columns: auto 1fr auto;
+      grid-template-columns: auto 1fr;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       padding: 10px 12px;
-      border-bottom: 1px solid rgba(120, 157, 209, 0.14);
+      border-bottom: 1px solid rgba(120, 157, 209, 0.12);
       cursor: pointer;
-      transition: background 0.16s ease;
+      transition: background 0.14s ease;
     }
 
     .prompt-item:last-child {
       border-bottom: none;
     }
 
-    .prompt-item.selected {
-      background: rgba(67, 96, 136, 0.38);
+    .prompt-item:hover {
+      background: var(--item-hover);
     }
 
-    .prompt-item:hover {
-      background: var(--bg-card-hover);
+    .prompt-item.selected {
+      background: var(--item-active);
     }
 
     .prompt-icon {
-      width: 34px;
-      height: 34px;
-      border-radius: 10px;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
       display: grid;
       place-items: center;
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 700;
-      color: #dbeeff;
-      background: rgba(41, 57, 79, 0.85);
-      border: 1px solid rgba(133, 174, 232, 0.28);
+      color: #dff0ff;
+      background: rgba(43, 61, 84, 0.84);
+      border: 1px solid rgba(134, 174, 230, 0.3);
       overflow: hidden;
       user-select: none;
     }
@@ -238,100 +158,24 @@
     .prompt-title {
       font-size: 15px;
       color: #f3f8ff;
-      margin-bottom: 2px;
-    }
-
-    .prompt-desc {
-      font-size: 12px;
-      color: var(--text-sub);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-    }
-
-    .prompt-tag {
-      font-size: 11px;
-      color: #b9ddff;
-      border: 1px solid rgba(130, 193, 255, 0.42);
-      border-radius: 999px;
-      padding: 4px 10px;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-
-    .empty-state {
-      padding: 26px 16px;
-      color: var(--text-sub);
-      font-size: 14px;
-      text-align: center;
-    }
-
-    .status-line {
-      min-height: 18px;
-      font-size: 12px;
-      color: var(--text-sub);
-      position: relative;
-      z-index: 1;
-    }
-
-    .status-line.error {
-      color: var(--danger);
-    }
-
-    .footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      font-size: 11px;
-      color: rgba(205, 223, 248, 0.64);
-      letter-spacing: 0.03em;
-      position: relative;
-      z-index: 1;
-      flex-wrap: wrap;
-    }
-
-    .drag-over {
-      border-color: rgba(126, 208, 255, 0.72);
-      box-shadow: 0 0 0 2px rgba(119, 195, 255, 0.22) inset;
     }
   </style>
 </head>
 <body>
   <main class="launcher-shell" id="launcherShell">
-    <header class="header">
-      <div class="title">快捷助手</div>
-      <div class="meta" id="resultCount">0 / 0</div>
-    </header>
-
-    <div class="input-shell no-drag">
+    <div class="input-shell">
       <input
         id="queryInput"
         type="text"
         autocomplete="off"
         spellcheck="false"
-        placeholder="输入文本、粘贴图片或拖拽文件，回车执行"
+        placeholder="输入关键词"
       />
-      <button id="clearAttachmentBtn" type="button" hidden>清除附件</button>
     </div>
-
-    <div class="payload-bar no-drag" id="payloadBar">
-      <div>
-        <span class="payload-kind" id="payloadKind"></span>
-        <span id="payloadText"></span>
-      </div>
-      <span>仅显示可处理该输入的助手</span>
-    </div>
-
-    <ul class="result-list no-drag" id="resultList"></ul>
-
-    <div class="status-line no-drag" id="statusLine"></div>
-
-    <footer class="footer no-drag">
-      <span id="shortcutHint">Enter 发送文本，Ctrl+Enter 仅按名称启动</span>
-      <span>支持粘贴图片 / 拖拽文件</span>
-    </footer>
+    <ul class="result-list" id="resultList"></ul>
   </main>
 
   <script>
@@ -340,13 +184,6 @@
       const shell = document.getElementById('launcherShell');
       const queryInput = document.getElementById('queryInput');
       const resultList = document.getElementById('resultList');
-      const resultCount = document.getElementById('resultCount');
-      const statusLine = document.getElementById('statusLine');
-      const payloadBar = document.getElementById('payloadBar');
-      const payloadKind = document.getElementById('payloadKind');
-      const payloadText = document.getElementById('payloadText');
-      const clearAttachmentBtn = document.getElementById('clearAttachmentBtn');
-      const shortcutHint = document.getElementById('shortcutHint');
 
       const state = {
         prompts: [],
@@ -356,8 +193,20 @@
         showResults: false,
       };
 
-      const cmdKey = launcherApi.platform === 'darwin' ? 'Cmd' : 'Ctrl';
-      shortcutHint.textContent = `Enter 发送文本，${cmdKey}+Enter 仅按名称启动`;
+      const drag = {
+        pointerId: null,
+        pointerDown: false,
+        dragging: false,
+        startScreenX: 0,
+        startScreenY: 0,
+        startWindowX: 0,
+        startWindowY: 0,
+        currentWindowX: 0,
+        currentWindowY: 0,
+        suppressClickUntil: 0,
+        moveRaf: 0,
+        queuedMove: null,
+      };
 
       function normalizePromptType(rawType) {
         const value = String(rawType || 'general').toLowerCase();
@@ -367,18 +216,10 @@
         return value;
       }
 
-      function typeTag(type) {
-        if (type === 'over') return 'TEXT';
-        if (type === 'img') return 'IMAGE';
-        if (type === 'files') return 'FILES';
-        return 'GENERAL';
-      }
-
       function parseRegexLiteral(value) {
         if (typeof value !== 'string') return null;
         const trimmed = value.trim();
-        if (!trimmed) return null;
-        if (!trimmed.startsWith('/')) return null;
+        if (!trimmed || !trimmed.startsWith('/')) return null;
 
         const tail = trimmed.lastIndexOf('/');
         if (tail <= 0) return null;
@@ -425,31 +266,21 @@
         return 0;
       }
 
-      function setStatus(message, isError = false) {
-        statusLine.textContent = message || '';
-        statusLine.classList.toggle('error', !!message && isError);
+      function updateInputPlaceholder() {
+        if (state.attachment?.kind === 'img') {
+          queryInput.placeholder = '已附加图片，输入关键词';
+          return;
+        }
+        if (state.attachment?.kind === 'files') {
+          queryInput.placeholder = '已附加文件，输入关键词';
+          return;
+        }
+        queryInput.placeholder = '输入关键词';
       }
 
       function setAttachment(attachment) {
         state.attachment = attachment;
-        clearAttachmentBtn.hidden = !attachment;
-
-        if (!attachment) {
-          payloadBar.classList.remove('visible');
-          payloadKind.textContent = '';
-          payloadText.textContent = '';
-          applyFilter();
-          return;
-        }
-
-        payloadBar.classList.add('visible');
-        if (attachment.kind === 'img') {
-          payloadKind.textContent = 'IMAGE';
-          payloadText.textContent = attachment.name || '剪贴板图片';
-        } else {
-          payloadKind.textContent = 'FILES';
-          payloadText.textContent = `${attachment.files.length} 个文件`;
-        }
+        updateInputPlaceholder();
         applyFilter();
       }
 
@@ -458,39 +289,22 @@
       }
 
       function renderList() {
-        resultList.classList.toggle('visible', state.showResults);
-        if (!state.showResults) {
-          resultList.innerHTML = '';
-          return;
-        }
-
+        const shouldShowList = state.showResults && state.filtered.length > 0;
+        resultList.classList.toggle('visible', shouldShowList);
         resultList.innerHTML = '';
 
-        if (state.filtered.length === 0) {
-          const empty = document.createElement('li');
-          empty.className = 'empty-state';
-          empty.textContent = state.prompts.length === 0
-            ? '未检测到可用助手，请先在设置中启用。'
-            : '无匹配项，可更换关键词或清除附件。';
-          resultList.appendChild(empty);
-          return;
-        }
+        if (!shouldShowList) return;
 
         state.filtered.forEach((prompt, index) => {
           const item = document.createElement('li');
           item.className = 'prompt-item';
-          if (index === state.selectedIndex) {
-            item.classList.add('selected');
-          }
+          if (index === state.selectedIndex) item.classList.add('selected');
 
           const icon = document.createElement('div');
           icon.className = 'prompt-icon';
           if (prompt.icon) {
             const img = document.createElement('img');
-            const source = prompt.icon.startsWith('data:')
-              ? prompt.icon
-              : `data:image/png;base64,${prompt.icon}`;
-            img.src = source;
+            img.src = prompt.icon.startsWith('data:') ? prompt.icon : `data:image/png;base64,${prompt.icon}`;
             img.alt = '';
             img.onerror = () => {
               icon.textContent = String(prompt.code || '?').slice(0, 2).toUpperCase();
@@ -500,23 +314,12 @@
             icon.textContent = String(prompt.code || '?').slice(0, 2).toUpperCase();
           }
 
-          const info = document.createElement('div');
           const title = document.createElement('div');
           title.className = 'prompt-title';
           title.textContent = prompt.code;
-          const desc = document.createElement('div');
-          desc.className = 'prompt-desc';
-          desc.textContent = prompt.prompt || '无描述';
-          info.appendChild(title);
-          info.appendChild(desc);
-
-          const tag = document.createElement('div');
-          tag.className = 'prompt-tag';
-          tag.textContent = typeTag(normalizePromptType(prompt.type));
 
           item.appendChild(icon);
-          item.appendChild(info);
-          item.appendChild(tag);
+          item.appendChild(title);
 
           item.addEventListener('mouseenter', () => {
             state.selectedIndex = index;
@@ -554,8 +357,6 @@
         if (!hasSearchContext) {
           state.filtered = [];
           state.selectedIndex = -1;
-          resultCount.textContent = `0 / ${state.prompts.length}`;
-          setStatus('');
           renderList();
           return;
         }
@@ -586,7 +387,6 @@
           state.selectedIndex = 0;
         }
 
-        resultCount.textContent = `${state.filtered.length} / ${state.prompts.length}`;
         renderList();
       }
 
@@ -613,16 +413,15 @@
 
         const query = queryInput.value.trim();
         if (state.attachment && !supportsAttachment(prompt, state.attachment.kind)) {
-          setStatus('该助手不支持当前附件类型。', true);
           return;
         }
 
-        if (!state.attachment && useTextPayload && query && !supportsTextPayload(prompt, query)) {
-          setStatus(`该助手不支持文本输入，按 ${cmdKey}+Enter 可仅按名称启动。`, true);
-          return;
+        let shouldUseTextPayload = useTextPayload;
+        if (!state.attachment && shouldUseTextPayload && query && !supportsTextPayload(prompt, query)) {
+          shouldUseTextPayload = false;
         }
 
-        launcherApi.execute(buildAction(prompt, useTextPayload));
+        launcherApi.execute(buildAction(prompt, shouldUseTextPayload));
       }
 
       function shiftSelection(step) {
@@ -630,6 +429,83 @@
         if (state.selectedIndex < 0) state.selectedIndex = 0;
         else state.selectedIndex = (state.selectedIndex + step + state.filtered.length) % state.filtered.length;
         renderList();
+      }
+
+      function queueWindowMove(x, y) {
+        drag.queuedMove = { x, y };
+        if (drag.moveRaf) return;
+
+        drag.moveRaf = requestAnimationFrame(() => {
+          drag.moveRaf = 0;
+          if (!drag.queuedMove) return;
+          const target = drag.queuedMove;
+          drag.queuedMove = null;
+          launcherApi.setWindowPosition(target);
+          drag.currentWindowX = target.x;
+          drag.currentWindowY = target.y;
+        });
+      }
+
+      async function syncWindowBounds() {
+        try {
+          const bounds = await launcherApi.getWindowBounds();
+          if (!bounds) return;
+          drag.currentWindowX = Number(bounds.x) || 0;
+          drag.currentWindowY = Number(bounds.y) || 0;
+        } catch (_error) {
+          // ignore
+        }
+      }
+
+      function handlePointerDown(event) {
+        if (event.button !== 0) return;
+        drag.pointerId = event.pointerId;
+        drag.pointerDown = true;
+        drag.dragging = false;
+        drag.startScreenX = event.screenX;
+        drag.startScreenY = event.screenY;
+        drag.startWindowX = drag.currentWindowX;
+        drag.startWindowY = drag.currentWindowY;
+
+        launcherApi.getWindowBounds().then((bounds) => {
+          if (!drag.pointerDown || drag.pointerId !== event.pointerId || !bounds) return;
+          drag.currentWindowX = Number(bounds.x) || drag.currentWindowX;
+          drag.currentWindowY = Number(bounds.y) || drag.currentWindowY;
+          drag.startWindowX = drag.currentWindowX;
+          drag.startWindowY = drag.currentWindowY;
+        }).catch(() => {});
+      }
+
+      function handlePointerMove(event) {
+        if (!drag.pointerDown || event.pointerId !== drag.pointerId) return;
+
+        const deltaX = event.screenX - drag.startScreenX;
+        const deltaY = event.screenY - drag.startScreenY;
+
+        if (!drag.dragging && Math.abs(deltaX) + Math.abs(deltaY) >= 3) {
+          drag.dragging = true;
+          shell.classList.add('dragging');
+        }
+
+        if (!drag.dragging) return;
+
+        queueWindowMove(
+          Math.round(drag.startWindowX + deltaX),
+          Math.round(drag.startWindowY + deltaY)
+        );
+      }
+
+      function handlePointerEnd(event) {
+        if (!drag.pointerDown || event.pointerId !== drag.pointerId) return;
+
+        if (drag.dragging) {
+          drag.suppressClickUntil = Date.now() + 120;
+          event.preventDefault();
+        }
+
+        drag.pointerDown = false;
+        drag.dragging = false;
+        shell.classList.remove('dragging');
       }
 
       function fileToDataUrl(file) {
@@ -655,7 +531,6 @@
 
         if (filePayload.length > 0) {
           setAttachment({ kind: 'files', files: filePayload });
-          setStatus(`已附加 ${filePayload.length} 个文件。`);
           return;
         }
 
@@ -667,12 +542,8 @@
               dataUrl,
               name: files[0].name || 'clipboard-image.png',
             });
-            setStatus('已附加图片。');
-            return;
           }
         }
-
-        setStatus('无法读取该附件，请尝试拖拽本地文件或直接粘贴图片。', true);
       }
 
       async function refreshPrompts() {
@@ -681,42 +552,34 @@
           state.prompts = Array.isArray(prompts) ? prompts : [];
           state.selectedIndex = 0;
           applyFilter();
-          if (state.prompts.length === 0) {
-            setStatus('暂无可用助手。');
-          } else {
-            setStatus('');
-          }
-        } catch (error) {
+        } catch (_error) {
           state.prompts = [];
           state.filtered = [];
           state.selectedIndex = -1;
           renderList();
-          resultCount.textContent = '0 / 0';
-          setStatus(`加载助手失败: ${String(error?.message || error)}`, true);
         }
       }
 
       async function resetAndRefresh() {
         queryInput.value = '';
-        setAttachment(null);
+        clearAttachment();
         await refreshPrompts();
+        await syncWindowBounds();
         queryInput.focus();
         queryInput.select();
       }
 
-      clearAttachmentBtn.addEventListener('click', () => {
-        clearAttachment();
-        queryInput.focus();
-      });
-
       queryInput.addEventListener('input', () => {
-        setStatus('');
         applyFilter();
       });
 
       document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape') {
           event.preventDefault();
+          if (state.attachment) {
+            clearAttachment();
+            return;
+          }
           launcherApi.close();
           return;
         }
@@ -741,21 +604,25 @@
         }
       });
 
-      window.addEventListener('dragover', (event) => {
-        event.preventDefault();
-        shell.classList.add('drag-over');
-      });
+      document.addEventListener('pointerdown', handlePointerDown, true);
+      document.addEventListener('pointermove', handlePointerMove, true);
+      document.addEventListener('pointerup', handlePointerEnd, true);
+      document.addEventListener('pointercancel', handlePointerEnd, true);
 
-      window.addEventListener('dragleave', (event) => {
-        if (!shell.contains(event.relatedTarget)) {
-          shell.classList.remove('drag-over');
+      document.addEventListener('click', (event) => {
+        if (Date.now() < drag.suppressClickUntil) {
+          event.preventDefault();
+          event.stopPropagation();
         }
-      });
+      }, true);
 
       window.addEventListener('drop', async (event) => {
         event.preventDefault();
-        shell.classList.remove('drag-over');
         await consumeFiles(event.dataTransfer?.files);
+      });
+
+      window.addEventListener('dragover', (event) => {
+        event.preventDefault();
       });
 
       window.addEventListener('paste', async (event) => {
@@ -774,7 +641,6 @@
             dataUrl: imageData,
             name: 'clipboard-image.png',
           });
-          setStatus('已附加剪贴板图片。');
         }
       });
 
@@ -786,6 +652,7 @@
         queryInput.focus();
       });
 
+      updateInputPlaceholder();
       resetAndRefresh();
     })();
   </script>

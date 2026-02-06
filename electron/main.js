@@ -547,6 +547,28 @@ ipcMain.on('launcher:toggle', () => {
   toggleLauncherWindow();
 });
 
+ipcMain.handle('launcher:get-bounds', () => {
+  if (!launcherWindow || launcherWindow.isDestroyed()) return null;
+  return launcherWindow.getBounds();
+});
+
+ipcMain.on('launcher:set-position', (_event, payload = {}) => {
+  if (!launcherWindow || launcherWindow.isDestroyed()) return;
+  const x = Number(payload.x);
+  const y = Number(payload.y);
+  if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+
+  const bounds = launcherWindow.getBounds();
+  const display = screen.getDisplayNearestPoint({ x, y }) || screen.getPrimaryDisplay();
+  const workArea = display.workArea || display.bounds;
+  const maxX = workArea.x + workArea.width - bounds.width;
+  const maxY = workArea.y + workArea.height - bounds.height;
+  const clampedX = Math.max(workArea.x, Math.min(Math.round(x), maxX));
+  const clampedY = Math.max(workArea.y, Math.min(Math.round(y), maxY));
+
+  launcherWindow.setPosition(clampedX, clampedY, false);
+});
+
 ipcMain.on('launcher:execute', (_event, action = {}) => {
   hideLauncherWindow();
   if (!mainWindow || mainWindow.isDestroyed()) return;
