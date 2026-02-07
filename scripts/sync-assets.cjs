@@ -54,10 +54,10 @@ function copyDirectoryContents(src, dest) {
 }
 
 function syncAssets() {
-  const mainSrc = path.join(root, 'Anywhere_main', 'dist');
-  const windowSrc = path.join(root, 'Anywhere_window', 'dist');
-  const backendSrc = path.join(root, 'backend', 'public');
-  const fastWindowSrc = path.join(root, 'Fast_window');
+  const mainSrc = path.join(root, 'apps', 'main', 'dist');
+  const windowSrc = path.join(root, 'apps', 'window', 'dist');
+  const backendSrc = path.join(root, 'apps', 'backend', 'public');
+  const fastWindowSrc = path.join(root, 'apps', 'fast-window');
 
   const mainDest = path.join(releaseDir, 'main');
   const windowDest = path.join(releaseDir, 'window');

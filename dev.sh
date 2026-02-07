@@ -127,8 +127,8 @@ build_project() {
 
     if [ "$REBUILD" = true ]; then
         log_info "清理构建缓存..."
-        rm -rf Anywhere_main/dist
-        rm -rf Anywhere_window/dist
+        rm -rf apps/main/dist
+        rm -rf apps/window/dist
         rm -rf v2.0.0/main
         rm -rf v2.0.0/window
         rm -rf v2.0.0/fast_window

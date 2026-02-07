@@ -7,12 +7,12 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-/Anywhere_main/node_modules
-/Anywhere_window/node_modules
-/Anywhere_main/dist
-/Anywhere_window/dist
-/backend/node_modules
-/backend/public
+/apps/main/node_modules
+/apps/window/node_modules
+/apps/main/dist
+/apps/window/dist
+/apps/backend/node_modules
+/apps/backend/public
 /node_modules
 .DS_Store
 dist
