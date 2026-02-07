@@ -101,7 +101,7 @@ const logoColor = computed(() => {
 
 <style scoped>
 .model-header {
-  height: 40px; 
+  height: 46px;
   width: 100%;
   padding: 0 16px;
   flex-shrink: 0;
@@ -119,9 +119,9 @@ const logoColor = computed(() => {
 .header-content-group {
   display: flex;
   align-items: center;
-  gap: 0px; /* 由分隔线控制间距 */
-  flex: 1; 
-  min-width: 0; 
+  gap: 0px;
+  flex: 1;
+  min-width: 0;
 }
 
 /* 垂直分隔线样式 */
@@ -129,7 +129,7 @@ const logoColor = computed(() => {
   width: 1px;
   height: 14px;
   background-color: var(--el-border-color);
-  margin: 0 8px; /* 左右间距 */
+  margin: 0 10px;
   flex-shrink: 0;
 }
 
@@ -138,23 +138,23 @@ const logoColor = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
-  background-color: transparent; /* 默认透明 */
-  border-radius: 12px;
+  padding: 5px 10px;
+  background-color: transparent;
+  border-radius: 999px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.5, 1);
+  transition: all 0.2s ease;
   user-select: none;
-  height: 20px; 
-  box-sizing: content-box; 
-  flex-shrink: 0; 
+  height: 22px;
+  box-sizing: content-box;
+  flex-shrink: 0;
 }
 
 .model-pill:hover {
-  background-color: var(--el-fill-color); /* Hover 显示背景 */
+  background-color: var(--el-fill-color-light);
 }
 
 .model-pill:active {
-  transform: scale(0.98);
+  transform: none;
 }
 
 .model-pill.is-disabled {
@@ -170,20 +170,20 @@ const logoColor = computed(() => {
   max-width: 0;
   overflow: hidden;
   opacity: 0;
-  transition: max-width 0.3s cubic-bezier(0.25, 0.8, 0.5, 1), opacity 0.2s ease;
+  transition: max-width 0.24s ease, opacity 0.2s ease;
 }
 
 /* 悬浮时展开 OR 加载时展开 */
 .expandable-pill:hover .expandable-content,
 .expandable-pill.is-loading .expandable-content {
-  max-width: 250px; 
+  max-width: 260px;
   opacity: 1;
 }
 
 .expandable-pill:hover,
 .expandable-pill.is-loading {
-  padding-right: 12px; 
-  background-color: var(--el-fill-color); /* 加载时保持背景色 */
+  padding-right: 12px;
+  background-color: var(--el-fill-color-light);
 }
 
 /* 旋转动画 */
@@ -214,15 +214,14 @@ const logoColor = computed(() => {
 
 /* === 系统提示词样式 === */
 .prompt-pill {
-  color: var(--el-text-color-regular); 
-  background-color: transparent; 
-  
-  flex: 1; 
-  min-width: 0; 
+  color: var(--el-text-color-regular);
+  background-color: transparent;
+  flex: 1;
+  min-width: 0;
 }
 
 .prompt-pill:hover {
-  background-color: var(--el-fill-color); 
+  background-color: var(--el-fill-color-light);
 }
 
 .prompt-icon {
@@ -248,7 +247,7 @@ html.dark .prompt-text {
 
 /* 通用文本样式 */
 .model-text {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -265,14 +264,14 @@ html.dark .prompt-text {
 /* 新增：图标按钮样式 */
 .icon-pill {
   color: var(--el-text-color-secondary);
-  flex: 0 0 auto; 
+  flex: 0 0 auto;
   width: 28px;
   justify-content: center;
   margin-left: 2px;
 }
 
 .icon-pill:hover {
-  background-color: var(--el-fill-color);
+  background-color: var(--el-fill-color-light);
   color: var(--el-text-color-primary);
 }
 

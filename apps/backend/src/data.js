@@ -2,6 +2,8 @@ const { webFrame, nativeImage, ipcRenderer } = require('electron');
 const crypto = require('crypto');
 const windowMap = new Map();
 const feature_suffix = "anywhere助手^_^"
+const MIN_CHAT_WINDOW_WIDTH = 400;
+const MIN_CHAT_WINDOW_HEIGHT = 640;
 
 const {
   requestTextOpenAI
@@ -802,6 +804,8 @@ function getPosition(config, promptCode) {
   // 强制转换为 Number，防止 undefined 或 null 导致 NaN
   let width = Number(promptConfig?.window_width) || 580;
   let height = Number(promptConfig?.window_height) || 740;
+  width = Math.max(width, MIN_CHAT_WINDOW_WIDTH);
+  height = Math.max(height, MIN_CHAT_WINDOW_HEIGHT);
   let windowX = 0, windowY = 0;
 
   const primaryDisplay = utools.getPrimaryDisplay();
@@ -919,6 +923,8 @@ async function openWindow(config, msg) {
   const senderId = crypto.randomUUID();
   msg.senderId = senderId;
   msg.isAlwaysOnTop = isAlwaysOnTop;
+  const effectiveMinWidth = Math.min(MIN_CHAT_WINDOW_WIDTH, width);
+  const effectiveMinHeight = Math.min(MIN_CHAT_WINDOW_HEIGHT, height);
 
   const windowOptions = {
     show: false,
@@ -926,6 +932,8 @@ async function openWindow(config, msg) {
     title: "Anywhere",
     width: width,
     height: height,
+    minWidth: effectiveMinWidth,
+    minHeight: effectiveMinHeight,
     alwaysOnTop: isAlwaysOnTop,
     x: x,
     y: y,
@@ -989,10 +997,24 @@ async function savePromptWindowSettings(promptKey, settings) {
       return { success: false, message: `Prompt with key '${promptKey}' not found in document` };
     }
 
+    const normalizedSettings = { ...settings };
+    if (normalizedSettings.window_width != null) {
+      const parsedWidth = Number(normalizedSettings.window_width);
+      if (Number.isFinite(parsedWidth)) {
+        normalizedSettings.window_width = Math.max(parsedWidth, MIN_CHAT_WINDOW_WIDTH);
+      }
+    }
+    if (normalizedSettings.window_height != null) {
+      const parsedHeight = Number(normalizedSettings.window_height);
+      if (Number.isFinite(parsedHeight)) {
+        normalizedSettings.window_height = Math.max(parsedHeight, MIN_CHAT_WINDOW_HEIGHT);
+      }
+    }
+
     // 将新的设置合并到现有的快捷助手配置中
     promptsData[promptKey] = {
       ...promptsData[promptKey],
-      ...settings
+      ...normalizedSettings
     };
 
     // 尝试保存更新后的文档

@@ -207,7 +207,7 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 
 <style scoped>
 .title-bar {
-  height: 40px; 
+  height: 44px;
   width: 100%;
   display: flex;
   justify-content: space-between;
@@ -216,8 +216,8 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
   user-select: none;
   -webkit-app-region: drag;
   box-sizing: border-box;
-  padding: 0 0 0 16px;
-  font-size: 13px;
+  padding: 0 10px 0 14px;
+  font-size: 12px;
   color: var(--el-text-color-primary);
   flex-shrink: 0;
   z-index: 100;
@@ -235,11 +235,10 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 .left-container {
   display: flex;
   align-items: center;
-  /* flex: 1; */ 
-  flex-shrink: 1; /* 允许收缩 */
+  flex-shrink: 1;
   min-width: 0;
-  gap: 8px; /* 减小间距 */
-  margin-right: 10px; /* 保证与右侧至少有间距 */
+  gap: 7px;
+  margin-right: 10px;
 }
 
 .right-container {
@@ -248,7 +247,7 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
   justify-content: flex-end;
   flex-shrink: 0;
   height: 100%;
-  margin-left: auto; /* 将右侧容器推到最右边，中间留出拖拽空隙 */
+  margin-left: auto;
 }
 
 /* App Info & Conversation Title */
@@ -257,14 +256,14 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  padding: 4px 6px;
-  border-radius: 6px;
-  transition: background-color 0.2s;
-  height: 24px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  transition: background-color 0.18s ease;
+  height: 26px;
 }
 
 .app-info-inner:hover, .conversation-inner:hover {
-  background-color: var(--el-fill-color);
+  background-color: var(--el-fill-color-light);
 }
 
 .app-logo {
@@ -275,7 +274,7 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 
 .app-title {
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
   line-height: 1;
   padding-top: 2px; 
@@ -290,7 +289,7 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 
 .conversation-title {
   font-weight: 500;
-  font-size: 13px;
+  font-size: 12px;
   color: var(--el-text-color-regular);
   max-width: 90px; 
   white-space: nowrap;
@@ -308,7 +307,7 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 
 .divider-vertical {
   width: 1px;
-  height: 14px;
+  height: 16px;
   background-color: var(--el-border-color);
   flex-shrink: 0;
 }
@@ -316,27 +315,27 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 /* ============ 功能按钮 (Pin, Top) ============ */
 .function-group {
   display: flex;
-  gap: 0px;
-  margin-right:4px;
+  gap: 2px;
+  margin-right: 2px;
   align-items: center;
   height: 100%;
 }
 
 .func-btn {
-  width: 40px;
+  width: 34px;
   height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
+  border-radius: 999px;
   cursor: default;
   color: var(--el-text-color-secondary);
-  transition: background-color 0.1s;
+  transition: all 0.16s ease;
   background-color: transparent;
 }
 
 .func-btn:hover {
-  background-color: rgba(0, 0, 0, 0.05);
+  background-color: var(--el-fill-color-light);
   color: var(--el-text-color-primary);
 }
 
@@ -380,28 +379,28 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 /* ============ Windows 样式 ============ */
 .win-controls {
   display: flex;
-  gap: 0px; /* Windows 原生风格按钮通常是紧挨着的 */
-  margin-right: 0px; /* Windows 按钮通常靠边 */
+  gap: 2px;
+  margin-right: 2px;
   align-items: center;
   height: 100%;
-  margin-left:4px;
+  margin-left: 4px;
 }
 
 .win-btn {
-  width: 40px; /* Windows 标准宽度较大 */
-  height: 32px;
-  /* border-radius: 6px; */ /* Windows 按钮通常没有圆角 */
+  width: 34px;
+  height: 28px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: var(--el-text-color-secondary);
-  transition: all 0.1s;
-  font-size: 12px; 
+  transition: all 0.16s ease;
+  font-size: 12px;
 }
 
 .win-btn:hover {
-  background-color: var(--el-fill-color);
+  background-color: var(--el-fill-color-light);
   color: var(--el-text-color-primary);
 }
 
@@ -480,29 +479,29 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 /* ============ Linux 样式 ============ */
 .linux-controls {
   display: flex;
-  gap: 6px;
-  margin-right: 12px;
+  gap: 3px;
+  margin-right: 6px;
   align-items: center;
 }
 
 .linux-btn {
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
+  width: 30px;
+  height: 28px;
+  border-radius: 999px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: var(--el-text-color-regular);
   background-color: transparent;
-  transition: all 0.2s;
-  font-size: 12px; 
+  transition: all 0.16s ease;
+  font-size: 12px;
 }
 
 .linux-btn:hover {
-  background-color: var(--el-fill-color-dark);
+  background-color: var(--el-fill-color-light);
   color: var(--el-text-color-primary);
-  transform: scale(1.1);
+  transform: none;
 }
 
 .linux-btn.close:hover {

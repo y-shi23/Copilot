@@ -8,7 +8,16 @@ import Providers from './components/Providers.vue'
 import Skills from './components/Skills.vue'
 
 import { useI18n } from 'vue-i18n'
-import { Collection, Bell, Document } from '@element-plus/icons-vue'
+import {
+  Bell,
+  ChatDotRound,
+  MagicStick,
+  Connection,
+  Collection,
+  Cloudy,
+  Setting as SettingIcon,
+  Document
+} from '@element-plus/icons-vue'
 import { marked } from 'marked';
 import { ElBadge } from 'element-plus'; // 确保引入 ElBadge
 
@@ -369,47 +378,21 @@ watch(locale, () => {
             <!-- 1. Chats (云端对话) -->
             <el-tooltip :content="t('app.tabs.chats')" placement="bottom">
               <el-button class="tab-button" text @click="changeTab(0)" :class="{ 'active-tab': tab === 0 }">
-                <el-icon :size="20">
-                  <svg t="1765030297139" class="icon" viewBox="0 0 1024 1024" version="1.1"
-                    xmlns="http://www.w3.org/2000/svg" p-id="72601" width="200" height="200">
-                    <path
-                      d="M512 64c259.2 0 469.333333 200.576 469.333333 448s-210.133333 448-469.333333 448a484.48 484.48 0 0 1-232.725333-58.88l-116.394667 50.645333a42.666667 42.666667 0 0 1-58.517333-49.002666l29.76-125.013334C76.629333 703.402667 42.666667 611.477333 42.666667 512 42.666667 264.576 252.8 64 512 64z m0 64C287.488 128 106.666667 300.586667 106.666667 512c0 79.573333 25.557333 155.434667 72.554666 219.285333l5.525334 7.317334 18.709333 24.192-26.965333 113.237333 105.984-46.08 27.477333 15.018667C370.858667 878.229333 439.978667 896 512 896c224.512 0 405.333333-172.586667 405.333333-384S736.512 128 512 128z m-157.696 341.333333a42.666667 42.666667 0 1 1 0 85.333334 42.666667 42.666667 0 0 1 0-85.333334z m159.018667 0a42.666667 42.666667 0 1 1 0 85.333334 42.666667 42.666667 0 0 1 0-85.333334z m158.997333 0a42.666667 42.666667 0 1 1 0 85.333334 42.666667 42.666667 0 0 1 0-85.333334z"
-                      fill="currentColor" p-id="72602"></path>
-                  </svg>
-                </el-icon>
+                <el-icon :size="19"><ChatDotRound /></el-icon>
               </el-button>
             </el-tooltip>
 
             <!-- 2. Prompts (快捷助手/Agent) -->
             <el-tooltip :content="t('app.tabs.prompts')" placement="bottom">
               <el-button class="tab-button" text @click="changeTab(1)" :class="{ 'active-tab': tab === 1 }">
-                <el-icon :size="20">
-                  <svg t="1765030347985" class="icon" viewBox="0 0 1024 1024" version="1.1"
-                    xmlns="http://www.w3.org/2000/svg" p-id="77085" width="200" height="200">
-                    <path
-                      d="M617.92 198.784A270.4 270.4 0 0 1 888.32 469.12v225.344a270.464 270.464 0 0 1-270.4 270.464h-315.52A270.4 270.4 0 0 1 32 694.528v-225.28a270.4 270.4 0 0 1 270.4-270.464h315.52z m0 90.112h-315.52a180.288 180.288 0 0 0-180.288 180.288v225.344a180.288 180.288 0 0 0 180.288 180.288h315.52a180.288 180.288 0 0 0 180.288-180.288v-225.28a180.288 180.288 0 0 0-180.288-180.352z"
-                      p-id="77086"></path>
-                    <path
-                      d="M324.928 491.712c30.08 0 45.12 15.04 45.12 45.056v90.176c0 30.08-15.04 45.056-45.12 45.056-30.016 0-45.056-15.04-45.056-45.056V536.768c0-30.08 15.04-45.056 45.056-45.056zM594.944 483.584a38.336 38.336 0 0 1 45.952 61.312l-49.28 36.992 49.28 36.928a38.336 38.336 0 0 1 10.496 49.28l-2.816 4.352a38.272 38.272 0 0 1-53.632 7.68l-66.112-49.6a60.8 60.8 0 0 1 0-97.28l66.112-49.664zM922.944 220.544l-21.312 44.544a17.536 17.536 0 0 1-7.104 7.488 21.312 21.312 0 0 1-21.376 0 17.536 17.536 0 0 1-7.104-7.488l-21.376-44.544a44.608 44.608 0 0 0-21.312-20.608l-37.696-17.984a18.368 18.368 0 0 1-7.296-6.144 15.232 15.232 0 0 1-2.688-8.576c0-3.008 0.896-6.016 2.688-8.576a18.368 18.368 0 0 1 7.296-6.144l37.76-17.92a44.8 44.8 0 0 0 21.248-20.736l21.376-44.48a17.536 17.536 0 0 1 7.04-7.488 21.376 21.376 0 0 1 21.44 0c3.2 1.792 5.632 4.48 7.04 7.488l21.376 44.48a44.672 44.672 0 0 0 21.376 20.672l37.632 17.92a18.368 18.368 0 0 1 7.36 6.208 15.168 15.168 0 0 1 0 17.152 18.368 18.368 0 0 1-7.36 6.144l-37.632 17.92a44.608 44.608 0 0 0-21.376 20.672z"
-                      p-id="77087"></path>
-                  </svg>
-                </el-icon>
+                <el-icon :size="19"><MagicStick /></el-icon>
               </el-button>
             </el-tooltip>
 
             <!-- 3. MCP -->
             <el-tooltip :content="t('app.tabs.mcp')" placement="bottom">
               <el-button class="tab-button" text @click="changeTab(2)" :class="{ 'active-tab': tab === 2 }">
-                <el-icon :size="19">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="m15 12-8.373 8.373a1 1 0 1 1-3-3L12 9"></path>
-                    <path d="m18 15 4-4"></path>
-                    <path
-                      d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5">
-                    </path>
-                  </svg>
-                </el-icon>
+                <el-icon :size="19"><Connection /></el-icon>
               </el-button>
             </el-tooltip>
 
@@ -425,27 +408,14 @@ watch(locale, () => {
             <!-- 5. Providers (云服务商) -->
             <el-tooltip :content="t('app.tabs.providers')" placement="bottom">
               <el-button class="tab-button" text @click="changeTab(4)" :class="{ 'active-tab': tab === 4 }">
-                <el-icon :size="20">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path>
-                  </svg>
-                </el-icon>
+                <el-icon :size="19"><Cloudy /></el-icon>
               </el-button>
             </el-tooltip>
 
             <!-- 6. Settings (设置) -->
             <el-tooltip :content="t('app.tabs.settings')" placement="bottom">
               <el-button class="tab-button" text @click="changeTab(5)" :class="{ 'active-tab': tab === 5 }">
-                <el-icon :size="18">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path
-                      d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z">
-                    </path>
-                    <circle cx="12" cy="12" r="3"></circle>
-                  </svg>
-                </el-icon>
+                <el-icon :size="19"><SettingIcon /></el-icon>
               </el-button>
             </el-tooltip>
           </div>
@@ -495,24 +465,32 @@ watch(locale, () => {
   padding: 0;
   margin: 0;
   overflow: hidden;
-  background-color: var(--bg-primary);
+  background-color: transparent;
   display: flex;
   flex-direction: column;
 }
 
 .el-header {
-  padding: 0px 20px 0px 0px;
-  height: 50px;
+  padding: 16px 24px 10px;
+  height: auto;
   display: flex;
   align-items: center;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-primary);
+  background-color: transparent;
+  border-bottom: none;
   flex-shrink: 0;
   z-index: 10;
 }
 
 .header-row {
   width: 100%;
+  height: 54px;
+  padding: 0 10px 0 4px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-primary);
+  background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .header-title-col {
@@ -522,10 +500,10 @@ watch(locale, () => {
 }
 
 .header-title-text {
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 20px;
+  font-weight: 650;
   color: var(--text-primary);
-  letter-spacing: 0.5px;
+  letter-spacing: 0.01em;
   transition: color 0.3s ease;
 }
 
@@ -536,39 +514,40 @@ watch(locale, () => {
 
 .tabs-container {
   display: flex;
-  gap: 0px;
-  background-color: var(--bg-tertiary);
-  padding: 4px;
-  border-radius: var(--radius-md);
+  gap: 4px;
+  background-color: color-mix(in srgb, var(--bg-tertiary) 85%, transparent);
+  padding: 5px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 999px;
 }
 
 .tab-button {
-  padding: 8px;
+  padding: 6px;
   border: none;
   background-color: transparent;
   color: var(--text-secondary);
-  border-radius: var(--radius-sm);
+  border-radius: 999px;
   transition: background-color 0.2s, color 0.2s;
-  height: 32px;
-  width: 32px;
+  height: 34px;
+  width: 34px;
 }
 
 .tab-button:hover {
-  background-color: var(--bg-secondary);
+  background-color: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
   color: var(--text-primary);
 }
 
 .active-tab {
   background-color: var(--bg-secondary);
   color: var(--text-accent);
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 1px 6px rgba(39, 48, 63, 0.14);
 }
 
 .el-main {
-  padding: 0;
+  padding: 0 0 8px;
   flex-grow: 1;
   overflow-y: auto;
-  background-color: var(--bg-primary);
+  background-color: transparent;
 }
 
 .blank-col {
@@ -578,7 +557,7 @@ watch(locale, () => {
 .left-actions-col {
   display: flex;
   align-items: center;
-  padding-left: 20px;
+  padding-left: 10px;
 }
 
 /* 修复双重 Border 问题：移除上边框，仅保留其他三边 */
@@ -586,10 +565,9 @@ watch(locale, () => {
   display: flex;
   height: 60vh;
   border: 1px solid var(--border-primary);
-  border-top: none; /* 关键修复 */
-  border-bottom-left-radius: 4px;
-  border-bottom-right-radius: 4px;
+  border-radius: var(--radius-md);
   overflow: hidden;
+  box-shadow: var(--shadow-sm);
 }
 
 /* 铃铛徽章样式微调 */
@@ -599,7 +577,7 @@ watch(locale, () => {
 }
 
 .doc-sidebar {
-  width: 150px;
+  width: 180px;
   border-right: 1px solid var(--border-primary);
   background-color: var(--bg-secondary);
   flex-shrink: 0;
@@ -611,10 +589,12 @@ watch(locale, () => {
 }
 
 .doc-menu :deep(.el-menu-item) {
-  height: 40px;
-  line-height: 40px;
+  height: 42px;
+  line-height: 42px;
   color: var(--text-secondary);
   font-size: 14px;
+  margin: 4px 8px;
+  border-radius: 12px;
 }
 
 .doc-menu :deep(.el-menu-item:hover) {
@@ -623,9 +603,9 @@ watch(locale, () => {
 
 .doc-menu :deep(.el-menu-item.is-active) {
   color: var(--text-accent);
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-accent-light);
   font-weight: 600;
-  border-right: 2px solid var(--text-accent);
+  border-right: none;
 }
 
 /* 侧边栏菜单项布局：文字与红点分离 */

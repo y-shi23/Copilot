@@ -1,7 +1,7 @@
 <script setup>
 import { ref, h, onMounted, onBeforeUnmount, nextTick, watch, computed } from 'vue';
 import { ElFooter, ElRow, ElCol, ElText, ElDivider, ElButton, ElInput, ElMessage, ElTooltip, ElScrollbar, ElIcon } from 'element-plus';
-import { Close, Check, Document, Delete, Collection } from '@element-plus/icons-vue'; // 引入 Tools
+import { Close, Check, Document, Delete, Collection, Microphone, Monitor } from '@element-plus/icons-vue';
 
 // --- Props and Emits ---
 const prompt = defineModel('prompt');
@@ -609,8 +609,14 @@ defineExpose({ focus, senderRef });
                     <div class="option-selector-content">
                         <el-text tag="b" class="selector-label">选择音源</el-text>
                         <el-divider direction="vertical" />
-                        <el-button @click="startRecordingFromSource('microphone')" round>🎙️ 麦克风</el-button>
-                        <el-button @click="startRecordingFromSource('system')" round>💻 系统音频</el-button>
+                        <el-button @click="startRecordingFromSource('microphone')" round>
+                            <el-icon><Microphone /></el-icon>
+                            麦克风
+                        </el-button>
+                        <el-button @click="startRecordingFromSource('system')" round>
+                            <el-icon><Monitor /></el-icon>
+                            系统音频
+                        </el-button>
                     </div>
                 </div>
             </el-col>
@@ -907,7 +913,7 @@ html.dark .drag-overlay {
 }
 
 .input-footer {
-    padding: 10px 5% 25px 5%;
+    padding: 8px 20px 18px;
     height: auto;
     width: 100%;
     flex-shrink: 0;
@@ -926,8 +932,8 @@ html.dark .drag-overlay {
     flex-direction: column;
     background-color: var(--el-bg-color-overlay);
     border: 1px solid var(--el-border-color-light);
-    border-radius: 8px;
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+    border-radius: 16px;
+    box-shadow: var(--el-box-shadow-light);
     z-index: 100;
     margin-bottom: 8px;
     padding: 0;
@@ -941,7 +947,7 @@ html.dark .drag-overlay {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
+    padding: 9px 12px;
     background-color: var(--el-fill-color-light);
     border-bottom: 1px solid var(--el-border-color-lighter);
     flex-shrink: 0;
@@ -970,7 +976,7 @@ html.dark .drag-overlay {
     max-height: 260px;
     /* 列表内容的最大高度 */
     overflow-y: auto;
-    padding: 6px;
+    padding: 8px;
     display: flex;
     flex-direction: column;
     gap: 2px;
@@ -1013,8 +1019,8 @@ html.dark .app-container.has-bg .mcp-quick-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 8px 4px 8px;
-    border-radius: 6px;
+    padding: 6px 9px;
+    border-radius: 10px;
     cursor: pointer;
     transition: all 0.15s ease;
     /* 增加平滑过渡 */
@@ -1107,7 +1113,7 @@ html.dark .app-container.has-bg .mcp-quick-item.active.highlighted {
     justify-content: center;
     min-width: 18px;
     height: 18px;
-    border-radius: 4px;
+    border-radius: 999px;
     background-color: var(--el-fill-color-dark);
     /* 浅色模式默认 */
     color: var(--el-text-color-secondary);
@@ -1222,7 +1228,7 @@ html.dark .mcp-tag.type-tag {
     align-items: center;
     background-color: var(--el-fill-color-light);
     border: 1px solid var(--el-border-color-light);
-    border-radius: 6px;
+    border-radius: 12px;
     padding: 6px 10px;
     margin-right: 0;
     /* gap已处理间距 */
@@ -1331,7 +1337,7 @@ html.dark .file-card-container::-webkit-scrollbar-thumb:hover {
     width: 100%;
     height: 40px;
     background-color: var(--el-bg-color-input);
-    border-radius: 12px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1376,9 +1382,10 @@ html.dark .waveform-display-area {
 
 .option-selector-wrapper {
     background-color: var(--el-bg-color-input);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 8px;
     max-height: 132px;
+    border: 1px solid var(--el-border-color-light);
 }
 
 html.dark .option-selector-wrapper {
@@ -1428,16 +1435,16 @@ html.dark .el-divider--vertical {
     display: flex;
     flex-direction: column;
     background-color: var(--el-bg-color-input);
-    border-radius: 12px;
+    border-radius: 18px;
     padding: 10px 12px;
-    border: 1px solid #E4E7ED;
+    border: 1px solid var(--el-border-color-light);
+    box-shadow: var(--el-box-shadow-lighter);
     position: relative;
-    /* 确保绝对定位的 mcp 列表相对此定位 */
 }
 
 html.dark .chat-input-area-vertical {
     background-color: var(--el-bg-color-input);
-    border: 1px solid #414243;
+    border: 1px solid var(--el-border-color-light);
 }
 
 .chat-textarea-vertical {
@@ -1486,14 +1493,15 @@ html.dark .chat-input-area-vertical {
 }
 
 .chat-input-area-vertical .el-button {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     background: none;
     border: none;
+    border-radius: 999px;
 }
 
 .chat-input-area-vertical .el-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+    background-color: var(--el-fill-color-light);
 }
 
 .chat-input-area-vertical .action-buttons-left .el-button.is-active-special {
@@ -1501,12 +1509,12 @@ html.dark .chat-input-area-vertical {
 }
 
 .chat-input-area-vertical .action-buttons-left .el-button:hover {
-    color: var(--text-on-accent);
-    background-color: var(--el-color-primary-light-8);
+    color: var(--el-text-color-primary);
+    background-color: var(--el-color-primary-light-9);
 }
 
 .chat-input-area-vertical .action-buttons-right .el-button:hover {
-    color: var(--text-on-accent);
+    color: var(--el-text-color-primary);
 }
 
 /* --- Common Styles --- */

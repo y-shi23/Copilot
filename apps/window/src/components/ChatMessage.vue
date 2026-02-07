@@ -508,11 +508,11 @@ const truncateFilename = (filename, maxLength = 30) => {
 <style scoped lang="less">
 /* 使用与原文件相同的样式 */
 .chat-message {
-  margin: 15px 0 0 0;
+  margin: 12px 0 0;
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
-  padding: 0px;
+  padding: 0;
 }
 
 .message-wrapper {
@@ -523,16 +523,16 @@ const truncateFilename = (filename, maxLength = 30) => {
 .user-wrapper {
   align-self: flex-end;
   align-items: flex-end;
-  max-width: 90%;
-  margin-right: 4%;
-  margin-left: 5%;
+  max-width: 88%;
+  margin-right: 3%;
+  margin-left: 6%;
 }
 
 .ai-wrapper {
   align-self: flex-start;
   align-items: flex-start;
-  margin-left: 5%;
-  margin-right: 5%;
+  margin-left: 4%;
+  margin-right: 8%;
   max-width: 100%;
 }
 
@@ -575,8 +575,8 @@ const truncateFilename = (filename, maxLength = 30) => {
 }
 
 .chat-avatar-top {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   cursor: pointer;
   object-fit: cover;
   transition: transform 0.2s;
@@ -591,7 +591,7 @@ const truncateFilename = (filename, maxLength = 30) => {
 }
 
 .ai-avatar {
-  border-radius: 6px;
+  border-radius: 10px;
 }
 
 .ai-name {
@@ -605,12 +605,14 @@ const truncateFilename = (filename, maxLength = 30) => {
 
 .chat-message .user-bubble {
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    border-radius: 18px;
+    border-radius: 20px;
     background-color: var(--el-bg-color-userbubble);
+    border: 1px solid var(--el-border-color-lighter);
     padding-top: 10px;
     padding-bottom: 10px;
-    margin-bottom: 0px;
+    margin-bottom: 0;
     padding-right: 14px;
+    box-shadow: var(--el-box-shadow-lighter);
   }
 
   :deep(.el-bubble-content-wrapper .el-bubble-footer) {
@@ -620,18 +622,18 @@ const truncateFilename = (filename, maxLength = 30) => {
 
 html.dark .chat-message .user-bubble {
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    background: #393939;
-    border: #383838 0px solid;
+    background: var(--el-bg-color-userbubble);
+    border: 1px solid var(--el-border-color-lighter);
   }
 }
 
 .chat-message .ai-bubble {
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    background-color: transparent;
-    padding-left: 4px;
-    padding-right: 0px;
-    padding-bottom: 2px;
-    padding-top: 4px;
+    background-color: color-mix(in srgb, var(--el-bg-color) 90%, transparent);
+    border: 1px solid var(--el-border-color-lighter);
+    border-radius: 18px;
+    padding: 10px 12px 8px;
+    box-shadow: var(--el-box-shadow-lighter);
   }
 
   :deep(.el-bubble-content-wrapper .el-bubble-footer) {
@@ -641,7 +643,7 @@ html.dark .chat-message .user-bubble {
 
 html.dark .chat-message .ai-bubble {
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    background: var(--el-bg-color);
+    background: color-mix(in srgb, var(--el-bg-color) 88%, transparent);
   }
 }
 
@@ -660,6 +662,19 @@ html.dark .chat-message .ai-bubble {
     tab-size: 4;
     font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
     word-break: break-word;
+  }
+
+  /* Remove the extra blank line at message top caused by default block margins. */
+  :deep(.elx-xmarkdown-container > :first-child) {
+    margin-top: 0 !important;
+  }
+
+  :deep(.elx-xmarkdown-container > :last-child) {
+    margin-bottom: 0 !important;
+  }
+
+  :deep(.elx-xmarkdown-container p:empty) {
+    display: none;
   }
 
   :deep(pre) {
@@ -816,6 +831,7 @@ html.dark .chat-message .ai-bubble {
   }
 
   :deep(p) {
+    margin-top: 0;
     margin-bottom: 1em;
   }
 
