@@ -140,6 +140,37 @@ Anywhere/
 
 请确保你的环境已安装 `Node.js` 和 `pnpm`。
 
+#### 🚀 一键启动（推荐）
+
+macOS / Linux 用户可使用一键启动脚本：
+
+```bash
+git clone https://github.com/Komorebi-yaodong/Anywhere.git
+cd Anywhere
+chmod +x dev.sh
+./dev.sh
+```
+
+脚本支持以下选项：
+
+| 选项             | 说明                                   |
+| :--------------- | :------------------------------------- |
+| `--skip-install` | 跳过依赖安装（已安装过时使用）         |
+| `--skip-build`   | 跳过构建步骤（直接启动已构建的应用）   |
+| `--rebuild`      | 强制重新构建（清理 dist 目录后再构建） |
+| `-h, --help`     | 显示帮助信息                           |
+
+```bash
+# 常用示例
+./dev.sh                  # 完整流程：安装 → 构建 → 启动
+./dev.sh --skip-install   # 跳过安装，直接构建并启动
+./dev.sh --skip-build     # 跳过构建，直接启动（需已构建过）
+```
+
+#### 📝 手动构建步骤
+
+如果你更喜欢手动控制每一步，或使用 Windows 系统：
+
 1. **克隆项目**
 
    ```bash
