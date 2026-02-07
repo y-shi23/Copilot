@@ -631,6 +631,9 @@ async function triggerConnectionTest(server) {
             <el-button class="action-btn" @click="prepareEditJson" :icon="Edit">
                 {{ t('mcp.editJson') }}
             </el-button>
+            <el-tooltip :content="t('mcp.refreshConfig')" placement="top">
+                <el-button class="refresh-fab-button" :icon="Refresh" circle @click="refreshMcpConfig" />
+            </el-tooltip>
         </div>
 
         <!-- 编辑弹窗 (保持不变) -->
@@ -927,8 +930,6 @@ async function triggerConnectionTest(server) {
             </template>
         </el-dialog>
 
-        <el-button class="refresh-fab-button" :icon="Refresh" type="primary" circle @click="refreshMcpConfig"
-            :title="t('mcp.refreshConfig')" />
     </div>
 </template>
 
@@ -970,7 +971,7 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
 .content-wrapper {
     max-width: 1200px;
     margin: 0 auto;
-    padding: 0px 24px 80px 24px;
+    padding: 0px 24px 20px 24px;
 }
 
 .search-bar-container {
@@ -1005,18 +1006,17 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
 
 .mcp-card {
     background-color: var(--bg-secondary);
-    border: 1px solid var(--border-primary);
+    border: 1px solid var(--border-secondary);
     border-radius: var(--radius-lg);
     padding: 8px 16px 4px 16px;
     display: flex;
     flex-direction: column;
-    transition: all 0.2s ease-in-out;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .mcp-card:hover {
-    transform: translateY(-4px);
-    box-shadow: var(--shadow-md);
-    border-color: var(--border-accent);
+    border-color: var(--border-primary);
+    background-color: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
 }
 
 .mcp-card-header {
@@ -1143,29 +1143,21 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
 }
 
 .bottom-actions-container {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
+    position: static;
     width: 100%;
     display: flex;
-    justify-content: center;
-    gap: 16px;
-    padding: 12px 24px;
-    background-color: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    justify-content: flex-start;
+    gap: 10px;
+    padding: 12px 24px 16px;
+    background-color: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
     border-top: 1px solid var(--border-primary);
-    z-index: 20;
-}
-
-html.dark .bottom-actions-container {
-    background-color: rgba(23, 24, 28, 0.7);
 }
 
 .bottom-actions-container .action-btn {
     flex-grow: 0;
-    min-width: 180px;
+    min-width: 0;
     font-weight: 500;
 }
 
@@ -1256,14 +1248,7 @@ html.dark .advanced-collapse :deep(.el-collapse-item__wrap) {
 }
 
 .refresh-fab-button {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    z-index: 21;
-    width: 24px;
-    height: 24px;
-    font-size: 16px;
-    box-shadow: var(--el-box-shadow-light);
+    margin-left: auto;
 }
 
 .item-scrollbar {

@@ -395,19 +395,17 @@ watch(locale, () => {
     </el-aside>
 
     <el-main class="workspace-main" v-if="config">
-      <section class="workspace-card">
-        <header class="workspace-header">
-          <el-text class="header-title-text">{{ header_text }}</el-text>
-        </header>
-        <div class="workspace-content">
-          <Chats v-if="tab === 0" key="chats" />
-          <Prompts v-if="tab === 1" key="prompts" />
-          <Mcp v-if="tab === 2" key="mcp" />
-          <Skills v-if="tab === 3" key="skills" />
-          <Providers v-if="tab === 4" key="providers" />
-          <Setting v-if="tab === 5" key="settings" />
-        </div>
-      </section>
+      <header class="workspace-header">
+        <el-text class="header-title-text">{{ header_text }}</el-text>
+      </header>
+      <div class="workspace-content">
+        <Chats v-if="tab === 0" key="chats" />
+        <Prompts v-if="tab === 1" key="prompts" />
+        <Mcp v-if="tab === 2" key="mcp" />
+        <Skills v-if="tab === 3" key="skills" />
+        <Providers v-if="tab === 4" key="providers" />
+        <Setting v-if="tab === 5" key="settings" />
+      </div>
     </el-main>
 
     <!-- 帮助文档弹窗 -->
@@ -440,9 +438,9 @@ watch(locale, () => {
 .el-container {
   width: 100%;
   height: 100%;
-  padding: 16px;
+  padding: 10px 12px;
   margin: 0;
-  gap: 14px;
+  gap: 0;
   overflow: hidden;
   background-color: transparent;
   display: flex;
@@ -450,22 +448,19 @@ watch(locale, () => {
 }
 
 .app-sidebar {
-  --el-aside-width: 236px;
-  width: 236px;
-  min-width: 236px;
+  --el-aside-width: 220px;
+  width: 220px;
+  min-width: 220px;
   flex-shrink: 0;
   overflow: hidden;
+  border-right: 1px solid var(--border-primary);
+  margin-right: 16px;
+  padding-right: 14px;
 }
 
 .sidebar-panel {
   height: 100%;
-  padding: 14px;
-  border-radius: var(--radius-2xl);
-  border: 1px solid var(--border-primary);
-  background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
-  box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  padding: 8px 4px 8px 2px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -543,22 +538,12 @@ watch(locale, () => {
   margin: 0;
   overflow: hidden;
   min-width: 0;
-}
-
-.workspace-card {
-  width: 100%;
-  height: 100%;
-  border-radius: var(--radius-2xl);
-  border: 1px solid var(--border-primary);
-  background-color: var(--bg-secondary);
-  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 .workspace-header {
-  padding: 18px 28px 12px;
+  padding: 8px 8px 14px;
   border-bottom: 1px solid var(--border-secondary);
   flex-shrink: 0;
 }
@@ -566,7 +551,8 @@ watch(locale, () => {
 .workspace-content {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
+  overflow: auto;
+  padding-top: 6px;
 }
 
 .header-title-text {
@@ -782,18 +768,20 @@ watch(locale, () => {
 @media (max-width: 860px) {
   .common-layout,
   .el-container {
-    padding: 12px;
-    gap: 10px;
+    padding: 8px 10px;
+    gap: 0;
   }
 
   .app-sidebar {
-    --el-aside-width: 208px;
-    width: 208px;
-    min-width: 208px;
+    --el-aside-width: 196px;
+    width: 196px;
+    min-width: 196px;
+    margin-right: 12px;
+    padding-right: 10px;
   }
 
   .workspace-header {
-    padding: 14px 18px 10px;
+    padding: 6px 4px 12px;
   }
 }
 
@@ -807,11 +795,17 @@ watch(locale, () => {
     --el-aside-width: 100%;
     width: 100%;
     min-width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-primary);
+    margin-right: 0;
+    margin-bottom: 10px;
+    padding-right: 0;
+    padding-bottom: 8px;
   }
 
   .sidebar-panel {
     height: auto;
-    padding: 10px;
+    padding: 4px 0;
   }
 
   .sidebar-nav {
