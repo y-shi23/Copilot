@@ -124,15 +124,15 @@ Anywhere 是一款为 **uTools** 打造的深度定制化 AI 助手插件。它�
 
 ```text
 Anywhere/
-├── backend/            # 后端逻辑 (Node.js)，处理文件读写、MCP连接、Preload脚本
-├── Anywhere_main/      # 主界面前端 (Vue 3 + Element Plus)，用于设置、管理配置
-├── Anywhere_window/    # 独立对话窗口前端 (Vue 3 + Element Plus)，核心交互区
-├── Fast_window/        # 快捷输入条前端 (原生 HTML/JS)，轻量级交互
+├── apps/
+│   ├── backend/        # 后端逻辑 (Node.js)，处理文件读写、MCP连接、Preload脚本
+│   ├── main/           # 主界面前端 (Vue 3 + Element Plus)，用于设置、管理配置
+│   ├── window/         # 独立对话窗口前端 (Vue 3 + Element Plus)，核心交互区
+│   └── fast-window/    # 快捷输入条前端 (原生 HTML/JS)，轻量级交互
 ├── electron/           # Electron 主进程与 IPC 桥接
 ├── docs/               # 项目文档
-├── scripts/            # 构建产物同步脚本
-├── v2.0.0/             # 统一运行目录（主界面/对话窗口/preload）
-├── plugin.json         # (兼容保留) uTools 插件入口配置
+├── scripts/            # 构建与工具脚本（legacy 脚本已归档）
+├── runtime/            # 统一运行目录（主界面/对话窗口/preload）
 └── ...
 ```
 
@@ -191,10 +191,10 @@ chmod +x dev.sh
    ```
 
    该命令会自动完成：
-   - `Anywhere_main` 前端构建
-   - `Anywhere_window` 前端构建
-   - `backend` preload 构建
-   - 构建产物同步到 `v2.0.0/`
+   - `apps/main` 前端构建
+   - `apps/window` 前端构建
+   - `apps/backend` preload 构建
+   - 构建产物同步到 `runtime/`
 
 4. **启动 Electron 桌面版**
 
@@ -210,11 +210,11 @@ chmod +x dev.sh
 
 ### (可选) 继续以 uTools 插件方式调试
 
-如果你仍需使用 uTools 插件模式，可继续使用 `v2.0.0/plugin.json` 导入调试：
+如果你仍需使用 uTools 插件模式，可继续使用 `runtime/plugin.json` 导入调试：
 
    1. 下载并安装 [uTools 开发者工具](https://www.u-tools.cn/plugins/detail/uTools%20%E5%BC%80%E5%8F%91%E8%80%85%E5%B7%A5%E5%85%B7/)。
    2. 在开发者工具中选择「新建项目」 -> 「导入项目」。
-   3. 选择构建后的 `v2.0.0/plugin.json` 文件。
+   3. 选择构建后的 `runtime/plugin.json` 文件。
    4. 点击运行即可开始调试。
 
 ---

@@ -1,4 +1,4 @@
-// ./Anywhere_window/src/utils/TextSearchUI.js
+// ./apps/window/src/utils/TextSearchUI.js
 
 export default class TextSearchUI {
   constructor(options = {}) {

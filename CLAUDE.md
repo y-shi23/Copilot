@@ -14,48 +14,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Development Workflow
 
-Each frontend project must be built independently before integration:
+The repository supports both one-shot root build and per-app build:
 
 ```bash
-# Build main settings UI
-cd Anywhere_main
-pnpm install && pnpm build
-cd ..
+# Recommended: root commands
+pnpm install
+pnpm run install:all
+pnpm build
 
-# Build chat window
-cd Anywhere_window
-pnpm install && pnpm build
-cd ..
-
-# Build backend/preload scripts
-cd backend
-pnpm install && pnpm build
-cd ..
-
-# Integrate all builds into release directory
-# Windows:
-move.bat
-# macOS/Linux:
-chmod +x move.sh && ./move.sh
+# Optional: build apps independently
+cd apps/main && pnpm install && pnpm build
+cd ../window && pnpm install && pnpm build
+cd ../backend && pnpm install && pnpm build
 ```
 
 ### Development Mode (Hot Reload)
 
 ```bash
 # Main UI
-cd Anywhere_main && pnpm dev
+cd apps/main && pnpm dev
 
 # Chat Window
-cd Anywhere_window && pnpm dev
+cd apps/window && pnpm dev
 
 # Backend (watch mode)
-cd backend && pnpm run watch
+cd apps/backend && pnpm run watch
 ```
 
 ### Testing in uTools
 
 1. Install [uTools Developer Tools](https://www.u-tools.cn/plugins/detail/uTools%20%E5%BC%80%E5%8F%91%E8%80%85%E5%B7%A5%E5%85%B7/)
-2. Import the generated release folder (e.g., `v2.0.0/plugin.json`)
+2. Import the generated release folder (e.g., `runtime/plugin.json`)
 3. Run and debug directly in uTools
 
 ## Architecture
@@ -64,24 +53,24 @@ cd backend && pnpm run watch
 
 Anywhere uses a **three-window architecture** coordinated through uTools APIs:
 
-1. **Main Window** (`Anywhere_main/`): Settings and configuration UI
+1. **Main Window** (`apps/main/`): Settings and configuration UI
    - Entry point: `plugin.json` → `/main/index.html`
    - Manages: AI providers, assistants, MCP servers, Skills, WebDAV sync
    - Built with: Vue 3 + Element Plus + Vite
 
-2. **Chat Window** (`Anywhere_window/`): Full-featured conversation interface
+2. **Chat Window** (`apps/window/`): Full-featured conversation interface
    - Opened via: `utools.ubrowser.run()` from main window or preload
    - Features: Multi-turn chat, file drag-drop, image paste, voice input, markdown rendering
    - Preload: `window_preload.js` (exposes `window.utools` bridge)
    - Built with: Vue 3 + Element Plus + OpenAI SDK + marked + highlight.js + mermaid
 
-3. **Fast Input Window** (`Fast_window/`): Lightweight ephemeral input bar
+3. **Fast Input Window** (`apps/fast-window/`): Lightweight ephemeral input bar
    - Opened via: `utools.ubrowser.run()` with specific dimensions
    - Use case: Quick tasks (translation, variable naming) with auto-destroy
    - Preload: `fast_window_preload.js`
    - Built with: Vanilla HTML/CSS/JS (no framework)
 
-### Backend Architecture (`backend/`)
+### Backend Architecture (`apps/backend/`)
 
 The backend is bundled into three preload scripts using **esbuild**:
 
@@ -100,7 +89,7 @@ The backend is bundled into three preload scripts using **esbuild**:
 
 ### Key Subsystems
 
-#### 1. MCP Integration (`backend/src/mcp.js`, `mcp_builtin.js`)
+#### 1. MCP Integration (`apps/backend/src/mcp.js`, `mcp_builtin.js`)
 
 **Model Context Protocol** allows AI to interact with external tools:
 
@@ -120,7 +109,7 @@ The backend is bundled into three preload scripts using **esbuild**:
 AI Request → Skill/MCP Router → MCP Client → Tool Execution → Response Stream
 ```
 
-#### 2. Skill System (`backend/src/skill.js`)
+#### 2. Skill System (`apps/backend/src/skill.js`)
 
 **Skills** are SOP (Standard Operating Procedure) templates that orchestrate complex workflows:
 
@@ -163,7 +152,7 @@ AI Request → Skill/MCP Router → MCP Client → Tool Execution → Response S
 - Debounced to prevent excessive writes
 - Syncs to WebDAV if enabled
 
-#### 4. AI Provider Abstraction (`backend/src/input.js`)
+#### 4. AI Provider Abstraction (`apps/backend/src/input.js`)
 
 **Unified API Interface** for multiple providers:
 - OpenAI, Anthropic, Google Gemini, DeepSeek, OpenRouter, etc.
@@ -199,7 +188,7 @@ User Input → Provider Router → API Client → Stream Parser → UI Renderer
          ▼
 ┌─────────────────┐
 │  Vue Frontend   │ ◄─── Renders UI, handles user interaction
-│ (Anywhere_main/ │
+│ (apps/main/ │
 │  window/fast)   │
 └────────┬────────┘
          │
@@ -300,7 +289,7 @@ async function executeSkillAsSubAgent(skill, userInput) {
 ### 5. Markdown Rendering with Code Blocks
 
 **Challenge**: Render AI responses with syntax highlighting, mermaid diagrams, LaTeX
-**Solution**: Custom marked renderer in `Anywhere_window/`
+**Solution**: Custom marked renderer in `apps/window/`
 
 - **Syntax Highlighting**: `highlight.js` for code blocks
 - **Diagrams**: `mermaid` for flowcharts/diagrams
@@ -323,7 +312,7 @@ async function executeSkillAsSubAgent(skill, userInput) {
 
 ### Adding a New Built-in MCP Tool
 
-1. Define tool in `backend/src/mcp_builtin.js`:
+1. Define tool in `apps/backend/src/mcp_builtin.js`:
 ```javascript
 {
   name: "my_tool",
@@ -339,7 +328,7 @@ async function executeSkillAsSubAgent(skill, userInput) {
 ```
 
 2. Implement handler in `executeBuiltinTool()` function
-3. Rebuild backend: `cd backend && pnpm build`
+3. Rebuild backend: `cd apps/backend && pnpm build`
 
 ### Adding a New Skill
 
@@ -360,14 +349,14 @@ async function executeSkillAsSubAgent(skill, userInput) {
 
 ### Modifying Chat UI
 
-1. Edit components in `Anywhere_window/src/components/`
-2. Hot reload: `cd Anywhere_window && pnpm dev`
+1. Edit components in `apps/window/src/components/`
+2. Hot reload: `cd apps/window && pnpm dev`
 3. Test in uTools developer mode
-4. Build: `pnpm build` → `move.bat/move.sh`
+4. Build: `pnpm build`
 
 ### Debugging MCP Issues
 
-1. Enable debug logging in `backend/src/mcp.js`
+1. Enable debug logging in `apps/backend/src/mcp.js`
 2. Check MCP server stdout/stderr (logged to console)
 3. Verify tool schema matches AI expectations
 4. Test tool execution independently before AI integration
@@ -384,8 +373,8 @@ async function executeSkillAsSubAgent(skill, userInput) {
 ### Build Process Quirks
 
 - **Three Separate Builds**: Each frontend + backend must build independently
-- **Manual Integration**: `move.bat/move.sh` required to assemble final plugin
-- **Version Folder**: Release folder name (e.g., `v2.0.0`) must match version in code
+- **Asset Sync**: Root `pnpm build` runs `scripts/sync-assets.cjs` to assemble runtime assets
+- **Runtime Folder**: Release assets are assembled into `runtime/`
 - **Asset Paths**: Vite build output paths must align with `plugin.json` structure
 
 ### MCP Constraints
@@ -421,18 +410,18 @@ async function executeSkillAsSubAgent(skill, userInput) {
 
 | File | Purpose | Critical Sections |
 |------|---------|-------------------|
-| `backend/src/preload.js` | Plugin entry point | `window.exports` feature handlers |
-| `backend/src/window_preload.js` | Chat window bridge | `window.utools` API exposure |
-| `backend/src/mcp.js` | MCP client manager | `connectToMCPServer()`, `executeToolCall()` |
-| `backend/src/skill.js` | Skill orchestration | `executeSkill()`, sub-agent logic |
-| `backend/src/input.js` | AI provider abstraction | `streamChatCompletion()`, provider routing |
-| `Anywhere_window/src/App.vue` | Chat UI root | Message rendering, streaming display |
-| `Anywhere_main/src/components/Mcp.vue` | MCP management UI | Server config, tool approval |
-| `plugin.json` | uTools plugin manifest | Feature definitions, entry points |
+| `apps/backend/src/preload.js` | Plugin entry point | `window.exports` feature handlers |
+| `apps/backend/src/window_preload.js` | Chat window bridge | `window.utools` API exposure |
+| `apps/backend/src/mcp.js` | MCP client manager | `connectToMCPServer()`, `executeToolCall()` |
+| `apps/backend/src/skill.js` | Skill orchestration | `executeSkill()`, sub-agent logic |
+| `apps/backend/src/input.js` | AI provider abstraction | `streamChatCompletion()`, provider routing |
+| `apps/window/src/App.vue` | Chat UI root | Message rendering, streaming display |
+| `apps/main/src/components/Mcp.vue` | MCP management UI | Server config, tool approval |
+| `runtime/plugin.json` | uTools plugin manifest | Feature definitions, entry points |
 
 ## Language and Localization
 
 - **Primary Language**: Chinese (Simplified)
-- **i18n Support**: Vue I18n in `Anywhere_main` and `Anywhere_window`
+- **i18n Support**: Vue I18n in `apps/main` and `apps/window`
 - **Locale Files**: Check `src/locales/` in each frontend project
 - When adding UI text, always add to locale files, not hardcoded strings

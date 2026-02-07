@@ -1,5 +1,6 @@
 @echo off
-cd backend
+cd /d "%~dp0\..\.."
+cd apps\backend
 
 REM 使用 CALL 确保 pnpm build 执行完毕后，控制权会返回到下一行
 
@@ -14,11 +15,12 @@ if errorlevel 1 (
 )
 
 cd ..
+cd ..
 
 REM 增加提示以确保用户看到这一步
 echo.
 echo === run Python : moveDist.py ===
 
-python moveDist.py
+python scripts\legacy\moveDist.py
 
 :eof

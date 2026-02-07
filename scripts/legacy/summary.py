@@ -4,36 +4,41 @@ import os
 
 from moveDist import moveDist
 
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
-UTOOLS_DOC = "./utools-api-doc.md"
-README = "./README.md"
-# PRELOAD = "./"+moveDist()+"/"
-PRELOAD = "./backend/src/"
+def root_path(*parts):
+    return os.path.join(ROOT_DIR, *parts)
+
+
+UTOOLS_DOC = root_path("utools-api-doc.md")
+README = root_path("README.md")
+# PRELOAD = root_path(moveDist())
+PRELOAD = root_path("apps", "backend", "src")
 
 MAIN = [
-    "./Anywhere_main/package.json",
-    "./Anywhere_main/vite.config.js",
-    "./Anywhere_main/index.html",
-    "./Anywhere_main/src/components/",
-    "./Anywhere_main/src/App.vue",
-    "./Anywhere_main/src/locales/",
+    root_path("apps", "main", "package.json"),
+    root_path("apps", "main", "vite.config.js"),
+    root_path("apps", "main", "index.html"),
+    root_path("apps", "main", "src", "components"),
+    root_path("apps", "main", "src", "App.vue"),
+    root_path("apps", "main", "src", "locales"),
 ]
 
 WINDOW = [
-    "./Anywhere_window/package.json",
-    "./Anywhere_window/vite.config.js",
-    "./Anywhere_window/src/App.vue",
-    "./Anywhere_window/src/components/",
-    "./Anywhere_window/src/utils/",
-    "./Anywhere_window/src/assets/",
+    root_path("apps", "window", "package.json"),
+    root_path("apps", "window", "vite.config.js"),
+    root_path("apps", "window", "src", "App.vue"),
+    root_path("apps", "window", "src", "components"),
+    root_path("apps", "window", "src", "utils"),
+    root_path("apps", "window", "src", "assets"),
 ]
 
 Copy_WINDOW = [
-    "./Fast_window/",
+    root_path("apps", "fast-window"),
 ]
 
 DOCUMENTS = [
-    "./docs/"
+    root_path("docs")
 ]
 
 # 获取文件文本
@@ -95,11 +100,11 @@ def get_summary():
         readme,
         "以下是预加载文件和主页面,preload，preload.js是主界面的预加载文件、window_preload.js是独立窗口界面的预加载文件，其它是其他工具文件",
         preload,
-        "以下是主页面的前端代码，在./Anywhere_main/目录下，是设置页面，其预加载文件为preload.js",
+        "以下是主页面的前端代码，在./apps/main/目录下，是设置页面，其预加载文件为preload.js",
         main_text,
-        "以下是独立窗口的前端代码，在./Anywhere_window/目录下，是独立窗口文件，其预加载文件为window_preload.js",
+        "以下是独立窗口的前端代码，在./apps/window/目录下，是独立窗口文件，其预加载文件为window_preload.js",
         window_text,
-        "以下是其他窗口的前端代码，在./Fast_window/目录下，是独立窗口文件，其预加载文件为fast_window_preload.js",
+        "以下是其他窗口的前端代码，在./apps/fast-window/目录下，是独立窗口文件，其预加载文件为fast_window_preload.js",
         fast_window_text,
         "以下是相关说明文档，在./docs/目录下",
         docs,
@@ -110,7 +115,8 @@ def get_summary():
 
 if __name__ == "__main__":
     sum = get_summary()
-    with open("result.txt", "w", encoding='utf-8') as file:
+    output_file = root_path("result.txt")
+    with open(output_file, "w", encoding='utf-8') as file:
         file.write(sum)
     # 将内容发送到剪切板
     pyperclip.copy(sum)

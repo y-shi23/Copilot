@@ -5,11 +5,14 @@
   "description": "Anywhere standalone desktop app powered by Electron.",
   "main": "electron/main.js",
   "scripts": {
-    "install:all": "pnpm --dir Anywhere_main install && pnpm --dir Anywhere_window install && pnpm --dir backend install",
-    "build:web": "pnpm --dir Anywhere_main build && pnpm --dir Anywhere_window build",
-    "build:backend": "pnpm --dir backend build",
+    "install:all": "pnpm --dir apps/main install && pnpm --dir apps/window install && pnpm --dir apps/backend install",
+    "build:web": "pnpm --dir apps/main build && pnpm --dir apps/window build",
+    "build:backend": "pnpm --dir apps/backend build",
     "sync:assets": "node scripts/sync-assets.cjs",
     "build": "pnpm build:web && pnpm build:backend && pnpm sync:assets",
+    "dev:main": "pnpm --dir apps/main dev",
+    "dev:window": "pnpm --dir apps/window dev",
+    "dev:backend": "pnpm --dir apps/backend watch",
     "start": "node scripts/run-electron.cjs",
     "start:built": "pnpm build && node scripts/run-electron.cjs",
     "pack": "pnpm build && electron-builder --dir",
@@ -33,7 +36,7 @@
     },
     "files": [
       "electron/**/*",
-      "v2.0.0/**/*",
+      "runtime/**/*",
       "package.json"
     ],
     "win": {

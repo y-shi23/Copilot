@@ -314,8 +314,8 @@ function registerLauncherHotkey(rawSettings = {}) {
 }
 
 function createMainWindow() {
-  const preloadPath = resolveAppFile('v2.0.0', 'preload.js');
-  const mainIndex = resolveAppFile('v2.0.0', 'main', 'index.html');
+  const preloadPath = resolveAppFile('runtime', 'preload.js');
+  const mainIndex = resolveAppFile('runtime', 'main', 'index.html');
 
   mainWindow = new BrowserWindow({
     width: 1180,
@@ -346,10 +346,10 @@ function createMainWindow() {
 
 function ensureBuildArtifacts() {
   const requiredPaths = [
-    resolveAppFile('v2.0.0', 'main', 'index.html'),
-    resolveAppFile('v2.0.0', 'preload.js'),
-    resolveAppFile('v2.0.0', 'window_preload.js'),
-    resolveAppFile('v2.0.0', 'fast_window_preload.js'),
+    resolveAppFile('runtime', 'main', 'index.html'),
+    resolveAppFile('runtime', 'preload.js'),
+    resolveAppFile('runtime', 'window_preload.js'),
+    resolveAppFile('runtime', 'fast_window_preload.js'),
   ];
 
   const missing = requiredPaths.filter((file) => !fs.existsSync(file));
@@ -396,7 +396,7 @@ ipcMain.on('utools:create-browser-window', (event, payload = {}) => {
   const rawOptions = payload.options || {};
   const baseDir = payload.baseDir && path.isAbsolute(payload.baseDir)
     ? payload.baseDir
-    : resolveAppFile('v2.0.0');
+    : resolveAppFile('runtime');
 
   const normalizedOptions = {
     ...rawOptions,

@@ -162,37 +162,6 @@ async function syncLauncherSettings(config = {}) {
 
 /**
  * 拆分完整的 config 对象以便于分块存储
- * 增加了 localConfigPart 用于存储设备特定的路径配置
- */
-function splitConfigForStorage(fullConfig) {
-  // 深拷贝一份以避免修改原对象影响后续逻辑
-  const configCopy = JSON.parse(JSON.stringify(fullConfig));
-  
-  const { prompts, providers, mcpServers, ...restOfConfig } = configCopy;
-
-  // 提取本地配置
-  const localConfigPart = {
-    skillPath: restOfConfig.skillPath || "",
-    localChatPath: restOfConfig.webdav?.localChatPath || ""
-  };
-
-  // 从共享配置中移除本地特定的字段，防止污染云端同步
-  delete restOfConfig.skillPath;
-  if (restOfConfig.webdav) {
-    delete restOfConfig.webdav.localChatPath;
-  }
-
-  return {
-    baseConfigPart: { config: restOfConfig },
-    promptsPart: prompts,
-    providersPart: providers,
-    mcpServersPart: mcpServers,
-    localConfigPart: localConfigPart // 新增返回部分
-  };
-}
-
-/**
- * [已重构] 拆分完整的 config 对象以便于分块存储
  * @param {object} fullConfig - 包含 prompts 和 providers 的完整 config 对象
  * @returns {{baseConfigPart: object, promptsPart: object, providersPart: object, mcpServersPart: object}} - 拆分后的四部分
  */

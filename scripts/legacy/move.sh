@@ -1,32 +1,36 @@
 #!/bin/bash
 
-# 构建 Anywhere_main
-echo "=== build Anywhere_main ==="
-cd Anywhere_main
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+cd "$ROOT_DIR"
+
+# 构建 apps/main
+echo "=== build apps/main ==="
+cd apps/main
 pnpm install
 if [ $? -ne 0 ]; then
-    echo "Anywhere_main install error"
+    echo "apps/main install error"
     exit 1
 fi
 pnpm build
 if [ $? -ne 0 ]; then
-    echo "Anywhere_main build error"
+    echo "apps/main build error"
     exit 1
 fi
 cd ..
 
-# 构建 Anywhere_window
+# 构建 apps/window
 echo ""
-echo "=== build Anywhere_window ==="
-cd Anywhere_window
+echo "=== build apps/window ==="
+cd apps/window
 pnpm install
 if [ $? -ne 0 ]; then
-    echo "Anywhere_window install error"
+    echo "apps/window install error"
     exit 1
 fi
 pnpm build
 if [ $? -ne 0 ]; then
-    echo "Anywhere_window build error"
+    echo "apps/window build error"
     exit 1
 fi
 cd ..
@@ -34,7 +38,7 @@ cd ..
 # 构建 backend
 echo ""
 echo "=== build backend ==="
-cd backend
+cd apps/backend
 pnpm install
 if [ $? -ne 0 ]; then
     echo "backend install error"
@@ -50,4 +54,4 @@ cd ..
 # 运行 Python 脚本移动文件
 echo ""
 echo "=== run Python : moveDist.py ==="
-python moveDist.py
+python scripts/legacy/moveDist.py
