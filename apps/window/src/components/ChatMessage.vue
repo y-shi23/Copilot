@@ -605,7 +605,7 @@ const truncateFilename = (filename, maxLength = 30) => {
 
 .chat-message .user-bubble {
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    border-radius: 20px;
+    border-radius: 12px;
     background-color: var(--el-bg-color-userbubble);
     border: 1px solid var(--el-border-color-lighter);
     padding-top: 10px;
@@ -631,7 +631,7 @@ html.dark .chat-message .user-bubble {
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
     background-color: color-mix(in srgb, var(--el-bg-color) 90%, transparent);
     border: 1px solid var(--el-border-color-lighter);
-    border-radius: 18px;
+    border-radius: 12px;
     padding: 10px 12px 8px;
     box-shadow: var(--el-box-shadow-lighter);
   }
@@ -658,7 +658,7 @@ html.dark .chat-message .ai-bubble {
     padding: 0;
     color: var(--text-primary);
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.65;
     tab-size: 4;
     font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
     word-break: break-word;
@@ -682,7 +682,10 @@ html.dark .chat-message .ai-bubble {
     overflow-x: auto;
     white-space: pre;
     box-sizing: border-box;
-    border-radius: 6px;
+    border-radius: 10px;
+    background-color: color-mix(in srgb, var(--el-fill-color-light) 92%, transparent);
+    border: 1px solid var(--el-border-color-lighter);
+    padding: 12px;
   }
 
   :deep(.katex) {
@@ -856,7 +859,7 @@ html.dark .chat-message .ai-bubble {
     margin-top: 0.5em;
     margin-bottom: 0.8em;
     padding-bottom: 0.3em;
-    border-bottom: 1px solid #d0d7de;
+    border-bottom: 1px solid var(--el-border-color-lighter);
   }
 
   :deep(h1) {
@@ -881,13 +884,13 @@ html.dark .chat-message .ai-bubble {
 
   :deep(h6) {
     font-size: 0.9em;
-    color: #656d76;
+    color: var(--el-text-color-secondary);
   }
 
   :deep(blockquote) {
     margin: 1em 0;
     padding: 0.5em 1em;
-    border-left: 4px solid #b3b3b3;
+    border-left: 4px solid var(--el-border-color-dark);
     background-color: rgba(0, 0, 0, 0.035) !important;
     color: var(--el-text-color-secondary);
     border-radius: 0 8px 8px 0;
@@ -916,11 +919,11 @@ html.dark .chat-message .ai-bubble {
     padding: 0.2em 0.4em;
     margin: 0;
     border-radius: 4px;
-    background-color: rgba(175, 184, 193, 0.2);
+    background-color: color-mix(in srgb, var(--el-fill-color-dark) 70%, transparent);
   }
 
   html:not(.dark) & :deep(pre.shiki) {
-    background-color: #f6f8fa !important;
+    background-color: color-mix(in srgb, var(--el-fill-color-light) 94%, transparent) !important;
   }
 
   html.dark & {
@@ -1435,7 +1438,7 @@ html.dark .stop-btn-wrapper {
   color: #141414;
 
   &:hover {
-    background-color: #ffffff;
+    background-color: #f7f7f3;
   }
 }
 

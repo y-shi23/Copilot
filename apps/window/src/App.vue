@@ -1777,16 +1777,16 @@ const saveSessionAsHtml = async () => {
     const cssStyles = `
       <style>
         :root { 
-            --bg-color: #f7f7f7; 
-            --text-color: #333; 
-            --card-bg: #fff; 
+            --bg-color: #fbfbfb; 
+            --text-color: #202020; 
+            --card-bg: #f8f8f5; 
             --user-bg: #e1f5fe; 
-            --ai-bg: #fff; 
-            --border-color: #eee; 
-            --accent-color: #1F2937; 
+            --ai-bg: #f8f8f5; 
+            --border-color: #e5e5e5; 
+            --accent-color: #3f5567; 
             --timeline-line: #e0e0e0;
             --timeline-dot-default: #bdbdbd;
-            --timeline-dot-active: #1F2937;
+            --timeline-dot-active: #3f5567;
         }
         @media (prefers-color-scheme: dark) {
           :root { 
@@ -1879,7 +1879,7 @@ const saveSessionAsHtml = async () => {
             top: 50%;
             transform: translateY(-50%);
             background-color: var(--accent-color);
-            color: #fff;
+            color: #f7f7f3;
             padding: 4px 8px;
             border-radius: 4px;
             font-size: 12px;
@@ -3905,114 +3905,119 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.94), transparent 44%), #f3f4f6;
+  background: radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.5), transparent 46%), #fbfbfb;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: #202020;
 }
 
 :root {
   color-scheme: light;
 
-  --bg-tertiary: #f7f8fa;
-  --text-primary: #1f2530;
-  --text-secondary: #687487;
-  --text-tertiary: #9ba5b5;
-  --text-on-accent: #ffffff;
+  --bg-tertiary: #f2f2ef;
+  --text-primary: #202020;
+  --text-secondary: #8a8a8a;
+  --text-tertiary: #a5a5a5;
+  --text-on-accent: #f7f7f3;
 
-  --el-bg-color-page: #f3f4f6;
-  --el-bg-color: #ffffff;
-  --el-bg-color-overlay: #ffffff;
-  --el-bg-color-input: #f8f9fc;
-  --el-bg-color-userbubble: #eef2f7;
+  --el-bg-color-page: #fbfbfb;
+  --el-bg-color: #f7f7f4;
+  --el-bg-color-overlay: #f8f8f5;
+  --el-bg-color-input: #f6f6f3;
+  --el-bg-color-userbubble: #f1f2ef;
 
-  --el-fill-color: #f5f7fb;
-  --el-fill-color-light: #fbfcfe;
-  --el-fill-color-lighter: #f2f4f8;
-  --el-fill-color-dark: #e9edf4;
-  --el-fill-color-darker: #dde4ef;
-  --el-fill-color-blank: #ffffff;
+  --el-fill-color: #f2f2ef;
+  --el-fill-color-light: #f8f8f5;
+  --el-fill-color-lighter: #f4f4f1;
+  --el-fill-color-dark: #ecece8;
+  --el-fill-color-darker: #e6e6e1;
+  --el-fill-color-blank: #f8f8f5;
 
-  --el-border-color: rgba(31, 37, 48, 0.08);
-  --el-border-color-light: rgba(31, 37, 48, 0.08);
-  --el-border-color-lighter: rgba(31, 37, 48, 0.05);
-  --el-border-color-dark: rgba(31, 37, 48, 0.14);
-  --el-border-color-darker: rgba(31, 37, 48, 0.2);
+  --el-border-color: #e5e5e5;
+  --el-border-color-light: #e5e5e5;
+  --el-border-color-lighter: #ecece9;
+  --el-border-color-dark: rgba(32, 32, 32, 0.13);
+  --el-border-color-darker: rgba(32, 32, 32, 0.2);
 
   --el-text-color-primary: var(--text-primary);
   --el-text-color-regular: var(--text-secondary);
-  --el-text-color-secondary: #778196;
+  --el-text-color-secondary: var(--text-secondary);
   --el-text-color-placeholder: var(--text-tertiary);
-  --el-text-color-disabled: #b4bcc9;
+  --el-text-color-disabled: #b2b2b2;
 
-  --el-color-primary: #556581;
-  --el-color-primary-light-3: #77859c;
-  --el-color-primary-light-5: #9ca7b9;
-  --el-color-primary-light-7: #c2cad7;
-  --el-color-primary-light-8: #dde3ec;
-  --el-color-primary-light-9: #eff3f8;
-  --el-color-primary-dark-2: #4c5b75;
+  --el-color-primary: #3f5567;
+  --el-color-primary-light-3: #6e8190;
+  --el-color-primary-light-5: #95a3ae;
+  --el-color-primary-light-7: #bcc5cd;
+  --el-color-primary-light-8: #dbe0e4;
+  --el-color-primary-light-9: #edf1f4;
+  --el-color-primary-dark-2: #334a5d;
 
-  --el-box-shadow: 0 16px 42px rgba(23, 31, 46, 0.1);
-  --el-box-shadow-light: 0 10px 26px rgba(23, 31, 46, 0.08);
-  --el-box-shadow-lighter: 0 8px 20px rgba(23, 31, 46, 0.05);
-  --el-box-shadow-dark: 0 22px 56px rgba(23, 31, 46, 0.16);
+  --el-box-shadow: 0 16px 38px rgba(32, 32, 32, 0.08);
+  --el-box-shadow-light: 0 10px 24px rgba(32, 32, 32, 0.06);
+  --el-box-shadow-lighter: 0 6px 16px rgba(32, 32, 32, 0.045);
+  --el-box-shadow-dark: 0 22px 52px rgba(32, 32, 32, 0.12);
+
+  --el-color-white: #fbfbfb;
+  --el-color-black: #202020;
 }
 
 html.dark {
   color-scheme: dark;
 
-  --bg-tertiary: #232730;
-  --text-primary: #edf2fa;
-  --text-secondary: #b6c0cf;
-  --text-tertiary: #8a97ac;
-  --text-on-accent: #1a1f27;
+  --bg-tertiary: #2d3137;
+  --text-primary: #ececec;
+  --text-secondary: #aeaeae;
+  --text-tertiary: #8f8f8f;
+  --text-on-accent: #1f2124;
 
-  --el-bg-color-page: #16181d;
-  --el-bg-color: #1d2027;
-  --el-bg-color-overlay: #1f232b;
-  --el-bg-color-input: #242934;
-  --el-bg-color-userbubble: #2a2f39;
+  --el-bg-color-page: #1d1f22;
+  --el-bg-color: #25282d;
+  --el-bg-color-overlay: #272a2f;
+  --el-bg-color-input: #2b2f35;
+  --el-bg-color-userbubble: #30343b;
 
-  --el-fill-color: #232730;
-  --el-fill-color-light: #2b313c;
-  --el-fill-color-lighter: #262b34;
-  --el-fill-color-dark: #323844;
-  --el-fill-color-darker: #3a4351;
-  --el-fill-color-blank: #1d2027;
+  --el-fill-color: #2d3137;
+  --el-fill-color-light: #32363d;
+  --el-fill-color-lighter: #2d3137;
+  --el-fill-color-dark: #393e46;
+  --el-fill-color-darker: #434953;
+  --el-fill-color-blank: #25282d;
 
-  --el-border-color: rgba(237, 242, 250, 0.12);
-  --el-border-color-light: rgba(237, 242, 250, 0.12);
-  --el-border-color-lighter: rgba(237, 242, 250, 0.08);
-  --el-border-color-dark: rgba(237, 242, 250, 0.22);
-  --el-border-color-darker: rgba(237, 242, 250, 0.3);
+  --el-border-color: rgba(236, 236, 236, 0.14);
+  --el-border-color-light: rgba(236, 236, 236, 0.14);
+  --el-border-color-lighter: rgba(236, 236, 236, 0.09);
+  --el-border-color-dark: rgba(236, 236, 236, 0.22);
+  --el-border-color-darker: rgba(236, 236, 236, 0.3);
 
   --el-text-color-primary: var(--text-primary);
   --el-text-color-regular: var(--text-secondary);
-  --el-text-color-secondary: #9ca8bc;
+  --el-text-color-secondary: var(--text-secondary);
   --el-text-color-placeholder: var(--text-tertiary);
-  --el-text-color-disabled: #68748a;
+  --el-text-color-disabled: #7b7b7b;
 
-  --el-color-primary: #d5dde9;
-  --el-color-primary-light-3: #e2e8f0;
-  --el-color-primary-light-5: #edf2f8;
-  --el-color-primary-light-7: #353b47;
-  --el-color-primary-light-8: #2f3541;
-  --el-color-primary-light-9: #282d37;
-  --el-color-primary-dark-2: #c0cedd;
+  --el-color-primary: #d2dae3;
+  --el-color-primary-light-3: #e0e6ec;
+  --el-color-primary-light-5: #edf1f5;
+  --el-color-primary-light-7: #3a3e45;
+  --el-color-primary-light-8: #343840;
+  --el-color-primary-light-9: #2f333a;
+  --el-color-primary-dark-2: #bdc8d3;
 
-  --el-box-shadow: 0 16px 44px rgba(0, 0, 0, 0.3);
-  --el-box-shadow-light: 0 10px 24px rgba(0, 0, 0, 0.24);
-  --el-box-shadow-lighter: 0 8px 18px rgba(0, 0, 0, 0.2);
-  --el-box-shadow-dark: 0 22px 58px rgba(0, 0, 0, 0.34);
+  --el-box-shadow: 0 16px 44px rgba(8, 8, 8, 0.34);
+  --el-box-shadow-light: 0 10px 24px rgba(8, 8, 8, 0.28);
+  --el-box-shadow-lighter: 0 8px 18px rgba(8, 8, 8, 0.22);
+  --el-box-shadow-dark: 0 24px 60px rgba(8, 8, 8, 0.4);
 }
 
 html.dark body {
-  background: radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.04), transparent 40%), #16181d;
+  background: radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.06), transparent 40%), #1d1f22;
 }
 
 .el-dialog,
 .el-message-box,
 .mcp-dialog,
 .model-dialog {
-  border-radius: 20px !important;
+  border-radius: 16px !important;
   border: 1px solid var(--el-border-color-light) !important;
   overflow: hidden;
   box-shadow: var(--el-box-shadow) !important;
@@ -4056,7 +4061,7 @@ html.dark body {
   gap: 14px;
   padding: 12px 14px;
   border: 1px solid var(--el-border-color-light);
-  border-radius: 14px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.16s ease;
   background: var(--el-fill-color-light);
@@ -4081,7 +4086,7 @@ html.dark body {
 }
 
 .system-prompt-dialog {
-  border-radius: 20px !important;
+  border-radius: 16px !important;
 }
 
 .system-prompt-dialog .el-dialog__header {
@@ -4481,15 +4486,15 @@ main > .app-container {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background-color: color-mix(in srgb, var(--el-bg-color-page) 88%, transparent);
+  background-color: color-mix(in srgb, var(--el-bg-color-page) 92%, transparent);
   color: var(--el-text-color-primary);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   box-sizing: border-box;
-  border-radius: 20px;
+  border-radius: 14px;
   border: 1px solid var(--el-border-color-light);
   box-shadow: var(--el-box-shadow-light);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   position: relative;
   z-index: 1;
 }
@@ -4505,9 +4510,9 @@ html.dark .app-container {
 }
 
 .app-container :deep(.chat-input-area-vertical) {
-  border-radius: 18px;
+  border-radius: 12px;
   border-color: var(--el-border-color-light) !important;
-  box-shadow: 0 8px 20px rgba(23, 31, 46, 0.06);
+  box-shadow: 0 10px 24px rgba(32, 32, 32, 0.06);
 }
 
 .main-area-wrapper {
@@ -4526,7 +4531,7 @@ html.dark .app-container {
   flex-direction: column;
   flex-wrap: nowrap;
   align-items: stretch;
-  padding: 0 22px;
+  padding: 4px 24px 0;
   margin: 0;
   overflow-y: auto;
   scroll-behavior: auto !important;
@@ -4951,7 +4956,7 @@ html.dark .app-container.has-bg :deep(.recording-status-text) {
 }
 
 .app-container.has-bg :deep(.model-pill:hover) {
-  background-color: #fff;
+  background-color: #f8f8f5;
 }
 
 html.dark .app-container.has-bg :deep(.model-pill) {
@@ -5000,7 +5005,7 @@ html.dark .app-container.has-bg :deep(.ai-bubble .el-bubble-content) {
 }
 
 .app-container.has-bg :deep(.footer-actions .el-button.is-circle:hover) {
-  background-color: #fff;
+  background-color: #f8f8f5;
 }
 
 html.dark .app-container.has-bg :deep(.footer-actions .el-button.is-circle) {

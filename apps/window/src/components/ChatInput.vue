@@ -913,7 +913,7 @@ html.dark .drag-overlay {
 }
 
 .input-footer {
-    padding: 8px 20px 18px;
+    padding: 10px 22px 18px;
     height: auto;
     width: 100%;
     flex-shrink: 0;
@@ -932,10 +932,10 @@ html.dark .drag-overlay {
     flex-direction: column;
     background-color: var(--el-bg-color-overlay);
     border: 1px solid var(--el-border-color-light);
-    border-radius: 16px;
+    border-radius: 12px;
     box-shadow: var(--el-box-shadow-light);
     z-index: 100;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     padding: 0;
     /* padding 移到内部元素 */
     overflow: hidden;
@@ -947,7 +947,7 @@ html.dark .drag-overlay {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 9px 12px;
+    padding: 10px 12px;
     background-color: var(--el-fill-color-light);
     border-bottom: 1px solid var(--el-border-color-lighter);
     flex-shrink: 0;
@@ -979,7 +979,7 @@ html.dark .drag-overlay {
     padding: 8px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
 }
 
 /* 滚动条 */
@@ -1020,7 +1020,7 @@ html.dark .app-container.has-bg .mcp-quick-header {
     align-items: center;
     justify-content: space-between;
     padding: 6px 9px;
-    border-radius: 10px;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s ease;
     /* 增加平滑过渡 */
@@ -1125,7 +1125,7 @@ html.dark .app-container.has-bg .mcp-quick-item.active.highlighted {
 
 .mcp-quick-item.active .mcp-index-badge {
     background-color: var(--el-color-primary);
-    color: #ffffff;
+    color: var(--text-on-accent);
 }
 
 html.dark .mcp-index-badge {
@@ -1136,7 +1136,7 @@ html.dark .mcp-index-badge {
 html.dark .mcp-quick-item:hover .mcp-index-badge,
 html.dark .mcp-quick-item.highlighted .mcp-index-badge {
     background-color: rgba(255, 255, 255, 0.25);
-    color: #ffffff;
+    color: #f7f7f3;
 }
 
 html.dark .mcp-quick-item.active .mcp-index-badge {
@@ -1434,11 +1434,13 @@ html.dark .el-divider--vertical {
 .chat-input-area-vertical {
     display: flex;
     flex-direction: column;
-    background-color: var(--el-bg-color-input);
-    border-radius: 18px;
-    padding: 10px 12px;
+    background-color: color-mix(in srgb, var(--el-bg-color-overlay) 95%, transparent);
+    border-radius: 12px;
+    padding: 12px 14px;
     border: 1px solid var(--el-border-color-light);
-    box-shadow: var(--el-box-shadow-lighter);
+    box-shadow: 0 10px 24px rgba(32, 32, 32, 0.06);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     position: relative;
 }
 
@@ -1459,7 +1461,7 @@ html.dark .chat-input-area-vertical {
     padding: 0;
     color: var(--el-text-color-primary);
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.65;
     resize: none;
 }
 
@@ -1467,7 +1469,9 @@ html.dark .chat-input-area-vertical {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 8px;
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid var(--el-border-color-lighter);
     flex-shrink: 0;
 }
 
@@ -1493,8 +1497,8 @@ html.dark .chat-input-area-vertical {
 }
 
 .chat-input-area-vertical .el-button {
-    width: 34px;
-    height: 34px;
+    width: 32px;
+    height: 32px;
     background: none;
     border: none;
     border-radius: 999px;
@@ -1567,7 +1571,7 @@ html.dark :deep(.el-textarea__inner::-webkit-scrollbar-thumb:hover) {
 
 .el-button.is-circle[type="primary"] {
     background-color: var(--el-color-primary);
-    color: #ffffff;
+    color: var(--text-on-accent);
 }
 
 .el-button.is-circle[type="primary"]:hover,
@@ -1576,7 +1580,7 @@ html.dark :deep(.el-textarea__inner::-webkit-scrollbar-thumb:hover) {
 }
 
 html.dark .el-button--danger.is-plain {
-    color: #ffffff;
+    color: #f7f7f3;
     background-color: var(--el-color-danger);
     border-color: var(--el-color-danger);
 }
@@ -1585,11 +1589,11 @@ html.dark .el-button--danger.is-plain:hover,
 html.dark .el-button--danger.is-plain:focus {
     background-color: var(--el-color-danger-light-3);
     border-color: var(--el-color-danger-light-3);
-    color: #ffffff;
+    color: #f7f7f3;
 }
 
 html.dark .el-button--success.is-plain {
-    color: #ffffff;
+    color: #f7f7f3;
     background-color: var(--el-color-success);
     border-color: var(--el-color-success);
 }
@@ -1598,7 +1602,7 @@ html.dark .el-button--success.is-plain:hover,
 html.dark .el-button--success.is-plain:focus {
     background-color: var(--el-color-success-light-3);
     border-color: var(--el-color-success-light-3);
-    color: #ffffff;
+    color: #f7f7f3;
 }
 
 /* Cancel Button Animation */

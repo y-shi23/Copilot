@@ -24,6 +24,14 @@ import { ElBadge } from 'element-plus'; // 确保引入 ElBadge
 const { t, locale } = useI18n()
 const tab = ref(0);
 const header_text = ref(t('app.header.chats'));
+const navItems = computed(() => ([
+  { id: 0, label: t('app.tabs.chats'), icon: ChatDotRound },
+  { id: 1, label: t('app.tabs.prompts'), icon: MagicStick },
+  { id: 2, label: t('app.tabs.mcp'), icon: Connection },
+  { id: 3, label: t('app.tabs.skills'), icon: Collection },
+  { id: 4, label: t('app.tabs.providers'), icon: Cloudy },
+  { id: 5, label: t('app.tabs.settings'), icon: SettingIcon }
+]));
 
 const config = ref(null);
 
@@ -357,79 +365,49 @@ watch(locale, () => {
 
 <template>
   <el-container class="common-layout">
-    <el-header>
-      <el-row :gutter="0" class="header-row" align="middle">
-        <!-- 左侧：帮助文档按钮 -->
-        <el-col :span="6" class="left-actions-col">
-          <el-tooltip :content="t('app.header.help') || '使用指南'" placement="bottom">
-            <el-button class="tab-button" text @click="openHelpDialog">
+    <el-aside class="app-sidebar">
+      <div class="sidebar-panel">
+        <div class="brand-section">
+          <div class="brand-title">Anywhere</div>
+          <el-tooltip :content="t('app.header.help') || '使用指南'" placement="right">
+            <el-button class="help-button" text @click="openHelpDialog">
               <el-badge :is-dot="hasAnyUpdate" class="bell-badge">
-                <el-icon :size="20"><Bell /></el-icon>
+                <el-icon :size="18"><Bell /></el-icon>
               </el-badge>
             </el-button>
           </el-tooltip>
-        </el-col>
-        
-        <el-col :span="12" class="header-title-col">
+        </div>
+
+        <nav class="sidebar-nav">
+          <el-button
+            v-for="item in navItems"
+            :key="item.id"
+            class="nav-item"
+            text
+            @click="changeTab(item.id)"
+            :class="{ 'active-tab': tab === item.id }"
+          >
+            <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
+            <span class="nav-label">{{ item.label }}</span>
+          </el-button>
+        </nav>
+      </div>
+    </el-aside>
+
+    <el-main class="workspace-main" v-if="config">
+      <section class="workspace-card">
+        <header class="workspace-header">
           <el-text class="header-title-text">{{ header_text }}</el-text>
-        </el-col>
-        <el-col :span="6" class="tabs-col">
-          <div class="tabs-container">
-            <!-- 1. Chats (云端对话) -->
-            <el-tooltip :content="t('app.tabs.chats')" placement="bottom">
-              <el-button class="tab-button" text @click="changeTab(0)" :class="{ 'active-tab': tab === 0 }">
-                <el-icon :size="19"><ChatDotRound /></el-icon>
-              </el-button>
-            </el-tooltip>
-
-            <!-- 2. Prompts (快捷助手/Agent) -->
-            <el-tooltip :content="t('app.tabs.prompts')" placement="bottom">
-              <el-button class="tab-button" text @click="changeTab(1)" :class="{ 'active-tab': tab === 1 }">
-                <el-icon :size="19"><MagicStick /></el-icon>
-              </el-button>
-            </el-tooltip>
-
-            <!-- 3. MCP -->
-            <el-tooltip :content="t('app.tabs.mcp')" placement="bottom">
-              <el-button class="tab-button" text @click="changeTab(2)" :class="{ 'active-tab': tab === 2 }">
-                <el-icon :size="19"><Connection /></el-icon>
-              </el-button>
-            </el-tooltip>
-
-            <!-- 4. Skills -->
-            <el-tooltip :content="t('app.tabs.skills')" placement="bottom">
-              <el-button class="tab-button" text @click="changeTab(3)" :class="{ 'active-tab': tab === 3 }">
-                <el-icon :size="20">
-                  <Collection />
-                </el-icon>
-              </el-button>
-            </el-tooltip>
-
-            <!-- 5. Providers (云服务商) -->
-            <el-tooltip :content="t('app.tabs.providers')" placement="bottom">
-              <el-button class="tab-button" text @click="changeTab(4)" :class="{ 'active-tab': tab === 4 }">
-                <el-icon :size="19"><Cloudy /></el-icon>
-              </el-button>
-            </el-tooltip>
-
-            <!-- 6. Settings (设置) -->
-            <el-tooltip :content="t('app.tabs.settings')" placement="bottom">
-              <el-button class="tab-button" text @click="changeTab(5)" :class="{ 'active-tab': tab === 5 }">
-                <el-icon :size="19"><SettingIcon /></el-icon>
-              </el-button>
-            </el-tooltip>
-          </div>
-        </el-col>
-      </el-row>
-    </el-header>
-
-    <el-main v-if="config">
-      <Chats v-if="tab === 0" key="chats" />
-      <Prompts v-if="tab === 1" key="prompts" />
-      <Mcp v-if="tab === 2" key="mcp" />
-      <Skills v-if="tab === 3" key="skills" />
-      <Providers v-if="tab === 4" key="providers" />
-      <Setting v-if="tab === 5" key="settings" />
+        </header>
+        <div class="workspace-content">
+          <Chats v-if="tab === 0" key="chats" />
+          <Prompts v-if="tab === 1" key="prompts" />
+          <Mcp v-if="tab === 2" key="mcp" />
+          <Skills v-if="tab === 3" key="skills" />
+          <Providers v-if="tab === 4" key="providers" />
+          <Setting v-if="tab === 5" key="settings" />
+        </div>
+      </section>
     </el-main>
 
     <!-- 帮助文档弹窗 -->
@@ -462,124 +440,160 @@ watch(locale, () => {
 .el-container {
   width: 100%;
   height: 100%;
-  padding: 0;
+  padding: 16px;
   margin: 0;
+  gap: 14px;
   overflow: hidden;
   background-color: transparent;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
 }
 
-.el-header {
-  padding: 16px 24px 10px;
-  height: auto;
-  display: flex;
-  align-items: center;
-  background-color: transparent;
-  border-bottom: none;
+.app-sidebar {
+  --el-aside-width: 236px;
+  width: 236px;
+  min-width: 236px;
   flex-shrink: 0;
-  z-index: 10;
+  overflow: hidden;
 }
 
-.header-row {
-  width: 100%;
-  height: 54px;
-  padding: 0 10px 0 4px;
-  border-radius: var(--radius-lg);
+.sidebar-panel {
+  height: 100%;
+  padding: 14px;
+  border-radius: var(--radius-2xl);
   border: 1px solid var(--border-primary);
   background: color-mix(in srgb, var(--bg-secondary) 86%, transparent);
   box-shadow: var(--shadow-sm);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.header-title-col {
+.brand-section {
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: space-between;
+  padding: 2px 2px 10px;
+  border-bottom: 1px solid var(--border-secondary);
+}
+
+.brand-title {
+  font-size: 16px;
+  font-weight: 620;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
+}
+
+.help-button {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+}
+
+.help-button:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 4px;
+}
+
+.nav-item {
+  width: 100%;
+  height: 40px;
+  justify-content: flex-start;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  transition: all 0.18s ease;
+}
+
+.nav-item:hover {
+  color: var(--text-primary);
+  background-color: var(--bg-tertiary);
+}
+
+.nav-item.active-tab {
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
+  background-color: var(--bg-tertiary);
+  box-shadow: var(--shadow-sm);
+}
+
+.nav-icon {
+  font-size: 16px;
+  margin-right: 10px;
+}
+
+.nav-label {
+  font-size: 13px;
+  font-weight: 520;
+  letter-spacing: 0.01em;
+}
+
+.workspace-main {
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.workspace-card {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-2xl);
+  border: 1px solid var(--border-primary);
+  background-color: var(--bg-secondary);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.workspace-header {
+  padding: 18px 28px 12px;
+  border-bottom: 1px solid var(--border-secondary);
+  flex-shrink: 0;
+}
+
+.workspace-content {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .header-title-text {
-  font-size: 20px;
-  font-weight: 650;
+  font-size: 19px;
+  font-weight: 620;
   color: var(--text-primary);
   letter-spacing: 0.01em;
-  transition: color 0.3s ease;
 }
 
-.tabs-col {
-  display: flex;
-  justify-content: flex-end;
+.bell-badge :deep(.el-badge__content.is-fixed.is-dot) {
+  right: 3px;
+  top: 3px;
 }
 
-.tabs-container {
-  display: flex;
-  gap: 4px;
-  background-color: color-mix(in srgb, var(--bg-tertiary) 85%, transparent);
-  padding: 5px;
-  border: 1px solid var(--border-secondary);
-  border-radius: 999px;
-}
-
-.tab-button {
-  padding: 6px;
-  border: none;
-  background-color: transparent;
-  color: var(--text-secondary);
-  border-radius: 999px;
-  transition: background-color 0.2s, color 0.2s;
-  height: 34px;
-  width: 34px;
-}
-
-.tab-button:hover {
-  background-color: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
-  color: var(--text-primary);
-}
-
-.active-tab {
-  background-color: var(--bg-secondary);
-  color: var(--text-accent);
-  box-shadow: 0 1px 6px rgba(39, 48, 63, 0.14);
-}
-
-.el-main {
-  padding: 0 0 8px;
-  flex-grow: 1;
-  overflow-y: auto;
-  background-color: transparent;
-}
-
-.blank-col {
-  min-width: 32px;
-}
-
-.left-actions-col {
-  display: flex;
-  align-items: center;
-  padding-left: 10px;
-}
-
-/* 修复双重 Border 问题：移除上边框，仅保留其他三边 */
 .doc-container {
   display: flex;
   height: 60vh;
   border: 1px solid var(--border-primary);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-xl);
   overflow: hidden;
   box-shadow: var(--shadow-sm);
 }
 
-/* 铃铛徽章样式微调 */
-.bell-badge :deep(.el-badge__content.is-fixed.is-dot) {
-  right: 2px;
-  top: 2px;
-}
-
 .doc-sidebar {
-  width: 180px;
+  width: 190px;
   border-right: 1px solid var(--border-primary);
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-tertiary);
   flex-shrink: 0;
 }
 
@@ -592,23 +606,22 @@ watch(locale, () => {
   height: 42px;
   line-height: 42px;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 13px;
   margin: 4px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-md);
 }
 
 .doc-menu :deep(.el-menu-item:hover) {
-  background-color: var(--bg-tertiary);
+  background-color: color-mix(in srgb, var(--bg-secondary) 50%, transparent);
 }
 
 .doc-menu :deep(.el-menu-item.is-active) {
-  color: var(--text-accent);
-  background-color: var(--bg-accent-light);
+  color: var(--text-primary);
+  background-color: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
   font-weight: 600;
   border-right: none;
 }
 
-/* 侧边栏菜单项布局：文字与红点分离 */
 .menu-item-text {
   display: flex;
   align-items: center;
@@ -616,7 +629,6 @@ watch(locale, () => {
   width: 100%;
 }
 
-/* 文档更新红点样式 */
 .doc-update-dot {
   width: 6px;
   height: 6px;
@@ -628,7 +640,7 @@ watch(locale, () => {
 
 .doc-content {
   flex: 1;
-  background-color: var(--bg-primary);
+  background-color: var(--bg-secondary);
   padding: 0;
   overflow: hidden;
 }
@@ -690,21 +702,21 @@ watch(locale, () => {
 
 /* 行内代码块优化 */
 .markdown-body :deep(code) {
-  background-color: var(--bg-tertiary);
+  background-color: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   /* 等宽字体栈 */
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 0.85em;
-  color: var(--el-color-primary); /* 使用主题色，让代码更显眼 */
+  color: var(--text-primary); /* 使用主题色，让代码更显眼 */
   margin: 0 2px;
 }
 
 /* 多行代码块 */
 .markdown-body :deep(pre) {
-  background-color: var(--bg-tertiary);
+  background-color: color-mix(in srgb, var(--bg-tertiary) 72%, transparent);
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   overflow-x: auto;
   margin-bottom: 1.2em;
   line-height: 1.5;
@@ -725,7 +737,7 @@ watch(locale, () => {
   margin: 1.2em 0;
   padding: 8px 16px;
   color: var(--text-secondary);
-  border-left: 4px solid var(--el-color-primary); /* 使用主题色作为边框 */
+  border-left: 4px solid var(--border-accent); /* 使用主题色作为边框 */
   background-color: var(--bg-tertiary); /* 改用浅色背景而不是纯灰 */
   border-radius: 0 4px 4px 0;
 }
@@ -737,7 +749,7 @@ watch(locale, () => {
 /* 图片优化 */
 .markdown-body :deep(img) {
   max-width: 100%;
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   margin: 12px 0;
   border: 1px solid var(--border-primary);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* 增加轻微阴影 */
@@ -746,7 +758,7 @@ watch(locale, () => {
 
 /* 链接优化 */
 .markdown-body :deep(a) {
-  color: var(--el-color-primary);
+  color: var(--text-accent);
   text-decoration: none;
   font-weight: 500;
   border-bottom: 1px solid transparent;
@@ -754,7 +766,7 @@ watch(locale, () => {
   cursor: pointer;
 }
 .markdown-body :deep(a:hover) {
-  border-bottom-color: var(--el-color-primary); /* 悬浮时显示下划线效果 */
+  border-bottom-color: var(--text-accent); /* 悬浮时显示下划线效果 */
 }
 
 /* 弹窗样式微调 */
@@ -765,5 +777,47 @@ watch(locale, () => {
   padding: 5px 15px 15px 15px !important;
   margin-right: 0;
   border-bottom: 1px solid var(--border-primary);
+}
+
+@media (max-width: 860px) {
+  .common-layout,
+  .el-container {
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .app-sidebar {
+    --el-aside-width: 208px;
+    width: 208px;
+    min-width: 208px;
+  }
+
+  .workspace-header {
+    padding: 14px 18px 10px;
+  }
+}
+
+@media (max-width: 700px) {
+  .common-layout,
+  .el-container {
+    flex-direction: column;
+  }
+
+  .app-sidebar {
+    --el-aside-width: 100%;
+    width: 100%;
+    min-width: 100%;
+  }
+
+  .sidebar-panel {
+    height: auto;
+    padding: 10px;
+  }
+
+  .sidebar-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
 }
 </style>

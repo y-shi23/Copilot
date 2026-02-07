@@ -12,14 +12,15 @@ body,
 
 #app {
   font-weight: 400;
+  color: #202020;
 }
 
 a,
 a:visited {
-  color: #556581;
+  color: #3f5567;
   text-decoration: none;
 }
 
 a:hover {
-  color: #2a3242;
+  color: #202020;
 }

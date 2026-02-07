@@ -101,9 +101,9 @@ const logoColor = computed(() => {
 
 <style scoped>
 .model-header {
-  height: 46px;
+  height: 54px;
   width: 100%;
-  padding: 0 16px;
+  padding: 8px 20px 0;
   flex-shrink: 0;
   z-index: 9;
   background-color: transparent;
@@ -111,9 +111,14 @@ const logoColor = computed(() => {
 
 .model-header-wrapper {
   width: 100%;
-  height: 100%;
+  height: 46px;
   display: flex;
   align-items: center;
+  border-radius: 12px;
+  border: 1px solid var(--el-border-color-light);
+  background-color: color-mix(in srgb, var(--el-bg-color-overlay) 92%, transparent);
+  box-shadow: var(--el-box-shadow-lighter);
+  padding: 0 10px;
 }
 
 .header-content-group {
@@ -140,7 +145,7 @@ const logoColor = computed(() => {
   gap: 6px;
   padding: 5px 10px;
   background-color: transparent;
-  border-radius: 999px;
+  border-radius: 10px;
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;

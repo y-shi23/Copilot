@@ -207,7 +207,7 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 
 <style scoped>
 .title-bar {
-  height: 44px;
+  height: 42px;
   width: 100%;
   display: flex;
   justify-content: space-between;
@@ -216,7 +216,7 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
   user-select: none;
   -webkit-app-region: drag;
   box-sizing: border-box;
-  padding: 0 10px 0 14px;
+  padding: 0 12px 0 14px;
   font-size: 12px;
   color: var(--el-text-color-primary);
   flex-shrink: 0;
@@ -257,7 +257,7 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
   gap: 6px;
   cursor: pointer;
   padding: 4px 9px;
-  border-radius: 999px;
+  border-radius: 10px;
   transition: background-color 0.18s ease;
   height: 26px;
 }
@@ -327,7 +327,7 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: 10px;
   cursor: default;
   color: var(--el-text-color-secondary);
   transition: all 0.16s ease;
@@ -389,7 +389,7 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 .win-btn {
   width: 34px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -487,7 +487,7 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 .linux-btn {
   width: 30px;
   height: 28px;
-  border-radius: 999px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
