@@ -44,7 +44,7 @@ cd apps/backend && pnpm run watch
 ### Testing in uTools
 
 1. Install [uTools Developer Tools](https://www.u-tools.cn/plugins/detail/uTools%20%E5%BC%80%E5%8F%91%E8%80%85%E5%B7%A5%E5%85%B7/)
-2. Import the generated release folder (e.g., `v2.0.0/plugin.json`)
+2. Import the generated release folder (e.g., `runtime/plugin.json`)
 3. Run and debug directly in uTools
 
 ## Architecture
@@ -374,7 +374,7 @@ async function executeSkillAsSubAgent(skill, userInput) {
 
 - **Three Separate Builds**: Each frontend + backend must build independently
 - **Asset Sync**: Root `pnpm build` runs `scripts/sync-assets.cjs` to assemble runtime assets
-- **Version Folder**: Release folder name (e.g., `v2.0.0`) must match version in code
+- **Runtime Folder**: Release assets are assembled into `runtime/`
 - **Asset Paths**: Vite build output paths must align with `plugin.json` structure
 
 ### MCP Constraints
@@ -417,7 +417,7 @@ async function executeSkillAsSubAgent(skill, userInput) {
 | `apps/backend/src/input.js` | AI provider abstraction | `streamChatCompletion()`, provider routing |
 | `apps/window/src/App.vue` | Chat UI root | Message rendering, streaming display |
 | `apps/main/src/components/Mcp.vue` | MCP management UI | Server config, tool approval |
-| `v2.0.0/plugin.json` | uTools plugin manifest | Feature definitions, entry points |
+| `runtime/plugin.json` | uTools plugin manifest | Feature definitions, entry points |
 
 ## Language and Localization
 

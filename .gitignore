@@ -43,30 +43,17 @@ result.md
 result.txt
 ToDoList.md
 
-v1.8.2
-v1.8.3
-v1.9.1
-v1.9.5
-v1.9.7
-v1.9.8
-v1.9.9
-v1.9.10
-v1.9.11
-v1.9.13
-v1.10.3
-v1.11.1
-
-/v2.0.0/window/*
-/v2.0.0/fast_window/*
-/v2.0.0/main/*
-/v2.0.0/preload.js
-/v2.0.0/window_preload.js
-/v2.0.0/fast_window_preload.js
+/runtime/window/*
+/runtime/fast_window/*
+/runtime/main/*
+/runtime/preload.js
+/runtime/window_preload.js
+/runtime/fast_window_preload.js
 /release
 
-!/v2.0.0/window/.gitkeep
-!/v2.0.0/fast_window/.gitkeep
-!/v2.0.0/main/.gitkeep
+!/runtime/window/.gitkeep
+!/runtime/fast_window/.gitkeep
+!/runtime/main/.gitkeep
 
 
 

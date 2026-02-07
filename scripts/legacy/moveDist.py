@@ -1,17 +1,13 @@
 import os
-import re
 import shutil
 
-# 查找版本号最新的目录，版本号命名方式为`v%d.%d.%d`，例如 v1.0.0
+RUNTIME_DIR = "runtime"
+
+# 统一使用固定运行目录，不再使用版本号目录命名
 def moveDist():
-    dirs = [d for d in os.listdir('.') if os.path.isdir(d)]
-    version_dirs = [d for d in dirs if re.match(r'^v\d+\.\d+\.\d+$', d)]
-    version_dirs.sort(key=lambda x: list(map(int, re.findall(r'\d+', x))))
-    if not version_dirs:
-        print("未找到版本目录 (vX.X.X)")
-        exit(1)
-    latest_version_dir = version_dirs[-1]
-    return latest_version_dir
+    if not os.path.exists(RUNTIME_DIR):
+        os.makedirs(RUNTIME_DIR, exist_ok=True)
+    return RUNTIME_DIR
 
 # 删除指定目录下的文件夹
 def deleteFiles(dir, delete_dir):
@@ -74,35 +70,35 @@ def smart_copy(src_folder, target_folder):
             print(f"未知类型文件: {src_path}")
 
 if __name__ == "__main__":
-    latest_version_dir = moveDist()
-    print(f"目标版本目录: {latest_version_dir}\n")
+    runtime_dir = moveDist()
+    print(f"目标运行目录: {runtime_dir}\n")
 
-    # 1. 处理 main (apps/main/dist -> vX.X.X/main)
-    deleteFiles(latest_version_dir, 'main')
+    # 1. 处理 main (apps/main/dist -> runtime/main)
+    deleteFiles(runtime_dir, 'main')
     print(f"正在更新 main 文件夹...")
-    main_target_dir = os.path.join(latest_version_dir, 'main')
+    main_target_dir = os.path.join(runtime_dir, 'main')
     smart_copy(os.path.join("apps", "main", "dist"), main_target_dir)
     print("main 文件夹更新完成\n")
 
-    # 2. 处理 window (apps/window/dist -> vX.X.X/window)
-    deleteFiles(latest_version_dir, 'window')
+    # 2. 处理 window (apps/window/dist -> runtime/window)
+    deleteFiles(runtime_dir, 'window')
     print(f"正在更新 window 文件夹...")
-    window_target_dir = os.path.join(latest_version_dir, 'window')
+    window_target_dir = os.path.join(runtime_dir, 'window')
     smart_copy(os.path.join("apps", "window", "dist"), window_target_dir)
     print("window 文件夹更新完成\n")
 
-    # 3. 处理 preload (apps/backend/public -> vX.X.X/)
-    deleteFile(latest_version_dir, 'preload.js')
-    deleteFile(latest_version_dir, 'window_preload.js')
-    deleteFile(latest_version_dir, 'fast_window_preload.js')
+    # 3. 处理 preload (apps/backend/public -> runtime/)
+    deleteFile(runtime_dir, 'preload.js')
+    deleteFile(runtime_dir, 'window_preload.js')
+    deleteFile(runtime_dir, 'fast_window_preload.js')
     print(f"正在更新 preload 相关文件...")
-    smart_copy(os.path.join("apps", "backend", "public"), latest_version_dir)
+    smart_copy(os.path.join("apps", "backend", "public"), runtime_dir)
     print("preload 相关文件更新完成\n")
 
-    # 4. 处理 fast_window (apps/fast-window -> vX.X.X/fast_window)
-    deleteFiles(latest_version_dir, 'fast_window')
+    # 4. 处理 fast_window (apps/fast-window -> runtime/fast_window)
+    deleteFiles(runtime_dir, 'fast_window')
     print(f"正在更新 fast_window 文件夹...")
-    fast_window_target_dir = os.path.join(latest_version_dir, 'fast_window')
+    fast_window_target_dir = os.path.join(runtime_dir, 'fast_window')
     smart_copy(os.path.join("apps", "fast-window"), fast_window_target_dir)
     print("fast_window 相关文件更新完成")
 

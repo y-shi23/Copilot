@@ -2,10 +2,10 @@ const fs = require('fs');
 const path = require('path');
 
 const root = process.cwd();
-const releaseDir = path.join(root, 'v2.0.0');
+const releaseDir = path.join(root, 'runtime');
 
 if (!fs.existsSync(releaseDir)) {
-  console.error('[sync-assets] Missing release directory: v2.0.0');
+  console.error('[sync-assets] Missing release directory: runtime');
   process.exit(1);
 }
 

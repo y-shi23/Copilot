@@ -129,9 +129,9 @@ build_project() {
         log_info "清理构建缓存..."
         rm -rf apps/main/dist
         rm -rf apps/window/dist
-        rm -rf v2.0.0/main
-        rm -rf v2.0.0/window
-        rm -rf v2.0.0/fast_window
+        rm -rf runtime/main
+        rm -rf runtime/window
+        rm -rf runtime/fast_window
     fi
 
     log_info "构建前端和后端..."
@@ -144,23 +144,23 @@ build_project() {
 check_build_artifacts() {
     local missing=false
     
-    if [ ! -f "v2.0.0/main/index.html" ]; then
-        log_error "缺少: v2.0.0/main/index.html"
+    if [ ! -f "runtime/main/index.html" ]; then
+        log_error "缺少: runtime/main/index.html"
         missing=true
     fi
     
-    if [ ! -f "v2.0.0/preload.js" ]; then
-        log_error "缺少: v2.0.0/preload.js"
+    if [ ! -f "runtime/preload.js" ]; then
+        log_error "缺少: runtime/preload.js"
         missing=true
     fi
     
-    if [ ! -f "v2.0.0/window_preload.js" ]; then
-        log_error "缺少: v2.0.0/window_preload.js"
+    if [ ! -f "runtime/window_preload.js" ]; then
+        log_error "缺少: runtime/window_preload.js"
         missing=true
     fi
     
-    if [ ! -f "v2.0.0/fast_window_preload.js" ]; then
-        log_error "缺少: v2.0.0/fast_window_preload.js"
+    if [ ! -f "runtime/fast_window_preload.js" ]; then
+        log_error "缺少: runtime/fast_window_preload.js"
         missing=true
     fi
     

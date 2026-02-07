@@ -132,7 +132,7 @@ Anywhere/
 ├── electron/           # Electron 主进程与 IPC 桥接
 ├── docs/               # 项目文档
 ├── scripts/            # 构建与工具脚本（legacy 脚本已归档）
-├── v2.0.0/             # 统一运行目录（主界面/对话窗口/preload）
+├── runtime/            # 统一运行目录（主界面/对话窗口/preload）
 └── ...
 ```
 
@@ -194,7 +194,7 @@ chmod +x dev.sh
    - `apps/main` 前端构建
    - `apps/window` 前端构建
    - `apps/backend` preload 构建
-   - 构建产物同步到 `v2.0.0/`
+   - 构建产物同步到 `runtime/`
 
 4. **启动 Electron 桌面版**
 
@@ -210,11 +210,11 @@ chmod +x dev.sh
 
 ### (可选) 继续以 uTools 插件方式调试
 
-如果你仍需使用 uTools 插件模式，可继续使用 `v2.0.0/plugin.json` 导入调试：
+如果你仍需使用 uTools 插件模式，可继续使用 `runtime/plugin.json` 导入调试：
 
    1. 下载并安装 [uTools 开发者工具](https://www.u-tools.cn/plugins/detail/uTools%20%E5%BC%80%E5%8F%91%E8%80%85%E5%B7%A5%E5%85%B7/)。
    2. 在开发者工具中选择「新建项目」 -> 「导入项目」。
-   3. 选择构建后的 `v2.0.0/plugin.json` 文件。
+   3. 选择构建后的 `runtime/plugin.json` 文件。
    4. 点击运行即可开始调试。
 
 ---
