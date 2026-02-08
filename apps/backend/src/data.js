@@ -2,7 +2,7 @@ const { webFrame, nativeImage, ipcRenderer } = require('electron');
 const crypto = require('crypto');
 const windowMap = new Map();
 const feature_suffix = "anywhere助手^_^"
-const MIN_CHAT_WINDOW_WIDTH = 400;
+const MIN_CHAT_WINDOW_WIDTH = 412;
 const MIN_CHAT_WINDOW_HEIGHT = 640;
 
 const {

@@ -4516,9 +4516,9 @@ html.dark .app-container {
 }
 
 .app-container :deep(.chat-input-area-vertical) {
-  border-radius: 12px;
+  border-radius: 34px;
   border-color: var(--el-border-color-light) !important;
-  box-shadow: 0 10px 24px rgba(32, 32, 32, 0.06);
+  box-shadow: 0 16px 32px rgba(32, 32, 32, 0.08);
 }
 
 .main-area-wrapper {

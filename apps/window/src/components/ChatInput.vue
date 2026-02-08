@@ -31,6 +31,13 @@ const waveformCanvasContainer = ref(null);
 const isDragging = ref(false);
 const dragCounter = ref(0);
 const isRecording = ref(false);
+const getDefaultInputTextHeight = () => (typeof window !== 'undefined' && window.innerWidth <= 760 ? 32 : 36);
+const DEFAULT_INPUT_TEXT_HEIGHT = getDefaultInputTextHeight();
+const MIN_INPUT_TEXT_HEIGHT = 28;
+const inputTextHeight = ref(DEFAULT_INPUT_TEXT_HEIGHT);
+const isInputResizing = ref(false);
+let resizeStartY = 0;
+let resizeStartHeight = DEFAULT_INPUT_TEXT_HEIGHT;
 
 // --- MCP Quick Select State ---
 const showMcpQuickSelect = ref(false);
@@ -344,6 +351,38 @@ const toggleAudioSourceSelector = () => {
     }
 }
 
+const getMaxInputTextHeight = () => {
+    const viewport = typeof window !== 'undefined' ? window.innerHeight : 900;
+    return Math.max(160, Math.round(viewport * 0.45));
+};
+
+const handleInputResizeMove = (event) => {
+    if (!isInputResizing.value) return;
+    const deltaY = event.clientY - resizeStartY;
+    const next = resizeStartHeight - deltaY;
+    inputTextHeight.value = Math.max(MIN_INPUT_TEXT_HEIGHT, Math.min(getMaxInputTextHeight(), next));
+    event.preventDefault();
+};
+
+const stopInputResize = () => {
+    if (!isInputResizing.value) return;
+    isInputResizing.value = false;
+    window.removeEventListener('pointermove', handleInputResizeMove);
+    window.removeEventListener('pointerup', stopInputResize);
+    window.removeEventListener('pointercancel', stopInputResize);
+};
+
+const startInputResize = (event) => {
+    if (isRecording.value) return;
+    isInputResizing.value = true;
+    resizeStartY = event.clientY;
+    resizeStartHeight = inputTextHeight.value;
+    window.addEventListener('pointermove', handleInputResizeMove, { passive: false });
+    window.addEventListener('pointerup', stopInputResize);
+    window.addEventListener('pointercancel', stopInputResize);
+    event.preventDefault();
+};
+
 const startRecordingFromSource = async (sourceType) => {
     isAudioSourceSelectorVisible.value = false;
     if (isRecording.value) return;
@@ -513,6 +552,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    stopInputResize();
     window.removeEventListener('dragenter', handleDragEnter);
     window.removeEventListener('dragleave', handleDragLeave);
     window.removeEventListener('dragover', preventDefaults);
@@ -668,7 +708,11 @@ defineExpose({ focus, senderRef });
         <el-row>
             <el-col :span="0" />
             <el-col :span="24">
-                <div class="chat-input-area-vertical">
+                <div class="chat-input-area-vertical" :class="{ 'is-resizing': isInputResizing }"
+                    :style="{ '--input-text-height': `${inputTextHeight}px` }">
+                    <div class="input-top-resizer" @pointerdown="startInputResize">
+                        <span class="input-top-resizer-grip"></span>
+                    </div>
                     <div v-if="showMcpQuickSelect && filteredMcpList.length > 0" class="mcp-quick-select">
                         <!-- 顶部提示栏 -->
                         <div class="mcp-quick-header">
@@ -735,13 +779,13 @@ defineExpose({ focus, senderRef });
                     <div class="input-wrapper">
                         <el-input ref="senderRef" class="chat-textarea-vertical" v-model="prompt" type="textarea"
                             :placeholder="isRecording ? '录音中... 结束后将连同文本一起发送' : '输入、粘贴、拖拽以发送内容，“ @”选择MCP，“ /”选择skill'"
-                            :autosize="{ minRows: 1, maxRows: 15 }" resize="none" @keydown="handleKeyDown"
+                            :autosize="false" resize="none" @keydown="handleKeyDown"
                             :disabled="isRecording" />
                     </div>
                     <div class="input-actions-bar">
                         <div class="action-buttons-left">
                             <el-tooltip content="清除聊天记录">
-                                <el-button size="default" @click="onClearHistory" circle :disabled="isRecording">
+                                <el-button class="input-icon-btn" size="default" @click="onClearHistory" circle :disabled="isRecording">
                                     <el-icon :size="18">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -758,7 +802,7 @@ defineExpose({ focus, senderRef });
                                 </el-button>
                             </el-tooltip>
                             <el-tooltip content="添加附件">
-                                <el-button size="default" @click="triggerFileUpload" circle :disabled="isRecording">
+                                <el-button class="input-icon-btn" size="default" @click="triggerFileUpload" circle :disabled="isRecording">
                                     <el-icon :size="17">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -775,7 +819,7 @@ defineExpose({ focus, senderRef });
                             <el-tooltip :content="reasoningTooltipContent">
                                 <el-button ref="reasoningButtonRef"
                                     :class="{ 'is-active-special': tempReasoningEffort && tempReasoningEffort !== 'default' }"
-                                    size="default" circle :disabled="isRecording" @click="toggleReasoningSelector">
+                                    class="input-icon-btn" size="default" circle :disabled="isRecording" @click="toggleReasoningSelector">
                                     <el-icon :size="18">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
                                             viewBox="0 0 24 24" class="icon" style="margin-top: -2px;">
@@ -788,7 +832,7 @@ defineExpose({ focus, senderRef });
                             </el-tooltip>
 
                             <el-tooltip content="语音回复设置">
-                                <el-button ref="voiceButtonRef" size="default" circle :disabled="isRecording"
+                                <el-button ref="voiceButtonRef" class="input-icon-btn" size="default" circle :disabled="isRecording"
                                     :class="{ 'is-active-special': selectedVoice }" @click="toggleVoiceSelector">
                                     <el-icon :size="18">
                                         <svg t="1765028999430" class="icon" viewBox="0 0 1024 1024" version="1.1"
@@ -801,7 +845,7 @@ defineExpose({ focus, senderRef });
                                 </el-button>
                             </el-tooltip>
                             <el-tooltip content="MCP工具">
-                                <el-button size="default" circle :disabled="isRecording"
+                                <el-button class="input-icon-btn" size="default" circle :disabled="isRecording"
                                     :class="{ 'is-active-special': isMcpActive }" @click="$emit('open-mcp-dialog')">
                                     <el-icon :size="18">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
@@ -818,7 +862,7 @@ defineExpose({ focus, senderRef });
                                 </el-button>
                             </el-tooltip>
                             <el-tooltip content="Skill 技能库">
-                                <el-button size="default" circle :disabled="isRecording"
+                                <el-button class="input-icon-btn" size="default" circle :disabled="isRecording"
                                     :class="{ 'is-active-special': activeSkillIds && activeSkillIds.length > 0 }"
                                     @click="$emit('open-skill-dialog')">
                                     <el-icon :size="18">
@@ -827,16 +871,17 @@ defineExpose({ focus, senderRef });
                                 </el-button>
                             </el-tooltip>
                         </div>
+                        <div class="actions-divider"></div>
                         <div class="action-buttons-right">
                             <template v-if="isRecording">
-                                <el-tooltip content="取消录音"><el-button :icon="Close" size="default"
+                                <el-tooltip content="取消录音"><el-button class="input-icon-btn" :icon="Close" size="default"
                                         @click="handleCancelRecording" circle /></el-tooltip>
-                                <el-tooltip content="结束并发送"><el-button :icon="Check" size="default"
+                                <el-tooltip content="结束并发送"><el-button class="input-icon-btn send-action-btn" :icon="Check" size="default"
                                         @click="handleConfirmAndSendRecording" circle /></el-tooltip>
                             </template>
                             <template v-else>
                                 <el-tooltip content="发送语音">
-                                    <el-button ref="audioButtonRef" size="default" @click="toggleAudioSourceSelector"
+                                    <el-button ref="audioButtonRef" class="input-icon-btn" size="default" @click="toggleAudioSourceSelector"
                                         circle>
                                         <el-icon :size="17">
                                             <svg t="1765029327206" class="icon" viewBox="0 0 1024 1024" version="1.1"
@@ -852,7 +897,7 @@ defineExpose({ focus, senderRef });
                                         </el-icon>
                                     </el-button>
                                 </el-tooltip>
-                                <el-button v-if="!loading" @click="onSubmit" circle :disabled="loading">
+                                <el-button v-if="!loading" class="input-icon-btn send-action-btn" @click="onSubmit" circle :disabled="loading">
                                     <el-icon :size="18">
                                         <svg t="1765029205363" class="icon" viewBox="0 0 1024 1024" version="1.1"
                                             xmlns="http://www.w3.org/2000/svg" p-id="63447" width="200" height="200">
@@ -862,7 +907,7 @@ defineExpose({ focus, senderRef });
                                         </svg>
                                     </el-icon>
                                 </el-button>
-                                <el-button v-else @click="onCancel" circle class="cancel-button-animated">
+                                <el-button v-else @click="onCancel" circle class="input-icon-btn send-action-btn cancel-button-animated">
                                     <el-icon class="static-icon">
                                         <Close />
                                     </el-icon>
@@ -913,7 +958,7 @@ html.dark .drag-overlay {
 }
 
 .input-footer {
-    padding: 10px 22px 18px;
+    padding: 8px 8px 12px;
     height: auto;
     width: 100%;
     flex-shrink: 0;
@@ -1426,52 +1471,75 @@ html.dark .el-divider--vertical {
 
 .input-wrapper {
     position: relative;
-    flex-grow: 1;
+    flex: 0 0 auto;
     display: flex;
+    height: var(--input-text-height, 36px);
+    min-height: var(--input-text-height, 36px);
 }
 
 /* --- Vertical Layout (Chat Input Area) --- */
 .chat-input-area-vertical {
+    --input-text-height: 36px;
     display: flex;
     flex-direction: column;
-    background-color: color-mix(in srgb, var(--el-bg-color-overlay) 95%, transparent);
-    border-radius: 12px;
-    padding: 12px 14px;
-    border: 1px solid var(--el-border-color-light);
-    box-shadow: 0 10px 24px rgba(32, 32, 32, 0.06);
+    border-radius: 34px;
+    padding: 13px 20px 10px;
+    border: 2px solid transparent;
+    background:
+        linear-gradient(color-mix(in srgb, var(--el-bg-color-overlay) 94%, transparent),
+            color-mix(in srgb, var(--el-bg-color-overlay) 94%, transparent)) padding-box,
+        linear-gradient(96deg, rgba(229, 190, 120, 0.95) 0%, rgba(163, 153, 221, 0.95) 100%) border-box;
+    box-shadow: 0 16px 32px rgba(32, 32, 32, 0.08);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     position: relative;
 }
 
 html.dark .chat-input-area-vertical {
-    background-color: var(--el-bg-color-input);
-    border: 1px solid var(--el-border-color-light);
+    border-color: var(--el-border-color-light);
+    background:
+        linear-gradient(color-mix(in srgb, var(--el-bg-color-input) 94%, transparent),
+            color-mix(in srgb, var(--el-bg-color-input) 94%, transparent)) padding-box,
+        linear-gradient(96deg, rgba(140, 121, 189, 0.82) 0%, rgba(109, 145, 177, 0.82) 100%) border-box;
 }
 
 .chat-textarea-vertical {
     width: 100%;
-    flex-grow: 1;
+    height: 100%;
+}
+
+.chat-textarea-vertical:deep(.el-textarea) {
+    height: 100%;
 }
 
 .chat-textarea-vertical:deep(.el-textarea__inner) {
     background-color: transparent !important;
     box-shadow: none !important;
     border: none !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: none !important;
     padding: 0;
     color: var(--el-text-color-primary);
-    font-size: 14px;
-    line-height: 1.65;
+    font-size: 15px;
+    line-height: 1.55;
     resize: none;
+    overflow-y: auto;
+}
+
+.chat-textarea-vertical:deep(.el-textarea__inner::placeholder) {
+    color: color-mix(in srgb, var(--el-text-color-secondary) 72%, #b8b4ad);
+    font-size: 15px;
+    font-weight: 400;
 }
 
 .input-actions-bar {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
-    margin-top: 10px;
-    padding-top: 8px;
-    border-top: 1px solid var(--el-border-color-lighter);
+    margin-top: 8px;
+    padding-top: 0;
+    border-top: none;
     flex-shrink: 0;
 }
 
@@ -1479,7 +1547,7 @@ html.dark .chat-input-area-vertical {
 .chat-input-area-vertical .action-buttons-right {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 9px;
 }
 
 .chat-input-area-vertical .action-buttons-left .el-button,
@@ -1494,17 +1562,60 @@ html.dark .chat-input-area-vertical {
 
 .chat-input-area-vertical .action-buttons-right {
     margin-right: 0px;
+    padding-left: 10px;
 }
 
-.chat-input-area-vertical .el-button {
-    width: 32px;
-    height: 32px;
+.input-top-resizer {
+    position: absolute;
+    top: -8px;
+    left: 16px;
+    right: 16px;
+    height: 14px;
+    cursor: ns-resize;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.input-top-resizer-grip {
+    width: 78px;
+    height: 3px;
+    border-radius: 999px;
+    background-color: color-mix(in srgb, var(--el-border-color-dark) 82%, transparent);
+    opacity: 0.7;
+    transition: all 0.2s ease;
+}
+
+.chat-input-area-vertical:hover .input-top-resizer-grip,
+.chat-input-area-vertical.is-resizing .input-top-resizer-grip {
+    opacity: 1;
+    width: 94px;
+}
+
+.chat-input-area-vertical.is-resizing {
+    user-select: none;
+}
+
+.actions-divider {
+    margin-left: auto;
+    width: 1px;
+    height: 26px;
+    border-radius: 99px;
+    background-color: color-mix(in srgb, var(--el-border-color) 86%, transparent);
+}
+
+.chat-input-area-vertical .input-icon-btn {
+    width: 34px;
+    height: 34px;
     background: none;
     border: none;
     border-radius: 999px;
+    color: color-mix(in srgb, var(--el-text-color-primary) 70%, var(--el-text-color-secondary));
+    transition: all 0.2s ease;
 }
 
-.chat-input-area-vertical .el-button:hover {
+.chat-input-area-vertical .input-icon-btn:hover {
     background-color: var(--el-fill-color-light);
 }
 
@@ -1519,6 +1630,66 @@ html.dark .chat-input-area-vertical {
 
 .chat-input-area-vertical .action-buttons-right .el-button:hover {
     color: var(--el-text-color-primary);
+}
+
+.chat-input-area-vertical .send-action-btn {
+    width: 40px;
+    height: 40px;
+    background-color: #7b7b7b;
+    color: #ffffff;
+}
+
+.chat-input-area-vertical .send-action-btn:hover {
+    background-color: #666666;
+    color: #ffffff;
+}
+
+html.dark .chat-input-area-vertical .send-action-btn {
+    background-color: #8d949e;
+    color: #16181c;
+}
+
+html.dark .chat-input-area-vertical .send-action-btn:hover {
+    background-color: #a2aab5;
+    color: #101317;
+}
+
+@media (max-width: 760px) {
+    .input-footer {
+        padding: 6px 6px 10px;
+    }
+
+    .chat-input-area-vertical {
+        border-radius: 26px;
+        padding: 11px 14px 9px;
+    }
+
+    .input-top-resizer {
+        left: 10px;
+        right: 10px;
+    }
+
+    .input-top-resizer-grip {
+        width: 64px;
+    }
+
+    .chat-textarea-vertical:deep(.el-textarea__inner) {
+        font-size: 14px;
+    }
+
+    .chat-textarea-vertical:deep(.el-textarea__inner::placeholder) {
+        font-size: 14px;
+    }
+
+    .chat-input-area-vertical .input-icon-btn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .chat-input-area-vertical .send-action-btn {
+        width: 36px;
+        height: 36px;
+    }
 }
 
 /* --- Common Styles --- */
@@ -1559,23 +1730,23 @@ html.dark :deep(.el-textarea__inner::-webkit-scrollbar-thumb:hover) {
     background-clip: content-box;
 }
 
-.el-button.is-circle {
+.el-button.is-circle:not(.input-icon-btn) {
     color: var(--el-text-color-regular);
 }
 
-.el-button.is-circle:hover,
-.el-button.is-circle:focus {
+.el-button.is-circle:not(.input-icon-btn):hover,
+.el-button.is-circle:not(.input-icon-btn):focus {
     color: var(--el-color-primary);
     background-color: var(--el-color-primary-light-8);
 }
 
-.el-button.is-circle[type="primary"] {
+.el-button.is-circle:not(.input-icon-btn)[type="primary"] {
     background-color: var(--el-color-primary);
     color: var(--text-on-accent);
 }
 
-.el-button.is-circle[type="primary"]:hover,
-.el-button.is-circle[type="primary"]:focus {
+.el-button.is-circle:not(.input-icon-btn)[type="primary"]:hover,
+.el-button.is-circle:not(.input-icon-btn)[type="primary"]:focus {
     background-color: var(--el-color-primary-light-3);
 }
 
@@ -1636,6 +1807,15 @@ html.dark .el-button--success.is-plain:focus {
     animation: spin 1s linear infinite;
     pointer-events: none;
     box-sizing: border-box;
+}
+
+.chat-input-area-vertical .send-action-btn .static-icon {
+    color: inherit;
+}
+
+.chat-input-area-vertical .send-action-btn .cancel-spinner {
+    border-top-color: currentColor;
+    border-right-color: currentColor;
 }
 
 html.dark .static-icon {
