@@ -4516,7 +4516,7 @@ html.dark .app-container {
 }
 
 .app-container :deep(.chat-input-area-vertical) {
-  border-radius: 34px;
+  border-radius: 24px;
   border-color: var(--el-border-color-light) !important;
   box-shadow: 0 16px 32px rgba(32, 32, 32, 0.08);
 }

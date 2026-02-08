@@ -1482,7 +1482,7 @@ html.dark .el-divider--vertical {
     --input-text-height: 36px;
     display: flex;
     flex-direction: column;
-    border-radius: 34px;
+    border-radius: 24px;
     padding: 13px 20px 10px;
     border: 2px solid transparent;
     background:
@@ -1660,7 +1660,7 @@ html.dark .chat-input-area-vertical .send-action-btn:hover {
     }
 
     .chat-input-area-vertical {
-        border-radius: 26px;
+        border-radius: 18px;
         padding: 11px 14px 9px;
     }
 
