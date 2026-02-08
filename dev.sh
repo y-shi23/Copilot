@@ -1,204 +1,106 @@
 #!/bin/bash
 
-# Anywhere Desktop - 一键启动开发环境脚本
-# 
-# 功能: 安装依赖、构建项目、启动 Electron 应用
-# 用法: ./dev.sh [选项]
-#
-# 选项:
-#   --skip-install    跳过依赖安装
-#   --skip-build      跳过构建步骤（直接启动）
-#   --rebuild         强制重新构建（清理缓存）
-#   -h, --help        显示帮助信息
+# Anywhere Desktop - 热重载开发启动脚本
 
-set -e
+set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT_DIR"
 
-# 颜色定义
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+MAIN_PORT=5173
+WINDOW_PORT=5174
+MAIN_URL="http://127.0.0.1:${MAIN_PORT}"
+WINDOW_URL="http://127.0.0.1:${WINDOW_PORT}"
 
-# 日志函数
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
+BACKEND_PRELOAD="${ROOT_DIR}/apps/backend/public/preload.js"
+BACKEND_WINDOW_PRELOAD="${ROOT_DIR}/apps/backend/public/window_preload.js"
+BACKEND_FAST_PRELOAD="${ROOT_DIR}/apps/backend/public/fast_window_preload.js"
+FAST_WINDOW_ENTRY="${ROOT_DIR}/apps/fast-window/fast_input.html"
 
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
+LOG_DIR="${ROOT_DIR}/logs"
+mkdir -p "$LOG_DIR"
 
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
+PIDS=()
 
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
-
-# 显示帮助
-show_help() {
-    cat << EOF
-Anywhere Desktop - 一键启动开发环境
-
-用法: ./dev.sh [选项]
-
-选项:
-  --skip-install    跳过依赖安装（已安装过时使用）
-  --skip-build      跳过构建步骤（直接启动已构建的应用）
-  --rebuild         强制重新构建（清理 dist 目录后再构建）
-  -h, --help        显示此帮助信息
-
-示例:
-  ./dev.sh                  # 完整流程：安装 → 构建 → 启动
-  ./dev.sh --skip-install   # 跳过安装，直接构建并启动
-  ./dev.sh --skip-build     # 跳过构建，直接启动（需已构建过）
-  ./dev.sh --rebuild        # 清理缓存后重新构建
-
-EOF
-    exit 0
-}
-
-# 解析参数
-SKIP_INSTALL=false
-SKIP_BUILD=false
-REBUILD=false
-
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --skip-install)
-            SKIP_INSTALL=true
-            shift
-            ;;
-        --skip-build)
-            SKIP_BUILD=true
-            shift
-            ;;
-        --rebuild)
-            REBUILD=true
-            shift
-            ;;
-        -h|--help)
-            show_help
-            ;;
-        *)
-            log_error "未知选项: $1"
-            echo "使用 ./dev.sh --help 查看帮助"
-            exit 1
-            ;;
-    esac
-done
-
-# 检查 pnpm
-check_pnpm() {
-    if ! command -v pnpm &> /dev/null; then
-        log_error "未找到 pnpm，请先安装: npm install -g pnpm"
-        exit 1
+cleanup() {
+  local pid
+  for pid in "${PIDS[@]}"; do
+    if kill -0 "$pid" >/dev/null 2>&1; then
+      kill "$pid" >/dev/null 2>&1 || true
     fi
-    log_info "pnpm 版本: $(pnpm --version)"
+  done
 }
 
-# 安装依赖
-install_deps() {
-    if [ "$SKIP_INSTALL" = true ]; then
-        log_warn "跳过依赖安装"
-        return
-    fi
+trap cleanup EXIT INT TERM
 
-    log_info "安装根目录依赖..."
-    pnpm install
+start_bg() {
+  local name="$1"
+  local cmd="$2"
+  local log_file="$3"
 
-    log_info "安装所有子项目依赖..."
-    pnpm run install:all
-
-    log_success "依赖安装完成"
+  : > "$log_file"
+  bash -lc "$cmd" > "$log_file" 2>&1 &
+  local pid=$!
+  PIDS+=("$pid")
+  echo "[dev] ${name} started (pid=${pid})"
 }
 
-# 构建项目
-build_project() {
-    if [ "$SKIP_BUILD" = true ]; then
-        log_warn "跳过构建步骤"
-        return
+wait_for_http() {
+  local url="$1"
+  local timeout=45
+  local i=0
+  while [ "$i" -lt "$timeout" ]; do
+    if curl -fsS --max-time 1 "$url" >/dev/null 2>&1; then
+      return 0
     fi
-
-    if [ "$REBUILD" = true ]; then
-        log_info "清理构建缓存..."
-        rm -rf apps/main/dist
-        rm -rf apps/window/dist
-        rm -rf runtime/main
-        rm -rf runtime/window
-        rm -rf runtime/fast_window
-    fi
-
-    log_info "构建前端和后端..."
-    pnpm build
-
-    log_success "项目构建完成"
+    i=$((i + 1))
+    sleep 1
+  done
+  return 1
 }
 
-# 检查构建产物
-check_build_artifacts() {
-    local missing=false
-    
-    if [ ! -f "runtime/main/index.html" ]; then
-        log_error "缺少: runtime/main/index.html"
-        missing=true
+wait_for_file() {
+  local file_path="$1"
+  local timeout=45
+  local i=0
+  while [ "$i" -lt "$timeout" ]; do
+    if [ -f "$file_path" ]; then
+      return 0
     fi
-    
-    if [ ! -f "runtime/preload.js" ]; then
-        log_error "缺少: runtime/preload.js"
-        missing=true
-    fi
-    
-    if [ ! -f "runtime/window_preload.js" ]; then
-        log_error "缺少: runtime/window_preload.js"
-        missing=true
-    fi
-    
-    if [ ! -f "runtime/fast_window_preload.js" ]; then
-        log_error "缺少: runtime/fast_window_preload.js"
-        missing=true
-    fi
-    
-    if [ "$missing" = true ]; then
-        log_error "构建产物缺失，请先运行: ./dev.sh（不带 --skip-build）"
-        exit 1
-    fi
+    i=$((i + 1))
+    sleep 1
+  done
+  return 1
 }
 
-# 启动 Electron
-start_electron() {
-    if [ "$SKIP_BUILD" = true ]; then
-        check_build_artifacts
-    fi
+echo "[dev] starting backend watch + vite dev servers..."
 
-    log_info "启动 Electron 应用..."
-    echo ""
-    echo "=========================================="
-    echo "    Anywhere Desktop 已启动"
-    echo "    按 Ctrl+C 停止应用"
-    echo "=========================================="
-    echo ""
-    
-    pnpm start
-}
+start_bg "backend watch" \
+  "pnpm --dir apps/backend exec esbuild src/preload.js src/window_preload.js src/fast_window_preload.js --bundle --platform=node --outdir=./public --format=cjs --external:electron --watch=forever" \
+  "${LOG_DIR}/backend-dev.log"
 
-# 主流程
-main() {
-    echo ""
-    echo "╔══════════════════════════════════════════╗"
-    echo "║     Anywhere Desktop 开发环境启动器      ║"
-    echo "╚══════════════════════════════════════════╝"
-    echo ""
+start_bg "main vite" \
+  "pnpm --dir apps/main exec vite --force --host 127.0.0.1 --port ${MAIN_PORT} --strictPort" \
+  "${LOG_DIR}/main-dev.log"
 
-    check_pnpm
-    install_deps
-    build_project
-    start_electron
-}
+start_bg "window vite" \
+  "pnpm --dir apps/window exec vite --host 127.0.0.1 --port ${WINDOW_PORT} --strictPort" \
+  "${LOG_DIR}/window-dev.log"
 
-main
+wait_for_file "$BACKEND_PRELOAD" || { echo "[dev] preload.js not ready"; exit 1; }
+wait_for_file "$BACKEND_WINDOW_PRELOAD" || { echo "[dev] window_preload.js not ready"; exit 1; }
+wait_for_file "$BACKEND_FAST_PRELOAD" || { echo "[dev] fast_window_preload.js not ready"; exit 1; }
+
+wait_for_http "$MAIN_URL" || { echo "[dev] main vite not ready, check ${LOG_DIR}/main-dev.log"; exit 1; }
+wait_for_http "$WINDOW_URL" || { echo "[dev] window vite not ready, check ${LOG_DIR}/window-dev.log"; exit 1; }
+
+echo "[dev] ready"
+echo "[dev] main:   ${MAIN_URL}"
+echo "[dev] window: ${WINDOW_URL}"
+echo "[dev] starting electron..."
+
+ANYWHERE_DEV_MAIN_URL="$MAIN_URL" \
+ANYWHERE_DEV_WINDOW_URL="$WINDOW_URL" \
+ANYWHERE_DEV_PRELOAD_PATH="$BACKEND_PRELOAD" \
+ANYWHERE_DEV_FAST_WINDOW_ENTRY="$FAST_WINDOW_ENTRY" \
+pnpm start

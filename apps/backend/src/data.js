@@ -4,6 +4,8 @@ const windowMap = new Map();
 const feature_suffix = "anywhere助手^_^"
 const MIN_CHAT_WINDOW_WIDTH = 412;
 const MIN_CHAT_WINDOW_HEIGHT = 640;
+const DEV_WINDOW_URL = String(process.env.ANYWHERE_DEV_WINDOW_URL || '').trim();
+const DEV_FAST_WINDOW_ENTRY = String(process.env.ANYWHERE_DEV_FAST_WINDOW_ENTRY || '').trim();
 
 const {
   requestTextOpenAI
@@ -11,6 +13,18 @@ const {
 const { 
   getBuiltinServers
 } = require('./mcp_builtin.js');
+
+function appendQueryParam(rawUrl, key, value) {
+  if (!rawUrl) return rawUrl;
+  try {
+    const url = new URL(rawUrl);
+    url.searchParams.set(key, value);
+    return url.toString();
+  } catch (_error) {
+    const separator = rawUrl.includes('?') ? '&' : '?';
+    return `${rawUrl}${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+  }
+}
 
 // 默认配置 (保持不变)
 const defaultConfig = {
@@ -945,7 +959,9 @@ async function openWindow(config, msg) {
       devTools: utools.isDev()
     },
   };
-  const entryPath = config.isDarkMode ? "./window/index.html?dark=1" : "./window/index.html";
+  const entryPath = DEV_WINDOW_URL
+    ? (config.isDarkMode ? appendQueryParam(DEV_WINDOW_URL, 'dark', '1') : DEV_WINDOW_URL)
+    : (config.isDarkMode ? "./window/index.html?dark=1" : "./window/index.html");
   const ubWindow = utools.createBrowserWindow(
     entryPath,
     windowOptions,
@@ -1148,7 +1164,7 @@ async function openFastInputWindow(config, msg) {
     }
   };
 
-  const entryPath = "./fast_window/fast_input.html";
+  const entryPath = DEV_FAST_WINDOW_ENTRY || "./fast_window/fast_input.html";
 
   const fastWindow = utools.createBrowserWindow(
     entryPath,

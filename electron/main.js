@@ -8,6 +8,9 @@ let mainWindow = null;
 let launcherWindow = null;
 let launcherHotkey = null;
 let isQuitting = false;
+const DEV_MAIN_URL = String(process.env.ANYWHERE_DEV_MAIN_URL || '').trim();
+const DEV_PRELOAD_PATH = String(process.env.ANYWHERE_DEV_PRELOAD_PATH || '').trim();
+const IS_RUNTIME_DEV_SERVER = DEV_MAIN_URL.length > 0;
 
 const DEFAULT_LAUNCHER_SETTINGS = {
   launcherEnabled: true,
@@ -21,6 +24,18 @@ const LAUNCHER_MAX_HEIGHT = 420;
 
 function resolveAppFile(...parts) {
   return path.join(app.getAppPath(), ...parts);
+}
+
+function resolveMainPreloadPath() {
+  if (!DEV_PRELOAD_PATH) return resolveAppFile('runtime', 'preload.js');
+  return path.isAbsolute(DEV_PRELOAD_PATH)
+    ? DEV_PRELOAD_PATH
+    : path.resolve(app.getAppPath(), DEV_PRELOAD_PATH);
+}
+
+function resolveMainEntryUrl() {
+  if (IS_RUNTIME_DEV_SERVER) return DEV_MAIN_URL;
+  return pathToFileURL(resolveAppFile('runtime', 'main', 'index.html')).toString();
 }
 
 function normalizeWebPreferences(webPreferences = {}, baseDir) {
@@ -314,8 +329,7 @@ function registerLauncherHotkey(rawSettings = {}) {
 }
 
 function createMainWindow() {
-  const preloadPath = resolveAppFile('runtime', 'preload.js');
-  const mainIndex = resolveAppFile('runtime', 'main', 'index.html');
+  const preloadPath = resolveMainPreloadPath();
 
   mainWindow = new BrowserWindow({
     width: 1180,
@@ -341,10 +355,32 @@ function createMainWindow() {
     mainWindow = null;
   });
 
-  mainWindow.loadURL(pathToFileURL(mainIndex).toString());
+  mainWindow.loadURL(resolveMainEntryUrl());
 }
 
 function ensureBuildArtifacts() {
+  if (IS_RUNTIME_DEV_SERVER) {
+    const preloadPath = resolveMainPreloadPath();
+    const preloadDir = path.dirname(preloadPath);
+    const requiredPaths = [
+      preloadPath,
+      path.join(preloadDir, 'window_preload.js'),
+      path.join(preloadDir, 'fast_window_preload.js'),
+    ];
+    const missing = requiredPaths.filter((file) => !fs.existsSync(file));
+    if (missing.length === 0) return;
+
+    const message = [
+      'Development preload resources are missing.',
+      'Run `./dev.sh` so backend watch can generate preload files.',
+      '',
+      ...missing.map((item) => `- ${item}`),
+    ].join('\n');
+    dialog.showErrorBox('Anywhere Dev Resources Missing', message);
+    app.quit();
+    return;
+  }
+
   const requiredPaths = [
     resolveAppFile('runtime', 'main', 'index.html'),
     resolveAppFile('runtime', 'preload.js'),

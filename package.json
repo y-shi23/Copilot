@@ -5,6 +5,7 @@
   "description": "Anywhere standalone desktop app powered by Electron.",
   "main": "electron/main.js",
   "scripts": {
+    "dev": "./dev.sh",
     "install:all": "pnpm --dir apps/main install && pnpm --dir apps/window install && pnpm --dir apps/backend install",
     "build:web": "pnpm --dir apps/main build && pnpm --dir apps/window build",
     "build:backend": "pnpm --dir apps/backend build",

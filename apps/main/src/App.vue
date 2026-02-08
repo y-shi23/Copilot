@@ -379,17 +379,17 @@ watch(locale, () => {
         </div>
 
         <nav class="sidebar-nav">
-          <el-button
+          <button
             v-for="item in navItems"
             :key="item.id"
+            type="button"
             class="nav-item"
-            text
             @click="changeTab(item.id)"
             :class="{ 'active-tab': tab === item.id }"
           >
             <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
             <span class="nav-label">{{ item.label }}</span>
-          </el-button>
+          </button>
         </nav>
       </div>
     </el-aside>
@@ -501,11 +501,22 @@ watch(locale, () => {
 }
 
 .nav-item {
+  box-sizing: border-box;
   width: 100%;
   height: 40px;
-  justify-content: flex-start;
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  align-items: center;
+  gap: 10px;
   padding: 0 12px;
+  margin: 0;
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
+  background-color: transparent;
+  cursor: pointer;
+  appearance: none;
+  text-align: left;
+  font: inherit;
   color: var(--text-secondary);
   transition: all 0.18s ease;
 }
@@ -517,14 +528,23 @@ watch(locale, () => {
 
 .nav-item.active-tab {
   color: var(--text-primary);
-  border: 1px solid var(--border-primary);
+  border-color: var(--border-primary);
   background-color: var(--bg-tertiary);
   box-shadow: var(--shadow-sm);
 }
 
+.nav-item:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--text-accent) 45%, transparent);
+  outline-offset: 1px;
+}
+
 .nav-icon {
   font-size: 16px;
-  margin-right: 10px;
+  width: 18px;
+  min-width: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nav-label {
