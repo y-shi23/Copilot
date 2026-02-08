@@ -1,7 +1,10 @@
 <script setup>
 import { computed } from 'vue';
-import { ElHeader, ElIcon, ElTooltip } from 'element-plus';
-import { Loading, Edit, Search } from '@element-plus/icons-vue'; // 引入 Search
+import { ElHeader, ElTooltip } from 'element-plus';
+import { __iconNode as chevronsUpDownIconNode } from 'lucide-react/dist/esm/icons/chevrons-up-down.js';
+import { __iconNode as pencilIconNode } from 'lucide-react/dist/esm/icons/pencil.js';
+import { __iconNode as searchIconNode } from 'lucide-react/dist/esm/icons/search.js';
+import LucideIcon from './LucideIcon.vue';
 
 const props = defineProps({
   modelMap: Object,
@@ -68,12 +71,7 @@ const logoColor = computed(() => {
               {{ isMcpLoading ? 'MCP工具加载中...' : (modelMap[model] || model || '选择模型') }}
             </span>
             
-            <el-icon class="arrow-icon" :size="12">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7 10L12 5L17 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M7 14L12 19L17 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </el-icon>
+            <LucideIcon :icon-node="chevronsUpDownIconNode" :size="12" class="arrow-icon" />
           </div>
         </div>
 
@@ -82,7 +80,7 @@ const logoColor = computed(() => {
 
         <!-- 2. 系统提示词展示/编辑 -->
         <div class="model-pill prompt-pill" @click="emit('show-system-prompt')">
-          <el-icon :size="14" class="prompt-icon"><Edit /></el-icon>
+          <LucideIcon :icon-node="pencilIconNode" :size="14" class="prompt-icon" />
           <span v-if="systemPrompt" class="model-text prompt-text">{{ systemPrompt }}</span>
           <span v-else class="model-text prompt-text placeholder">系统提示词</span>
         </div>
@@ -90,7 +88,7 @@ const logoColor = computed(() => {
         <!-- 3. [新增] 搜索按钮 -->
         <el-tooltip content="搜索内容 (Ctrl/Cmd+F)" placement="bottom" :show-after="500">
           <div class="model-pill icon-pill" @click="emit('open-search')">
-            <el-icon :size="14" class="header-icon"><Search /></el-icon>
+            <LucideIcon :icon-node="searchIconNode" :size="14" class="header-icon" />
           </div>
         </el-tooltip>
 

@@ -1,8 +1,7 @@
 <script setup>
-import { computed, ref, nextTick, defineComponent, h, onBeforeUnmount } from 'vue';
+import { computed, ref, nextTick, onBeforeUnmount } from 'vue';
 import { Bubble, Thinking, XMarkdown } from 'vue-element-plus-x';
-import { ElTooltip, ElButton, ElInput, ElCollapse, ElCollapseItem, ElIcon, ElCheckbox, ElTag } from 'element-plus';
-import { Document, Check, Close, CloseBold } from '@element-plus/icons-vue';
+import { ElTooltip, ElButton, ElInput, ElCollapse, ElCollapseItem, ElCheckbox, ElTag } from 'element-plus';
 import { __iconNode as copyIconNode } from 'lucide-react/dist/esm/icons/copy.js';
 import { __iconNode as checkIconNode } from 'lucide-react/dist/esm/icons/check.js';
 import { __iconNode as pencilIconNode } from 'lucide-react/dist/esm/icons/pencil.js';
@@ -10,10 +9,15 @@ import { __iconNode as chevronUpIconNode } from 'lucide-react/dist/esm/icons/che
 import { __iconNode as chevronDownIconNode } from 'lucide-react/dist/esm/icons/chevron-down.js';
 import { __iconNode as refreshCwIconNode } from 'lucide-react/dist/esm/icons/refresh-cw.js';
 import { __iconNode as trash2IconNode } from 'lucide-react/dist/esm/icons/trash-2.js';
+import { __iconNode as xIconNode } from 'lucide-react/dist/esm/icons/x.js';
+import { __iconNode as fileTextIconNode } from 'lucide-react/dist/esm/icons/file-text.js';
+import { __iconNode as wrenchIconNode } from 'lucide-react/dist/esm/icons/wrench.js';
+import { __iconNode as squareIconNode } from 'lucide-react/dist/esm/icons/square.js';
 import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
 
 import { formatTimestamp, formatMessageText, sanitizeToolArgs } from '../utils/formatters.js';
+import LucideIcon from './LucideIcon.vue';
 
 const props = defineProps({
   message: Object,
@@ -34,48 +38,6 @@ const editedContent = ref('');
 const isCopied = ref(false);
 
 let copyFeedbackTimer = null;
-
-const LucideIcon = defineComponent({
-  name: 'LucideIcon',
-  props: {
-    iconNode: {
-      type: Array,
-      required: true,
-    },
-    size: {
-      type: [Number, String],
-      default: 16,
-    },
-    strokeWidth: {
-      type: [Number, String],
-      default: 2,
-    },
-  },
-  setup(iconProps) {
-    return () =>
-      h(
-        'svg',
-        {
-          xmlns: 'http://www.w3.org/2000/svg',
-          width: iconProps.size,
-          height: iconProps.size,
-          viewBox: '0 0 24 24',
-          fill: 'none',
-          stroke: 'currentColor',
-          'stroke-width': iconProps.strokeWidth,
-          'stroke-linecap': 'round',
-          'stroke-linejoin': 'round',
-          'aria-hidden': 'true',
-          focusable: 'false',
-          class: 'lucide',
-        },
-        iconProps.iconNode.map(([tag, attrs]) => {
-          const { key, ...svgAttrs } = attrs || {};
-          return h(tag, { ...svgAttrs, key });
-        })
-      );
-  },
-});
 
 // 格式化工具参数为易读的 JSON 字符串
 const formatToolArgs = (argsString) => {
@@ -420,8 +382,12 @@ onBeforeUnmount(() => {
               resize="none" @keydown="handleEditKeyDown" />
             <div class="editing-actions">
               <span class="edit-shortcut-hint">Ctrl+Enter 确认 / Esc 取消</span>
-              <el-button :icon="Check" @click="finishEdit('save')" size="small" circle type="primary" />
-              <el-button :icon="Close" @click="finishEdit('cancel')" size="small" circle />
+              <el-button @click="finishEdit('save')" size="small" circle type="primary">
+                <LucideIcon :icon-node="checkIconNode" :size="14" />
+              </el-button>
+              <el-button @click="finishEdit('cancel')" size="small" circle>
+                <LucideIcon :icon-node="xIconNode" :size="14" />
+              </el-button>
             </div>
           </div>
         </template>
@@ -459,8 +425,12 @@ onBeforeUnmount(() => {
                 <el-tooltip v-for="(file_name, idx) in formatMessageFile(message.content)" :key="idx"
                   :content="file_name" placement="top" :disabled="file_name.length < 30"
                   :popper-style="{ maxWidth: '30vw', wordBreak: 'break-all' }">
-                  <el-button class="file-button" type="info" plain size="small" :icon="Document">{{
-                    truncateFilename(file_name, 20) }}</el-button>
+                  <el-button class="file-button" type="info" plain size="small">
+                    <template #icon>
+                      <LucideIcon :icon-node="fileTextIconNode" :size="14" />
+                    </template>
+                    {{ truncateFilename(file_name, 20) }}
+                  </el-button>
                 </el-tooltip>
               </div>
             </div>
@@ -502,8 +472,12 @@ onBeforeUnmount(() => {
               resize="none" @keydown="handleEditKeyDown" />
             <div class="editing-actions">
               <span class="edit-shortcut-hint">Ctrl+Enter 确认 / Esc 取消</span>
-              <el-button :icon="Check" @click="finishEdit('save')" size="small" circle type="primary" />
-              <el-button :icon="Close" @click="finishEdit('cancel')" size="small" circle />
+              <el-button @click="finishEdit('save')" size="small" circle type="primary">
+                <LucideIcon :icon-node="checkIconNode" :size="14" />
+              </el-button>
+              <el-button @click="finishEdit('cancel')" size="small" circle>
+                <LucideIcon :icon-node="xIconNode" :size="14" />
+              </el-button>
             </div>
           </div>
           <div v-if="message.tool_calls && message.tool_calls.length > 0" class="tool-calls-container">
@@ -513,16 +487,7 @@ onBeforeUnmount(() => {
                 <el-collapse-item :name="toolCall.id">
                   <template #title>
                     <div class="tool-call-title">
-                      <el-icon class="tool-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="m15 12-8.373 8.373a1 1 0 0 1-3-3L12 9"></path>
-                          <path d="m18 15 4-4"></path>
-                          <path
-                            d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5">
-                          </path>
-                        </svg>
-                      </el-icon>
+                      <LucideIcon :icon-node="wrenchIconNode" :size="15" class="tool-icon" />
                       <span class="tool-name">{{ toolCall.name }}</span>
                       <div class="tool-header-right">
                         <el-tag v-if="toolCall.approvalStatus === 'waiting'" type="warning" size="small" effect="light"
@@ -535,9 +500,7 @@ onBeforeUnmount(() => {
                           effect="plain" round>完成</el-tag>
                         <el-tooltip content="停止执行" placement="top" v-if="toolCall.approvalStatus === 'executing'">
                           <div class="stop-btn-wrapper" @click.stop="$emit('cancel-tool-call', toolCall.id)">
-                            <el-icon>
-                              <CloseBold />
-                            </el-icon>
+                            <LucideIcon :icon-node="squareIconNode" :size="14" />
                           </div>
                         </el-tooltip>
                       </div>
@@ -560,9 +523,18 @@ onBeforeUnmount(() => {
               </el-collapse>
               <div v-if="toolCall.approvalStatus === 'waiting'" class="tool-approval-actions">
                 <div class="actions-left">
-                  <el-button type="primary" size="small" :icon="Check"
-                    @click="$emit('confirm-tool', toolCall.id, true)">确认</el-button>
-                  <el-button size="small" :icon="Close" @click="$emit('reject-tool', toolCall.id, false)">取消</el-button>
+                  <el-button type="primary" size="small" @click="$emit('confirm-tool', toolCall.id, true)">
+                    <template #icon>
+                      <LucideIcon :icon-node="checkIconNode" :size="14" />
+                    </template>
+                    确认
+                  </el-button>
+                  <el-button size="small" @click="$emit('reject-tool', toolCall.id, false)">
+                    <template #icon>
+                      <LucideIcon :icon-node="xIconNode" :size="14" />
+                    </template>
+                    取消
+                  </el-button>
                 </div>
                 <div class="actions-right">
                   <el-checkbox :model-value="isAutoApprove" @change="(val) => $emit('update-auto-approve', val)"

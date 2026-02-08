@@ -1,20 +1,35 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick, watch, h, computed, defineAsyncComponent } from 'vue';
-import { ElContainer, ElMain, ElDialog, ElImageViewer, ElMessage, ElMessageBox, ElInput, ElButton, ElCheckbox, ElButtonGroup, ElTag, ElTooltip, ElIcon, ElAvatar, ElSwitch } from 'element-plus';
+import { ElContainer, ElMain, ElDialog, ElImageViewer, ElMessage, ElMessageBox, ElInput, ElButton, ElCheckbox, ElButtonGroup, ElTag, ElTooltip, ElAvatar, ElSwitch } from 'element-plus';
 import { createClient } from "webdav/web";
-import { DocumentCopy, QuestionFilled, Download, Search, Tools, CaretRight, Collection, Warning, Cpu, Top, Bottom, ArrowUp, ArrowDown } from '@element-plus/icons-vue';
+import { __iconNode as copyIconNode } from 'lucide-react/dist/esm/icons/copy.js';
+import { __iconNode as chevronsUpIconNode } from 'lucide-react/dist/esm/icons/chevrons-up.js';
+import { __iconNode as arrowUpIconNode } from 'lucide-react/dist/esm/icons/arrow-up.js';
+import { __iconNode as arrowDownIconNode } from 'lucide-react/dist/esm/icons/arrow-down.js';
+import { __iconNode as chevronsDownIconNode } from 'lucide-react/dist/esm/icons/chevrons-down.js';
+import { __iconNode as downloadIconNode } from 'lucide-react/dist/esm/icons/download.js';
+import { __iconNode as wrenchIconNode } from 'lucide-react/dist/esm/icons/wrench.js';
+import { __iconNode as zapIconNode } from 'lucide-react/dist/esm/icons/zap.js';
+import { __iconNode as chevronRightIconNode } from 'lucide-react/dist/esm/icons/chevron-right.js';
+import { __iconNode as searchIconNode } from 'lucide-react/dist/esm/icons/search.js';
+import { __iconNode as circleHelpIconNode } from 'lucide-react/dist/esm/icons/circle-question-mark.js';
+import { __iconNode as folderIconNode } from 'lucide-react/dist/esm/icons/folder.js';
+import { __iconNode as cpuIconNode } from 'lucide-react/dist/esm/icons/cpu.js';
+import { __iconNode as triangleAlertIconNode } from 'lucide-react/dist/esm/icons/triangle-alert.js';
 
 import TitleBar from './components/TitleBar.vue';
 import ChatHeader from './components/ChatHeader.vue';
 const ChatMessage = defineAsyncComponent(() => import('./components/ChatMessage.vue'));
 import ChatInput from './components/ChatInput.vue';
 import ModelSelectionDialog from './components/ModelSelectionDialog.vue';
+import LucideIcon from './components/LucideIcon.vue';
 
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 
 import TextSearchUI from './utils/TextSearchUI.js';
 import { formatTimestamp, sanitizeToolArgs } from './utils/formatters.js';
+import { renderLucideSvg } from './utils/lucideSvg.js';
 
 const showDismissibleMessage = (options) => {
   const opts = typeof options === 'string' ? { message: options } : options;
@@ -624,7 +639,7 @@ const addCopyButtonsToCodeBlocks = async () => {
     const codeElement = pre.querySelector('code'); if (!codeElement) return;
     const wrapper = document.createElement('div'); wrapper.className = 'code-block-wrapper'; pre.parentNode.insertBefore(wrapper, pre); wrapper.appendChild(pre);
     const codeText = codeElement.textContent || ''; const lines = codeText.trimEnd().split('\n'); const lineCount = lines.length;
-    const copyButtonSVG = `<svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M4 1.5H3a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3.5a2 2 0 0 0-2-2h-1v1h1a1 1 0 0 1 1 1V14a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V3.5a1 1 0 0 1 1-1h1v-1z"/><path d="M9.5 1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-3a.5.5 0 0 1-.5-.5v-1a.5.5 0 0 1 .5-.5h3zm-3-1A1.5 1.5 0 0 0 5 1.5v1A1.5 1.5 0 0 0 6.5 4h3A1.5 1.5 0 0 0 11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3z"/></svg>`;
+    const copyButtonSVG = renderLucideSvg(copyIconNode, { size: 14, strokeWidth: 2 });
     const createButton = (positionClass) => {
       const button = document.createElement('button'); button.className = `code-block-copy-button ${positionClass}`; button.innerHTML = copyButtonSVG; button.title = 'Copy code';
       button.addEventListener('click', async (event) => {
@@ -3571,16 +3586,12 @@ const scrollToMessageByIndex = (index) => {
           <div class="nav-group top">
             <el-tooltip content="回到顶部" placement="left" :show-after="500">
               <div class="nav-mini-btn" @click="scrollToTop">
-                <el-icon :size="16">
-                  <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-                    <path d="M199.36 572.768a31.904 31.904 0 0 0 22.624-9.376l294.144-294.144 285.728 285.728a31.968 31.968 0 1 0 45.248-45.248L538.752 201.376a32 32 0 0 0-45.28 0L176.704 518.144a31.968 31.968 0 0 0 22.656 54.624z m339.424-115.392a32 32 0 0 0-45.28 0L176.736 774.144a31.968 31.968 0 1 0 45.248 45.248l294.144-294.144 285.728 285.728a31.968 31.968 0 1 0 45.248-45.248l-308.32-308.352z"></path>
-                  </svg>
-                </el-icon>
+                <LucideIcon :icon-node="chevronsUpIconNode" :size="16" />
               </div>
             </el-tooltip>
             <el-tooltip content="上一条消息" placement="left" :show-after="500">
               <div class="nav-mini-btn" @click="navigateToPreviousMessage">
-                <el-icon><ArrowUp /></el-icon>
+                <LucideIcon :icon-node="arrowUpIconNode" :size="16" />
               </div>
             </el-tooltip>
           </div>
@@ -3616,7 +3627,7 @@ const scrollToMessageByIndex = (index) => {
           <div class="nav-group bottom">
             <el-tooltip :content="nextButtonTooltip" placement="left" :show-after="500">
               <div class="nav-mini-btn" @click="navigateToNextMessage">
-                <el-icon><ArrowDown /></el-icon>
+                <LucideIcon :icon-node="arrowDownIconNode" :size="16" />
               </div>
             </el-tooltip>
             
@@ -3624,11 +3635,7 @@ const scrollToMessageByIndex = (index) => {
               <div class="nav-mini-btn" 
                    :class="{ 'highlight-bottom': showScrollToBottomButton }" 
                    @click="forceScrollToBottom">
-                <el-icon :size="16">
-                  <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="currentColor">
-                    <path d="M493.504 558.144a31.904 31.904 0 0 0 45.28 0l308.352-308.352a31.968 31.968 0 1 0-45.248-45.248L516.16 490.272 221.984 196.128a31.968 31.968 0 1 0-45.248 45.248l316.768 316.768z m308.384-97.568L516.16 746.304 222.016 452.16a31.968 31.968 0 1 0-45.248 45.248l316.768 316.768a31.904 31.904 0 0 0 45.28 0l308.352-308.352a32 32 0 1 0-45.28-45.248z"></path>
-                  </svg>
-                </el-icon>
+                <LucideIcon :icon-node="chevronsDownIconNode" :size="16" />
               </div>
             </el-tooltip>
           </div>
@@ -3667,10 +3674,12 @@ const scrollToMessageByIndex = (index) => {
   <el-image-viewer v-if="imageViewerVisible" :url-list="imageViewerSrcList" :initial-index="imageViewerInitialIndex"
     @close="imageViewerVisible = false" :hide-on-click-modal="true" teleported />
   <div v-if="imageViewerVisible" class="custom-viewer-actions">
-    <el-button type="primary" :icon="DocumentCopy" circle @click="handleCopyImageFromViewer(imageViewerSrcList[0])"
-      title="复制图片" />
-    <el-button type="primary" :icon="Download" circle @click="handleDownloadImageFromViewer(imageViewerSrcList[0])"
-      title="下载图片" />
+    <el-button type="primary" circle @click="handleCopyImageFromViewer(imageViewerSrcList[0])" title="复制图片">
+      <LucideIcon :icon-node="copyIconNode" :size="16" />
+    </el-button>
+    <el-button type="primary" circle @click="handleDownloadImageFromViewer(imageViewerSrcList[0])" title="下载图片">
+      <LucideIcon :icon-node="downloadIconNode" :size="16" />
+    </el-button>
   </div>
 
   <el-dialog v-model="isMcpDialogVisible" width="80%" custom-class="mcp-dialog no-header-dialog" @close="focusOnInput"
@@ -3705,9 +3714,7 @@ const scrollToMessageByIndex = (index) => {
                   @change="() => toggleMcpServerSelection(server.id)" @click.stop class="header-checkbox" />
 
                 <el-avatar :src="server.logoUrl" shape="square" :size="20" class="mcp-server-icon">
-                  <el-icon :size="12">
-                    <Tools />
-                  </el-icon>
+                  <LucideIcon :icon-node="wrenchIconNode" :size="12" />
                 </el-avatar>
                 <span class="mcp-server-name">
                   {{ server.name }}
@@ -3721,12 +3728,7 @@ const scrollToMessageByIndex = (index) => {
                   <el-tooltip :content="server.isPersistent ? '持久连接已开启' : '持久连接已关闭'" placement="top">
                     <el-button text circle :class="{ 'is-persistent-active': server.isPersistent }"
                       @click.stop="toggleMcpPersistence(server.id, !server.isPersistent)" class="persistent-btn">
-                      <el-icon :size="16">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                        </svg>
-                      </el-icon>
+                      <LucideIcon :icon-node="zapIconNode" :size="16" />
                     </el-button>
                   </el-tooltip>
 
@@ -3744,9 +3746,8 @@ const scrollToMessageByIndex = (index) => {
               <!-- 第二行：折叠按钮 | 描述 -->
               <div class="mcp-server-body-row">
                 <div class="mcp-tools-toggle" @click.stop="toggleMcpServerExpansion(server.id)">
-                  <el-icon :class="{ 'is-expanded': expandedMcpServers.has(server.id) }">
-                    <CaretRight />
-                  </el-icon>
+                  <LucideIcon :icon-node="chevronRightIconNode" :size="10" class="mcp-tools-toggle-icon"
+                    :class="{ 'is-expanded': expandedMcpServers.has(server.id) }" />
                   <span>{{ expandedMcpServers.has(server.id) ? '收起' : '工具' }}</span>
                 </div>
 
@@ -3775,7 +3776,11 @@ const scrollToMessageByIndex = (index) => {
         </div>
       </div>
       <div class="mcp-dialog-footer-search">
-        <el-input v-model="mcpSearchQuery" placeholder="搜索工具名称或描述..." :prefix-icon="Search" clearable />
+        <el-input v-model="mcpSearchQuery" placeholder="搜索工具名称或描述..." clearable>
+          <template #prefix>
+            <LucideIcon :icon-node="searchIconNode" :size="14" />
+          </template>
+        </el-input>
       </div>
     </div>
     <template #footer>
@@ -3788,9 +3793,8 @@ const scrollToMessageByIndex = (index) => {
                 持久连接各占1个名额<br>
                 所有临时连接共占1个名额
               </template>
-              <el-icon style="vertical-align: middle; margin-left: 4px; cursor: help;">
-                <QuestionFilled />
-              </el-icon>
+              <LucideIcon :icon-node="circleHelpIconNode" :size="14"
+                style="vertical-align: middle; margin-left: 4px; cursor: help;" />
             </el-tooltip>
           </span>
           <el-checkbox v-model="isAutoApproveTools" label="自动批准工具调用" style="margin-left: 40px; margin-right: 0;" />
@@ -3841,9 +3845,7 @@ const scrollToMessageByIndex = (index) => {
 
               <el-avatar shape="square" :size="20" class="mcp-server-icon"
                 style="background:transparent; color: var(--el-text-color-primary); flex-shrink: 0;">
-                <el-icon :size="16">
-                  <Collection />
-                </el-icon>
+                <LucideIcon :icon-node="folderIconNode" :size="16" />
               </el-avatar>
 
               <span class="mcp-server-name skill-name-fixed">{{ skill.name }}</span>
@@ -3857,9 +3859,7 @@ const scrollToMessageByIndex = (index) => {
                 <el-tooltip :content="skill.context === 'fork' ? 'Sub-Agent 模式已开启' : 'Sub-Agent 模式已关闭'" placement="top">
                   <div class="subagent-toggle-btn-small" :class="{ 'is-active': skill.context === 'fork' }"
                     @click.stop="handleSkillForkToggle(skill)">
-                    <el-icon :size="14">
-                      <Cpu />
-                    </el-icon>
+                    <LucideIcon :icon-node="cpuIconNode" :size="14" />
                   </div>
                 </el-tooltip>
               </div>
@@ -3871,7 +3871,11 @@ const scrollToMessageByIndex = (index) => {
 
       <!-- 底部搜索框 -->
       <div class="mcp-dialog-footer-search">
-        <el-input v-model="skillSearchQuery" placeholder="搜索技能名称或描述..." :prefix-icon="Search" clearable />
+        <el-input v-model="skillSearchQuery" placeholder="搜索技能名称或描述..." clearable>
+          <template #prefix>
+            <LucideIcon :icon-node="searchIconNode" :size="14" />
+          </template>
+        </el-input>
       </div>
     </div>
 
@@ -3885,9 +3889,7 @@ const scrollToMessageByIndex = (index) => {
           </span>
           <!-- Warning 提示 -->
           <span class="mcp-limit-hint warning" style="display: inline-flex; align-items: center; opacity: 0.8;">
-            <el-icon style="margin-right: 4px;">
-              <Warning />
-            </el-icon>
+            <LucideIcon :icon-node="triangleAlertIconNode" :size="14" style="margin-right: 4px;" />
             Skill 依赖内置 MCP 服务，请勿禁用
           </span>
         </div>
@@ -4287,12 +4289,11 @@ html.dark body {
   background-color: var(--el-fill-color);
 }
 
-.mcp-tools-toggle .el-icon {
+.mcp-tools-toggle .mcp-tools-toggle-icon {
   transition: transform 0.16s ease;
-  font-size: 10px;
 }
 
-.mcp-tools-toggle .el-icon.is-expanded {
+.mcp-tools-toggle .mcp-tools-toggle-icon.is-expanded {
   transform: rotate(90deg);
 }
 

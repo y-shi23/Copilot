@@ -1,4 +1,8 @@
 // ./apps/window/src/utils/TextSearchUI.js
+import { __iconNode as chevronUpIconNode } from 'lucide-react/dist/esm/icons/chevron-up.js';
+import { __iconNode as chevronDownIconNode } from 'lucide-react/dist/esm/icons/chevron-down.js';
+import { __iconNode as xIconNode } from 'lucide-react/dist/esm/icons/x.js';
+import { renderLucideSvg } from './lucideSvg.js';
 
 export default class TextSearchUI {
   constructor(options = {}) {
@@ -163,6 +167,10 @@ export default class TextSearchUI {
   _createUI() {
     this.container = document.createElement('div');
     this.container.className = 'text-search-container hidden';
+
+    const prevIconSvg = renderLucideSvg(chevronUpIconNode, { size: 16, strokeWidth: 2 });
+    const nextIconSvg = renderLucideSvg(chevronDownIconNode, { size: 16, strokeWidth: 2 });
+    const closeIconSvg = renderLucideSvg(xIconNode, { size: 16, strokeWidth: 2 });
     
     this.container.innerHTML = `
       <div class="text-search-drag-handle">⋮⋮</div>
@@ -170,13 +178,13 @@ export default class TextSearchUI {
       <span class="text-search-count">0/0</span>
       <div class="text-search-divider"></div>
       <button class="text-search-btn btn-prev" title="上一个 (Shift+Enter)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 15l-6-6-6 6"/></svg>
+        ${prevIconSvg}
       </button>
       <button class="text-search-btn btn-next" title="下一个 (Enter)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+        ${nextIconSvg}
       </button>
       <button class="text-search-btn btn-close" title="关闭 (Esc)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        ${closeIconSvg}
       </button>
     `;
 

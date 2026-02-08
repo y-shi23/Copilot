@@ -1,7 +1,8 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { ElDialog, ElTable, ElTableColumn, ElButton, ElInput, ElTooltip } from 'element-plus';
-import { Search } from '@element-plus/icons-vue';
+import { __iconNode as searchIconNode } from 'lucide-react/dist/esm/icons/search.js';
+import LucideIcon from './LucideIcon.vue';
 
 const props = defineProps({
     modelValue: Boolean, // for v-model
@@ -78,7 +79,11 @@ const handleClose = () => {
         </template>
 
         <div class="model-search-container">
-            <el-input ref="searchInputRef" v-model="searchQuery" placeholder="搜索服务商或模型名称..." clearable :prefix-icon="Search" />
+            <el-input ref="searchInputRef" v-model="searchQuery" placeholder="搜索服务商或模型名称..." clearable>
+                <template #prefix>
+                    <LucideIcon :icon-node="searchIconNode" :size="14" />
+                </template>
+            </el-input>
         </div>
         
         <el-table 
