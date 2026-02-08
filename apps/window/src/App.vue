@@ -3905,7 +3905,13 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.5), transparent 46%), #fbfbfb;
+  background:
+    radial-gradient(96% 62% at 10% 15%, rgba(206, 201, 230, 0.68) 0%, rgba(206, 201, 230, 0) 72%),
+    radial-gradient(92% 68% at 48% 6%, rgba(192, 205, 214, 0.62) 0%, rgba(192, 205, 214, 0) 74%),
+    radial-gradient(88% 62% at 92% 16%, rgba(211, 223, 191, 0.62) 0%, rgba(211, 223, 191, 0) 72%),
+    radial-gradient(98% 78% at 14% 50%, rgba(246, 180, 194, 0.66) 0%, rgba(246, 180, 194, 0) 74%),
+    radial-gradient(86% 66% at 60% 54%, rgba(237, 207, 193, 0.58) 0%, rgba(237, 207, 193, 0) 75%),
+    linear-gradient(180deg, #ecebf1 0%, #f5d9d2 52%, #f3f1f1 100%);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   color: #202020;
 }
@@ -4486,12 +4492,12 @@ main > .app-container {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background-color: color-mix(in srgb, var(--el-bg-color-page) 92%, transparent);
+  background-color: color-mix(in srgb, #ffffff 30%, transparent);
   color: var(--el-text-color-primary);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   box-sizing: border-box;
   border-radius: 14px;
-  border: 1px solid var(--el-border-color-light);
+  border: 1px solid color-mix(in srgb, #ffffff 84%, var(--el-border-color-light));
   box-shadow: var(--el-box-shadow-light);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
