@@ -897,21 +897,20 @@ defineExpose({ focus, senderRef });
                                         </el-icon>
                                     </el-button>
                                 </el-tooltip>
-                                <el-button v-if="!loading" class="input-icon-btn send-action-btn" @click="onSubmit" circle :disabled="loading">
-                                    <el-icon :size="18">
-                                        <svg t="1765029205363" class="icon" viewBox="0 0 1024 1024" version="1.1"
-                                            xmlns="http://www.w3.org/2000/svg" p-id="63447" width="200" height="200">
-                                            <path
-                                                d="M866.133333 298.666667l-277.333333 396.8 174.933333 64L866.133333 298.666667zM469.333333 691.2l362.666667-482.133333-652.8 332.8 230.4 72.533333c21.333333 8.533333 29.866667 29.866667 21.333333 51.2v4.266667c-12.8 21.333333-42.666667 34.133333-68.266666 21.333333L76.8 597.333333c-21.333333-8.533333-34.133333-29.866667-25.6-55.466666 4.266667-8.533333 12.8-17.066667 21.333333-25.6L913.066667 72.533333c21.333333-12.8 46.933333-4.266667 59.733333 17.066667 4.266667 8.533333 4.266667 17.066667 4.266667 29.866667l-140.8 699.733333c-4.266667 21.333333-25.6 38.4-51.2 34.133333h-4.266667l-238.933333-89.6v162.133334c0 21.333333-17.066667 38.4-38.4 42.666666-21.333333 0-38.4-17.066667-38.4-42.666666"
-                                                p-id="63448"></path>
+                                <el-button v-if="!loading" class="input-icon-btn send-action-btn message-send-btn" @click="onSubmit" circle :disabled="loading">
+                                    <span class="send-state-icon" aria-hidden="true">
+                                        <svg class="send-arrow-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M12 17V7" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="M7 12L12 7L17 12" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
                                         </svg>
-                                    </el-icon>
+                                    </span>
                                 </el-button>
-                                <el-button v-else @click="onCancel" circle class="input-icon-btn send-action-btn cancel-button-animated">
-                                    <el-icon class="static-icon">
-                                        <Close />
-                                    </el-icon>
-                                    <div class="cancel-spinner"></div>
+                                <el-button v-else @click="onCancel" circle class="input-icon-btn send-action-btn message-send-btn">
+                                    <span class="send-state-icon" aria-hidden="true">
+                                        <svg class="stop-square-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <rect x="5.4" y="5.4" width="13.2" height="13.2" rx="3.2" fill="currentColor" />
+                                        </svg>
+                                    </span>
                                 </el-button>
                             </template>
                         </div>
@@ -1633,25 +1632,19 @@ html.dark .chat-input-area-vertical {
 }
 
 .chat-input-area-vertical .send-action-btn {
-    width: 40px;
-    height: 40px;
-    background-color: #7b7b7b;
+    width: 34px;
+    height: 34px;
+}
+
+.chat-input-area-vertical .message-send-btn {
+    background-color: #000000;
     color: #ffffff;
 }
 
-.chat-input-area-vertical .send-action-btn:hover {
-    background-color: #666666;
+.chat-input-area-vertical .action-buttons-right .message-send-btn:hover,
+.chat-input-area-vertical .action-buttons-right .message-send-btn:focus-visible {
+    background-color: #1a1a1a;
     color: #ffffff;
-}
-
-html.dark .chat-input-area-vertical .send-action-btn {
-    background-color: #8d949e;
-    color: #16181c;
-}
-
-html.dark .chat-input-area-vertical .send-action-btn:hover {
-    background-color: #a2aab5;
-    color: #101317;
 }
 
 @media (max-width: 760px) {
@@ -1687,8 +1680,8 @@ html.dark .chat-input-area-vertical .send-action-btn:hover {
     }
 
     .chat-input-area-vertical .send-action-btn {
-        width: 36px;
-        height: 36px;
+        width: 32px;
+        height: 32px;
     }
 }
 
@@ -1776,64 +1769,22 @@ html.dark .el-button--success.is-plain:focus {
     color: #f7f7f3;
 }
 
-/* Cancel Button Animation */
-.cancel-button-animated {
-    position: relative;
+.send-state-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    line-height: 1;
 }
 
-.static-icon {
-    font-size: 16px;
-    z-index: 1;
-    color: var(--el-text-color-regular);
-}
-
-.cancel-spinner {
-    position: absolute;
-    top: 50%;
-    left: 50%;
+.send-arrow-icon {
     width: 20px;
     height: 20px;
-    margin-left: -10px;
-    margin-top: -10px;
-
-    border: 2px solid transparent;
-    border-top-color: var(--el-text-color-secondary);
-    border-right-color: var(--el-text-color-secondary);
-    border-radius: 50%;
-
-    animation: spin 1s linear infinite;
-    pointer-events: none;
-    box-sizing: border-box;
+    display: block;
 }
 
-.chat-input-area-vertical .send-action-btn .static-icon {
-    color: inherit;
-}
-
-.chat-input-area-vertical .send-action-btn .cancel-spinner {
-    border-top-color: currentColor;
-    border-right-color: currentColor;
-}
-
-html.dark .static-icon {
-    color: var(--el-text-color-primary);
-}
-
-html.dark .cancel-spinner {
-    border-top-color: var(--el-text-color-primary);
-    border-right-color: var(--el-text-color-primary);
-}
-
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
+.stop-square-icon {
+    width: 18px;
+    height: 18px;
+    display: block;
 }
 </style>

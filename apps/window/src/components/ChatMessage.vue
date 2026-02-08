@@ -1396,15 +1396,18 @@ html.dark .ai-name {
   padding: 0;
   border: none;
   background: transparent;
+  border-radius: 8px;
   color: var(--el-text-color-secondary);
   cursor: pointer;
   opacity: 0.82;
-  transition: color 0.16s ease, opacity 0.16s ease, transform 0.16s ease;
+  transition: color 0.16s ease, opacity 0.16s ease, transform 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .footer-action-btn:hover {
   color: var(--el-text-color-primary);
   opacity: 1;
+  background-color: var(--el-color-primary-light-9);
+  box-shadow: 0 5px 10px -7px color-mix(in srgb, var(--el-color-primary) 36%, transparent);
 }
 
 .footer-action-btn:active {
