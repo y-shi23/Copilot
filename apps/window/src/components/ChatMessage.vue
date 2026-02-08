@@ -1,8 +1,15 @@
 <script setup>
-import { computed, ref, nextTick } from 'vue';
+import { computed, ref, nextTick, defineComponent, h, onBeforeUnmount } from 'vue';
 import { Bubble, Thinking, XMarkdown } from 'vue-element-plus-x';
 import { ElTooltip, ElButton, ElInput, ElCollapse, ElCollapseItem, ElIcon, ElCheckbox, ElTag } from 'element-plus';
-import { DocumentCopy, Refresh, Delete, Document, CaretTop, CaretBottom, Edit, Check, Close, CloseBold } from '@element-plus/icons-vue';
+import { Document, Check, Close, CloseBold } from '@element-plus/icons-vue';
+import { __iconNode as copyIconNode } from 'lucide-react/dist/esm/icons/copy.js';
+import { __iconNode as checkIconNode } from 'lucide-react/dist/esm/icons/check.js';
+import { __iconNode as pencilIconNode } from 'lucide-react/dist/esm/icons/pencil.js';
+import { __iconNode as chevronUpIconNode } from 'lucide-react/dist/esm/icons/chevron-up.js';
+import { __iconNode as chevronDownIconNode } from 'lucide-react/dist/esm/icons/chevron-down.js';
+import { __iconNode as refreshCwIconNode } from 'lucide-react/dist/esm/icons/refresh-cw.js';
+import { __iconNode as trash2IconNode } from 'lucide-react/dist/esm/icons/trash-2.js';
 import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
 
@@ -24,6 +31,51 @@ const emit = defineEmits(['copy-text', 're-ask', 'delete-message', 'toggle-colla
 const editInputRef = ref(null);
 const isEditing = ref(false);
 const editedContent = ref('');
+const isCopied = ref(false);
+
+let copyFeedbackTimer = null;
+
+const LucideIcon = defineComponent({
+  name: 'LucideIcon',
+  props: {
+    iconNode: {
+      type: Array,
+      required: true,
+    },
+    size: {
+      type: [Number, String],
+      default: 16,
+    },
+    strokeWidth: {
+      type: [Number, String],
+      default: 2,
+    },
+  },
+  setup(iconProps) {
+    return () =>
+      h(
+        'svg',
+        {
+          xmlns: 'http://www.w3.org/2000/svg',
+          width: iconProps.size,
+          height: iconProps.size,
+          viewBox: '0 0 24 24',
+          fill: 'none',
+          stroke: 'currentColor',
+          'stroke-width': iconProps.strokeWidth,
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          'aria-hidden': 'true',
+          focusable: 'false',
+          class: 'lucide',
+        },
+        iconProps.iconNode.map(([tag, attrs]) => {
+          const { key, ...svgAttrs } = attrs || {};
+          return h(tag, { ...svgAttrs, key });
+        })
+      );
+  },
+});
 
 // 格式化工具参数为易读的 JSON 字符串
 const formatToolArgs = (argsString) => {
@@ -312,6 +364,15 @@ const shouldShowCollapseButton = computed(() => {
 const onCopy = () => {
   if (props.isLoading && props.isLastMessage) return;
   emit('copy-text', formatMessageText(props.message.content), props.index);
+
+  isCopied.value = true;
+  if (copyFeedbackTimer !== null) {
+    window.clearTimeout(copyFeedbackTimer);
+  }
+  copyFeedbackTimer = window.setTimeout(() => {
+    isCopied.value = false;
+    copyFeedbackTimer = null;
+  }, 1300);
 };
 const onReAsk = () => emit('re-ask');
 const onDelete = () => emit('delete-message', props.index);
@@ -328,6 +389,12 @@ const truncateFilename = (filename, maxLength = 30) => {
   if (charsToKeep < 1) return ellipsis + extension;
   return nameWithoutExt.substring(0, charsToKeep) + ellipsis + extension;
 };
+
+onBeforeUnmount(() => {
+  if (copyFeedbackTimer !== null) {
+    window.clearTimeout(copyFeedbackTimer);
+  }
+});
 </script>
 
 <template>
@@ -362,13 +429,31 @@ const truncateFilename = (filename, maxLength = 30) => {
           <div class="message-footer">
             <div class="footer-wrapper">
               <div class="footer-actions">
-                <el-button :icon="DocumentCopy" @click="onCopy" size="small" circle />
-                <el-button v-if="isEditable" :icon="Edit" @click="emit('edit-message-requested', index)" size="small"
-                  circle />
-                <el-button v-if="shouldShowCollapseButton" :icon="isCollapsed ? CaretBottom : CaretTop"
-                  @click="onToggleCollapse($event)" size="small" circle />
-                <el-button v-if="isLastMessage" :icon="Refresh" @click="onReAsk" size="small" circle />
-                <el-button :icon="Delete" size="small" @click="onDelete" circle />
+                <button class="footer-action-btn" type="button" :class="{ 'is-copied': isCopied }"
+                  :title="isCopied ? '已复制' : '复制'" :aria-label="isCopied ? '已复制' : '复制'"
+                  :disabled="isLoading && isLastMessage" @click="onCopy">
+                  <transition name="copy-icon-swap" mode="out-in">
+                    <LucideIcon :key="isCopied ? 'copy-ok' : 'copy'" :icon-node="isCopied ? checkIconNode : copyIconNode"
+                      class="footer-action-icon" />
+                  </transition>
+                </button>
+                <button v-if="isEditable" class="footer-action-btn" type="button" title="编辑" aria-label="编辑"
+                  @click="emit('edit-message-requested', index)">
+                  <LucideIcon :icon-node="pencilIconNode" class="footer-action-icon" />
+                </button>
+                <button v-if="shouldShowCollapseButton" class="footer-action-btn" type="button"
+                  :title="isCollapsed ? '展开' : '折叠'" :aria-label="isCollapsed ? '展开' : '折叠'"
+                  @click="onToggleCollapse($event)">
+                  <LucideIcon :icon-node="isCollapsed ? chevronDownIconNode : chevronUpIconNode"
+                    class="footer-action-icon" />
+                </button>
+                <button v-if="isLastMessage" class="footer-action-btn" type="button" title="重新生成" aria-label="重新生成"
+                  @click="onReAsk">
+                  <LucideIcon :icon-node="refreshCwIconNode" class="footer-action-icon" />
+                </button>
+                <button class="footer-action-btn" type="button" title="删除" aria-label="删除" @click="onDelete">
+                  <LucideIcon :icon-node="trash2IconNode" class="footer-action-icon" />
+                </button>
               </div>
               <div class="message-files-vertical-list" v-if="formatMessageFile(message.content).length > 0">
                 <el-tooltip v-for="(file_name, idx) in formatMessageFile(message.content)" :key="idx"
@@ -490,13 +575,30 @@ const truncateFilename = (filename, maxLength = 30) => {
         <template #footer>
           <div class="message-footer">
             <div class="footer-actions">
-              <el-button :icon="DocumentCopy" @click="onCopy" size="small" circle />
-              <el-button v-if="isEditable" :icon="Edit" @click="emit('edit-message-requested', index)" size="small"
-                circle />
-              <el-button v-if="shouldShowCollapseButton" :icon="isCollapsed ? CaretBottom : CaretTop"
-                @click="onToggleCollapse($event)" size="small" circle />
-              <el-button v-if="isLastMessage" :icon="Refresh" @click="onReAsk" size="small" circle />
-              <el-button :icon="Delete" size="small" @click="onDelete" circle />
+              <button class="footer-action-btn" type="button" :class="{ 'is-copied': isCopied }"
+                :title="isCopied ? '已复制' : '复制'" :aria-label="isCopied ? '已复制' : '复制'"
+                :disabled="isLoading && isLastMessage" @click="onCopy">
+                <transition name="copy-icon-swap" mode="out-in">
+                  <LucideIcon :key="isCopied ? 'copy-ok' : 'copy'" :icon-node="isCopied ? checkIconNode : copyIconNode"
+                    class="footer-action-icon" />
+                </transition>
+              </button>
+              <button v-if="isEditable" class="footer-action-btn" type="button" title="编辑" aria-label="编辑"
+                @click="emit('edit-message-requested', index)">
+                <LucideIcon :icon-node="pencilIconNode" class="footer-action-icon" />
+              </button>
+              <button v-if="shouldShowCollapseButton" class="footer-action-btn" type="button"
+                :title="isCollapsed ? '展开' : '折叠'" :aria-label="isCollapsed ? '展开' : '折叠'" @click="onToggleCollapse($event)">
+                <LucideIcon :icon-node="isCollapsed ? chevronDownIconNode : chevronUpIconNode"
+                  class="footer-action-icon" />
+              </button>
+              <button v-if="isLastMessage" class="footer-action-btn" type="button" title="重新生成" aria-label="重新生成"
+                @click="onReAsk">
+                <LucideIcon :icon-node="refreshCwIconNode" class="footer-action-icon" />
+              </button>
+              <button class="footer-action-btn" type="button" title="删除" aria-label="删除" @click="onDelete">
+                <LucideIcon :icon-node="trash2IconNode" class="footer-action-icon" />
+              </button>
             </div>
           </div>
         </template>
@@ -1277,7 +1379,80 @@ html.dark .ai-name {
 .footer-actions {
   display: flex;
   align-items: center;
-  gap: 0px;
+  gap: 4px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(2px);
+  min-height: 20px;
+  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+}
+
+.message-wrapper:hover .footer-actions,
+.message-wrapper:focus-within .footer-actions {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+.footer-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  opacity: 0.82;
+  transition: color 0.16s ease, opacity 0.16s ease, transform 0.16s ease;
+}
+
+.footer-action-btn:hover {
+  color: var(--el-text-color-primary);
+  opacity: 1;
+}
+
+.footer-action-btn:active {
+  transform: translateY(1px);
+}
+
+.footer-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.footer-action-btn.is-copied {
+  color: var(--el-color-success);
+  opacity: 1;
+}
+
+.footer-action-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.copy-icon-swap-enter-active,
+.copy-icon-swap-leave-active {
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.copy-icon-swap-enter-from,
+.copy-icon-swap-leave-to {
+  opacity: 0;
+  transform: scale(0.82);
+}
+
+@media (hover: none) {
+  .footer-actions {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: none;
+  }
 }
 
 .footer-wrapper {
