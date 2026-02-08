@@ -1373,7 +1373,8 @@ html.dark .ai-name {
   justify-content: flex-end;
   align-items: center;
   width: 100%;
-  margin-top: 8px;
+  margin-top: 6px;
+  min-height: 20px;
 }
 
 .footer-actions {
@@ -1383,9 +1384,7 @@ html.dark .ai-name {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transform: translateY(2px);
-  min-height: 20px;
-  transition: opacity 0.16s ease, transform 0.16s ease, visibility 0.16s ease;
+  transition: opacity 0.16s ease, visibility 0.16s ease;
 }
 
 .message-wrapper:hover .footer-actions,
@@ -1393,7 +1392,6 @@ html.dark .ai-name {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
-  transform: translateY(0);
 }
 
 .footer-action-btn {
@@ -1451,7 +1449,6 @@ html.dark .ai-name {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
-    transform: none;
   }
 }
 
