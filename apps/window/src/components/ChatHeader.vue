@@ -103,7 +103,7 @@ const logoColor = computed(() => {
 .model-header {
   height: 54px;
   width: 100%;
-  padding: 8px 20px 0;
+  padding: 0px 20px 0;
   flex-shrink: 0;
   z-index: 9;
   background-color: transparent;
@@ -114,10 +114,9 @@ const logoColor = computed(() => {
   height: 46px;
   display: flex;
   align-items: center;
-  border-radius: 12px;
-  border: 1px solid var(--el-border-color-light);
-  background-color: color-mix(in srgb, var(--el-bg-color-overlay) 92%, transparent);
-  box-shadow: var(--el-box-shadow-lighter);
+  border: none;
+  background-color: transparent;
+  box-shadow: none;
   padding: 0 10px;
 }
 

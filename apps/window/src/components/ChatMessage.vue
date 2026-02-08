@@ -707,14 +707,14 @@ onBeforeUnmount(() => {
 
 .chat-message .user-bubble {
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    border-radius: 12px;
+    border-radius: 24px;
     background-color: var(--el-bg-color-userbubble);
     border: 1px solid var(--el-border-color-lighter);
     padding-top: 10px;
     padding-bottom: 10px;
     margin-bottom: 0;
     padding-right: 14px;
-    box-shadow: var(--el-box-shadow-lighter);
+    box-shadow: none;
   }
 
   :deep(.el-bubble-content-wrapper .el-bubble-footer) {
@@ -730,12 +730,25 @@ html.dark .chat-message .user-bubble {
 }
 
 .chat-message .ai-bubble {
+  :deep(.el-bubble-content-wrapper) {
+    background: transparent;
+    box-shadow: none;
+    border: none;
+    padding: 0;
+  }
+
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    background-color: color-mix(in srgb, var(--el-bg-color) 90%, transparent);
-    border: 1px solid var(--el-border-color-lighter);
-    border-radius: 12px;
-    padding: 10px 12px 8px;
-    box-shadow: var(--el-box-shadow-lighter);
+    background-color: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  :deep(.el-bubble-content-wrapper .el-bubble-arrow),
+  :deep(.el-bubble-content-wrapper .el-bubble-arrow::before),
+  :deep(.el-bubble-content-wrapper .el-bubble-arrow::after) {
+    display: none;
   }
 
   :deep(.el-bubble-content-wrapper .el-bubble-footer) {
@@ -744,8 +757,16 @@ html.dark .chat-message .user-bubble {
 }
 
 html.dark .chat-message .ai-bubble {
+  :deep(.el-bubble-content-wrapper) {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    background: color-mix(in srgb, var(--el-bg-color) 88%, transparent);
+    background: transparent;
+    border: none;
+    box-shadow: none;
   }
 }
 
@@ -1475,6 +1496,27 @@ html.dark .ai-name {
   flex-shrink: 0;
 }
 
+.ai-bubble :deep(.el-thinking .trigger) {
+  background-color: color-mix(in srgb, var(--el-fill-color-light) 86%, var(--el-bg-color) 14%);
+  color: var(--el-text-color-regular);
+  border-color: var(--el-border-color-lighter);
+}
+
+.ai-bubble :deep(.el-thinking .el-icon) {
+  color: var(--el-text-color-secondary);
+}
+
+.ai-bubble :deep(.el-thinking-popper) {
+  max-width: 85vw;
+  background-color: color-mix(in srgb, var(--el-fill-color-light) 90%, var(--el-bg-color) 10%) !important;
+  border-color: var(--el-border-color) !important;
+}
+
+.ai-bubble :deep(.el-thinking-popper .el-popper__arrow::before) {
+  background: color-mix(in srgb, var(--el-fill-color-light) 90%, var(--el-bg-color) 10%) !important;
+  border-color: var(--el-border-color) !important;
+}
+
 html.dark .ai-bubble :deep(.el-thinking .trigger) {
   background-color: var(--el-fill-color-darker, #2c2e33);
   color: var(--el-text-color-primary, #F9FAFB);
@@ -1502,6 +1544,8 @@ html.dark .ai-bubble :deep(.el-thinking-popper .el-popper__arrow::before) {
   white-space: pre-wrap;
   word-break: break-word;
   box-sizing: border-box;
+  background-color: color-mix(in srgb, var(--el-fill-color-light) 94%, var(--el-bg-color) 6%);
+  border: 1px solid var(--el-border-color-lighter);
 }
 
 html.dark .ai-bubble :deep(.el-thinking .content pre) {
