@@ -478,9 +478,7 @@ watch(locale, () => {
   background-color: rgba(245, 244, 243, 0.86);
   backdrop-filter: blur(10px) saturate(118%);
   -webkit-backdrop-filter: blur(10px) saturate(118%);
-  border: 1px solid rgba(227, 224, 221, 0.9);
-  border-right: none;
-  border-radius: 18px 0 0 18px;
+  border-right: 1px solid rgba(227, 224, 221, 0.9);
 }
 
 .sidebar-panel {
@@ -586,9 +584,6 @@ watch(locale, () => {
   display: flex;
   flex-direction: column;
   background-color: #ffffff;
-  border: 1px solid rgba(231, 228, 225, 0.95);
-  border-left: none;
-  border-radius: 0 18px 18px 0;
   box-shadow: none;
 }
 
@@ -609,7 +604,7 @@ watch(locale, () => {
 
 html.dark .app-sidebar {
   background-color: rgba(46, 47, 49, 0.78);
-  border-color: rgba(255, 255, 255, 0.12);
+  border-right-color: rgba(255, 255, 255, 0.12);
 }
 
 html.dark .brand-section {
@@ -632,7 +627,6 @@ html.dark .nav-item.active-tab {
 
 html.dark .workspace-main {
   background-color: #1f2022;
-  border-color: rgba(255, 255, 255, 0.1);
 }
 
 html.dark .workspace-header {
@@ -884,26 +878,18 @@ html.dark .workspace-content {
     --el-aside-width: 100%;
     width: 100%;
     min-width: 100%;
-    border-right: 1px solid rgba(227, 224, 221, 0.9);
+    border-right: none;
     border-bottom: 1px solid rgba(227, 224, 221, 0.9);
     margin-right: 0;
     margin-bottom: 0;
-    border-radius: 14px 14px 0 0;
   }
 
   .workspace-main {
-    border-left: 1px solid rgba(231, 228, 225, 0.95);
     border-top: none;
-    border-radius: 0 0 14px 14px;
   }
 
   html.dark .app-sidebar {
-    border-right-color: rgba(255, 255, 255, 0.12);
     border-bottom-color: rgba(255, 255, 255, 0.12);
-  }
-
-  html.dark .workspace-main {
-    border-left-color: rgba(255, 255, 255, 0.1);
   }
 
   .sidebar-panel {
