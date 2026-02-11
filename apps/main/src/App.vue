@@ -495,7 +495,6 @@ watch(locale, () => {
   justify-content: space-between;
   min-height: 34px;
   padding: 2px 2px 10px 4px;
-  border-bottom: 1px solid rgba(223, 220, 217, 0.95);
 }
 
 .brand-left-spacer {
@@ -589,7 +588,6 @@ watch(locale, () => {
 
 .workspace-header {
   padding: 10px 12px 14px;
-  border-bottom: 1px solid rgba(236, 232, 228, 0.95);
   flex-shrink: 0;
   background-color: #ffffff;
 }
@@ -605,10 +603,6 @@ watch(locale, () => {
 html.dark .app-sidebar {
   background-color: rgba(46, 47, 49, 0.78);
   border-right-color: rgba(255, 255, 255, 0.12);
-}
-
-html.dark .brand-section {
-  border-bottom-color: rgba(255, 255, 255, 0.12);
 }
 
 html.dark .help-button:hover {
@@ -631,7 +625,6 @@ html.dark .workspace-main {
 
 html.dark .workspace-header {
   background-color: #1f2022;
-  border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
 html.dark .workspace-content {

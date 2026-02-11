@@ -342,8 +342,7 @@ function createMainWindow() {
     title: isMac ? '' : 'Anywhere',
     ...(isMac
       ? {
-          titleBarStyle: 'hidden',
-          trafficLightPosition: { x: 20, y: 18 },
+          titleBarStyle: 'hiddenInset',
         }
       : {}),
     webPreferences: {
