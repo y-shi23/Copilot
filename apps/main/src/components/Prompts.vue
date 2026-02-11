@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, computed, inject, watch, nextTick, onMounted } from 'vue';
-import { Plus, Delete, Close, ChatLineRound, UploadFilled, Position, QuestionFilled, Switch, Refresh, Edit, Download } from '@element-plus/icons-vue';
+import { Plus, Delete, Close, ChatLineRound, UploadFilled, Position, QuestionFilled, Switch, Refresh, Edit, Download, Search } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 
@@ -789,6 +789,12 @@ async function refreshPromptsConfig() {
 
 <template>
   <div class="page-container">
+    <!-- 搜索框容器 - 移到顶部,与 MCP 页面保持一致 -->
+    <div class="search-input-container">
+      <el-input v-model="searchQueries[activeTabName]" :placeholder="t('prompts.searchPlaceholder')" :prefix-icon="Search" clearable />
+    </div>
+
+    <!-- 标签行 -->
     <div class="prompts-header">
       <div class="custom-all-tab" :class="{ 'is-active': activeTabName === '__ALL_PROMPTS__' }"
         @click="activeTabName = '__ALL_PROMPTS__'">
@@ -837,9 +843,6 @@ async function refreshPromptsConfig() {
 
     <el-scrollbar class="main-content-scrollbar">
       <div class="content-wrapper">
-        <div class="search-input-container">
-          <el-input v-model="searchQueries[activeTabName]" :placeholder="t('prompts.searchPlaceholder')" clearable />
-        </div>
         <div class="prompts-grid-container">
           <div v-if="!activeTabPrompts.length" class="empty-tag-message">
             <el-text type="info" size="small">{{ activeTabName === '__ALL_PROMPTS__' ? t('prompts.noPrompts') :
@@ -1313,8 +1316,7 @@ async function refreshPromptsConfig() {
   padding: 0 12px;
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-primary);
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 10;
   gap: 16px;
 }
@@ -1463,12 +1465,10 @@ async function refreshPromptsConfig() {
 }
 
 .search-input-container {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 10;
   background-color: var(--bg-primary);
-  padding: 8px 0px 8px 0px;
-  margin: 0px 0px 5px 0px;
+  padding: 8px 24px 8px 24px;
 }
 
 .search-input-container :deep(.el-input__wrapper) {

@@ -330,6 +330,7 @@ function registerLauncherHotkey(rawSettings = {}) {
 
 function createMainWindow() {
   const preloadPath = resolveMainPreloadPath();
+  const isMac = process.platform === 'darwin';
 
   mainWindow = new BrowserWindow({
     width: 1180,
@@ -338,7 +339,13 @@ function createMainWindow() {
     minHeight: 680,
     backgroundColor: '#f7f7f5',
     autoHideMenuBar: true,
-    title: 'Anywhere',
+    title: isMac ? '' : 'Anywhere',
+    ...(isMac
+      ? {
+          titleBarStyle: 'hidden',
+          trafficLightPosition: { x: 20, y: 18 },
+        }
+      : {}),
     webPreferences: {
       preload: preloadPath,
       contextIsolation: false,
@@ -559,6 +566,16 @@ ipcMain.on('utools:main-window-action', (_event, payload = {}) => {
   } else if (action === 'show') {
     mainWindow.show();
     mainWindow.focus();
+  } else if (action === 'close') {
+    mainWindow.close();
+  } else if (action === 'minimize') {
+    mainWindow.minimize();
+  } else if (action === 'maximize') {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow.maximize();
+    }
   }
 });
 

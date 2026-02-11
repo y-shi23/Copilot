@@ -34,6 +34,8 @@ const navItems = computed(() => ([
 ]));
 
 const config = ref(null);
+const platformName = String(navigator.userAgentData?.platform || navigator.platform || '').toLowerCase();
+const isMacOS = computed(() => platformName.includes('mac'));
 
 //将 config provide 给所有子组件
 provide('config', config);
@@ -364,81 +366,99 @@ watch(locale, () => {
 </script>
 
 <template>
-  <el-container class="common-layout">
-    <el-aside class="app-sidebar">
-      <div class="sidebar-panel">
-        <div class="brand-section">
-          <div class="brand-title">Anywhere</div>
-          <el-tooltip :content="t('app.header.help') || '使用指南'" placement="right">
-            <el-button class="help-button" text @click="openHelpDialog">
-              <el-badge :is-dot="hasAnyUpdate" class="bell-badge">
-                <el-icon :size="18"><Bell /></el-icon>
-              </el-badge>
-            </el-button>
-          </el-tooltip>
-        </div>
+  <div class="window-root">
+    <el-container class="common-layout">
+      <el-aside class="app-sidebar">
+        <div class="sidebar-panel">
+          <div class="brand-section" :class="{ 'window-drag-region': isMacOS }">
+            <div class="brand-left-spacer" aria-hidden="true"></div>
+            <el-tooltip :content="t('app.header.help') || '使用指南'" placement="right">
+              <el-button class="help-button no-drag" text @click="openHelpDialog">
+                <el-badge :is-dot="hasAnyUpdate" class="bell-badge">
+                  <el-icon :size="18"><Bell /></el-icon>
+                </el-badge>
+              </el-button>
+            </el-tooltip>
+          </div>
 
-        <nav class="sidebar-nav">
-          <button
-            v-for="item in navItems"
-            :key="item.id"
-            type="button"
-            class="nav-item"
-            @click="changeTab(item.id)"
-            :class="{ 'active-tab': tab === item.id }"
-          >
-            <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
-            <span class="nav-label">{{ item.label }}</span>
-          </button>
-        </nav>
-      </div>
-    </el-aside>
-
-    <el-main class="workspace-main" v-if="config">
-      <header class="workspace-header">
-        <el-text class="header-title-text">{{ header_text }}</el-text>
-      </header>
-      <div class="workspace-content">
-        <Chats v-if="tab === 0" key="chats" />
-        <Prompts v-if="tab === 1" key="prompts" />
-        <Mcp v-if="tab === 2" key="mcp" />
-        <Skills v-if="tab === 3" key="skills" />
-        <Providers v-if="tab === 4" key="providers" />
-        <Setting v-if="tab === 5" key="settings" />
-      </div>
-    </el-main>
-
-    <!-- 帮助文档弹窗 -->
-    <el-dialog v-model="showDocDialog" :title="t('doc.title')" width="80%" :lock-scroll="false" class="doc-dialog">
-      <div class="doc-container">
-        <div class="doc-sidebar">
-          <el-menu :default-active="activeDocIndex" @select="(index) => activeDocIndex = index" class="doc-menu">
-            <el-menu-item v-for="(doc, index) in docList" :key="index" :index="String(index)">
-              <el-icon><Document /></el-icon>
-              <span class="menu-item-text">
-                {{ t(doc.i18nKey) }}
-                <!-- 文档具体红点 -->
-                <span v-if="checkDocHasUpdate(index)" class="doc-update-dot"></span>
-              </span>
-            </el-menu-item>
-          </el-menu>
+          <nav class="sidebar-nav">
+            <button
+              v-for="item in navItems"
+              :key="item.id"
+              type="button"
+              class="nav-item"
+              @click="changeTab(item.id)"
+              :class="{ 'active-tab': tab === item.id }"
+            >
+              <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
+              <span class="nav-label">{{ item.label }}</span>
+            </button>
+          </nav>
         </div>
-        <div class="doc-content" v-loading="docLoading" :element-loading-text="t('doc.loading')">
-          <el-scrollbar height="60vh">
-            <div class="markdown-body" v-html="currentDocContent" @click="handleDocLinks"></div>
-          </el-scrollbar>
+      </el-aside>
+
+      <el-main class="workspace-main" v-if="config">
+        <header class="workspace-header" :class="{ 'window-drag-region': isMacOS }">
+          <el-text class="header-title-text">{{ header_text }}</el-text>
+        </header>
+        <div class="workspace-content">
+          <Chats v-if="tab === 0" key="chats" />
+          <Prompts v-if="tab === 1" key="prompts" />
+          <Mcp v-if="tab === 2" key="mcp" />
+          <Skills v-if="tab === 3" key="skills" />
+          <Providers v-if="tab === 4" key="providers" />
+          <Setting v-if="tab === 5" key="settings" />
         </div>
-      </div>
-    </el-dialog>
-  </el-container>
+      </el-main>
+
+      <!-- 帮助文档弹窗 -->
+      <el-dialog v-model="showDocDialog" :title="t('doc.title')" width="80%" :lock-scroll="false" class="doc-dialog">
+        <div class="doc-container">
+          <div class="doc-sidebar">
+            <el-menu :default-active="activeDocIndex" @select="(index) => activeDocIndex = index" class="doc-menu">
+              <el-menu-item v-for="(doc, index) in docList" :key="index" :index="String(index)">
+                <el-icon><Document /></el-icon>
+                <span class="menu-item-text">
+                  {{ t(doc.i18nKey) }}
+                  <!-- 文档具体红点 -->
+                  <span v-if="checkDocHasUpdate(index)" class="doc-update-dot"></span>
+                </span>
+              </el-menu-item>
+            </el-menu>
+          </div>
+          <div class="doc-content" v-loading="docLoading" :element-loading-text="t('doc.loading')">
+            <el-scrollbar height="60vh">
+              <div class="markdown-body" v-html="currentDocContent" @click="handleDocLinks"></div>
+            </el-scrollbar>
+          </div>
+        </div>
+      </el-dialog>
+    </el-container>
+  </div>
 </template>
 
 <style scoped>
+.window-root {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.window-drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
 .common-layout,
 .el-container {
   width: 100%;
   height: 100%;
-  padding: 10px 12px;
+  padding: 0;
   margin: 0;
   gap: 0;
   overflow: hidden;
@@ -453,14 +473,19 @@ watch(locale, () => {
   min-width: 220px;
   flex-shrink: 0;
   overflow: hidden;
-  border-right: 1px solid var(--border-primary);
-  margin-right: 16px;
-  padding-right: 14px;
+  position: relative;
+  margin-right: 0;
+  background-color: rgba(245, 244, 243, 0.86);
+  backdrop-filter: blur(10px) saturate(118%);
+  -webkit-backdrop-filter: blur(10px) saturate(118%);
+  border: 1px solid rgba(227, 224, 221, 0.9);
+  border-right: none;
+  border-radius: 18px 0 0 18px;
 }
 
 .sidebar-panel {
   height: 100%;
-  padding: 8px 4px 8px 2px;
+  padding: 10px 8px 10px 8px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -470,15 +495,15 @@ watch(locale, () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 2px 2px 10px;
-  border-bottom: 1px solid var(--border-secondary);
+  min-height: 34px;
+  padding: 2px 2px 10px 4px;
+  border-bottom: 1px solid rgba(223, 220, 217, 0.95);
 }
 
-.brand-title {
-  font-size: 16px;
-  font-weight: 620;
-  color: var(--text-primary);
-  letter-spacing: 0.01em;
+.brand-left-spacer {
+  width: 70px;
+  min-width: 70px;
+  height: 1px;
 }
 
 .help-button {
@@ -490,7 +515,7 @@ watch(locale, () => {
 
 .help-button:hover {
   color: var(--text-primary);
-  background-color: var(--bg-tertiary);
+  background-color: rgba(255, 255, 255, 0.65);
 }
 
 .sidebar-nav {
@@ -523,14 +548,14 @@ watch(locale, () => {
 
 .nav-item:hover {
   color: var(--text-primary);
-  background-color: var(--bg-tertiary);
+  background-color: rgba(255, 255, 255, 0.62);
 }
 
 .nav-item.active-tab {
   color: var(--text-primary);
-  border-color: var(--border-primary);
-  background-color: var(--bg-tertiary);
-  box-shadow: var(--shadow-sm);
+  border-color: rgba(218, 214, 211, 0.9);
+  background-color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 6px 14px rgba(26, 24, 22, 0.06);
 }
 
 .nav-item:focus-visible {
@@ -560,19 +585,63 @@ watch(locale, () => {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  background-color: #ffffff;
+  border: 1px solid rgba(231, 228, 225, 0.95);
+  border-left: none;
+  border-radius: 0 18px 18px 0;
+  box-shadow: none;
 }
 
 .workspace-header {
-  padding: 8px 8px 14px;
-  border-bottom: 1px solid var(--border-secondary);
+  padding: 10px 12px 14px;
+  border-bottom: 1px solid rgba(236, 232, 228, 0.95);
   flex-shrink: 0;
+  background-color: #ffffff;
 }
 
 .workspace-content {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding-top: 6px;
+  padding: 8px 0 0;
+  background-color: #ffffff;
+}
+
+html.dark .app-sidebar {
+  background-color: rgba(46, 47, 49, 0.78);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+html.dark .brand-section {
+  border-bottom-color: rgba(255, 255, 255, 0.12);
+}
+
+html.dark .help-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .nav-item:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .nav-item.active-tab {
+  border-color: rgba(255, 255, 255, 0.16);
+  background-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.24);
+}
+
+html.dark .workspace-main {
+  background-color: #1f2022;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .workspace-header {
+  background-color: #1f2022;
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .workspace-content {
+  background-color: #1f2022;
 }
 
 .header-title-text {
@@ -796,8 +865,7 @@ watch(locale, () => {
     --el-aside-width: 196px;
     width: 196px;
     min-width: 196px;
-    margin-right: 12px;
-    padding-right: 10px;
+    margin-right: 0;
   }
 
   .workspace-header {
@@ -809,18 +877,33 @@ watch(locale, () => {
   .common-layout,
   .el-container {
     flex-direction: column;
+    padding: 0;
   }
 
   .app-sidebar {
     --el-aside-width: 100%;
     width: 100%;
     min-width: 100%;
-    border-right: none;
-    border-bottom: 1px solid var(--border-primary);
+    border-right: 1px solid rgba(227, 224, 221, 0.9);
+    border-bottom: 1px solid rgba(227, 224, 221, 0.9);
     margin-right: 0;
-    margin-bottom: 10px;
-    padding-right: 0;
-    padding-bottom: 8px;
+    margin-bottom: 0;
+    border-radius: 14px 14px 0 0;
+  }
+
+  .workspace-main {
+    border-left: 1px solid rgba(231, 228, 225, 0.95);
+    border-top: none;
+    border-radius: 0 0 14px 14px;
+  }
+
+  html.dark .app-sidebar {
+    border-right-color: rgba(255, 255, 255, 0.12);
+    border-bottom-color: rgba(255, 255, 255, 0.12);
+  }
+
+  html.dark .workspace-main {
+    border-left-color: rgba(255, 255, 255, 0.1);
   }
 
   .sidebar-panel {
