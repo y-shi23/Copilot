@@ -991,12 +991,12 @@ const apiKeyCount = computed(() => {
 
 .model-tag :deep(.el-tag__close:hover) {
   background-color: rgba(255, 255, 255, 0.3) !important;
-  color: #FFFFFF !important;
+  color: var(--text-on-accent) !important;
 }
 
 html.dark .model-tag :deep(.el-tag__close:hover) {
   background-color: rgba(0, 0, 0, 0.2) !important;
-  color: #000000 !important;
+  color: var(--text-on-accent) !important;
 }
 
 .draggable-models-list .model-tag {

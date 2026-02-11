@@ -81,6 +81,9 @@ window.api = {
   writeLocalFile,
   setFileMtime,
   coderedirect,
+  mainWindowControl: (action) => {
+    ipcRenderer.send('utools:main-window-action', { action });
+  },
   setZoomFactor,
   defaultConfig,
   savePromptWindowSettings,

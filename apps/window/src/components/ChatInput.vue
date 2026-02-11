@@ -1,7 +1,7 @@
 <script setup>
 import { ref, h, onMounted, onBeforeUnmount, nextTick, watch, computed } from 'vue';
 import { ElFooter, ElRow, ElCol, ElText, ElDivider, ElButton, ElInput, ElMessage, ElTooltip, ElScrollbar, ElIcon } from 'element-plus';
-import { Close, Check, Document, Delete, Collection } from '@element-plus/icons-vue'; // 引入 Tools
+import { Close, Check, Document, Delete, Collection, Microphone, Monitor } from '@element-plus/icons-vue';
 
 // --- Props and Emits ---
 const prompt = defineModel('prompt');
@@ -31,6 +31,13 @@ const waveformCanvasContainer = ref(null);
 const isDragging = ref(false);
 const dragCounter = ref(0);
 const isRecording = ref(false);
+const getDefaultInputTextHeight = () => (typeof window !== 'undefined' && window.innerWidth <= 760 ? 32 : 36);
+const DEFAULT_INPUT_TEXT_HEIGHT = getDefaultInputTextHeight();
+const MIN_INPUT_TEXT_HEIGHT = 28;
+const inputTextHeight = ref(DEFAULT_INPUT_TEXT_HEIGHT);
+const isInputResizing = ref(false);
+let resizeStartY = 0;
+let resizeStartHeight = DEFAULT_INPUT_TEXT_HEIGHT;
 
 // --- MCP Quick Select State ---
 const showMcpQuickSelect = ref(false);
@@ -344,6 +351,38 @@ const toggleAudioSourceSelector = () => {
     }
 }
 
+const getMaxInputTextHeight = () => {
+    const viewport = typeof window !== 'undefined' ? window.innerHeight : 900;
+    return Math.max(160, Math.round(viewport * 0.45));
+};
+
+const handleInputResizeMove = (event) => {
+    if (!isInputResizing.value) return;
+    const deltaY = event.clientY - resizeStartY;
+    const next = resizeStartHeight - deltaY;
+    inputTextHeight.value = Math.max(MIN_INPUT_TEXT_HEIGHT, Math.min(getMaxInputTextHeight(), next));
+    event.preventDefault();
+};
+
+const stopInputResize = () => {
+    if (!isInputResizing.value) return;
+    isInputResizing.value = false;
+    window.removeEventListener('pointermove', handleInputResizeMove);
+    window.removeEventListener('pointerup', stopInputResize);
+    window.removeEventListener('pointercancel', stopInputResize);
+};
+
+const startInputResize = (event) => {
+    if (isRecording.value) return;
+    isInputResizing.value = true;
+    resizeStartY = event.clientY;
+    resizeStartHeight = inputTextHeight.value;
+    window.addEventListener('pointermove', handleInputResizeMove, { passive: false });
+    window.addEventListener('pointerup', stopInputResize);
+    window.addEventListener('pointercancel', stopInputResize);
+    event.preventDefault();
+};
+
 const startRecordingFromSource = async (sourceType) => {
     isAudioSourceSelectorVisible.value = false;
     if (isRecording.value) return;
@@ -513,6 +552,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    stopInputResize();
     window.removeEventListener('dragenter', handleDragEnter);
     window.removeEventListener('dragleave', handleDragLeave);
     window.removeEventListener('dragover', preventDefaults);
@@ -609,8 +649,14 @@ defineExpose({ focus, senderRef });
                     <div class="option-selector-content">
                         <el-text tag="b" class="selector-label">选择音源</el-text>
                         <el-divider direction="vertical" />
-                        <el-button @click="startRecordingFromSource('microphone')" round>🎙️ 麦克风</el-button>
-                        <el-button @click="startRecordingFromSource('system')" round>💻 系统音频</el-button>
+                        <el-button @click="startRecordingFromSource('microphone')" round>
+                            <el-icon><Microphone /></el-icon>
+                            麦克风
+                        </el-button>
+                        <el-button @click="startRecordingFromSource('system')" round>
+                            <el-icon><Monitor /></el-icon>
+                            系统音频
+                        </el-button>
                     </div>
                 </div>
             </el-col>
@@ -662,7 +708,11 @@ defineExpose({ focus, senderRef });
         <el-row>
             <el-col :span="0" />
             <el-col :span="24">
-                <div class="chat-input-area-vertical">
+                <div class="chat-input-area-vertical" :class="{ 'is-resizing': isInputResizing }"
+                    :style="{ '--input-text-height': `${inputTextHeight}px` }">
+                    <div class="input-top-resizer" @pointerdown="startInputResize">
+                        <span class="input-top-resizer-grip"></span>
+                    </div>
                     <div v-if="showMcpQuickSelect && filteredMcpList.length > 0" class="mcp-quick-select">
                         <!-- 顶部提示栏 -->
                         <div class="mcp-quick-header">
@@ -729,13 +779,13 @@ defineExpose({ focus, senderRef });
                     <div class="input-wrapper">
                         <el-input ref="senderRef" class="chat-textarea-vertical" v-model="prompt" type="textarea"
                             :placeholder="isRecording ? '录音中... 结束后将连同文本一起发送' : '输入、粘贴、拖拽以发送内容，“ @”选择MCP，“ /”选择skill'"
-                            :autosize="{ minRows: 1, maxRows: 15 }" resize="none" @keydown="handleKeyDown"
+                            :autosize="false" resize="none" @keydown="handleKeyDown"
                             :disabled="isRecording" />
                     </div>
                     <div class="input-actions-bar">
                         <div class="action-buttons-left">
                             <el-tooltip content="清除聊天记录">
-                                <el-button size="default" @click="onClearHistory" circle :disabled="isRecording">
+                                <el-button class="input-icon-btn" size="default" @click="onClearHistory" circle :disabled="isRecording">
                                     <el-icon :size="18">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -752,7 +802,7 @@ defineExpose({ focus, senderRef });
                                 </el-button>
                             </el-tooltip>
                             <el-tooltip content="添加附件">
-                                <el-button size="default" @click="triggerFileUpload" circle :disabled="isRecording">
+                                <el-button class="input-icon-btn" size="default" @click="triggerFileUpload" circle :disabled="isRecording">
                                     <el-icon :size="17">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
                                             viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -769,7 +819,7 @@ defineExpose({ focus, senderRef });
                             <el-tooltip :content="reasoningTooltipContent">
                                 <el-button ref="reasoningButtonRef"
                                     :class="{ 'is-active-special': tempReasoningEffort && tempReasoningEffort !== 'default' }"
-                                    size="default" circle :disabled="isRecording" @click="toggleReasoningSelector">
+                                    class="input-icon-btn" size="default" circle :disabled="isRecording" @click="toggleReasoningSelector">
                                     <el-icon :size="18">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
                                             viewBox="0 0 24 24" class="icon" style="margin-top: -2px;">
@@ -782,7 +832,7 @@ defineExpose({ focus, senderRef });
                             </el-tooltip>
 
                             <el-tooltip content="语音回复设置">
-                                <el-button ref="voiceButtonRef" size="default" circle :disabled="isRecording"
+                                <el-button ref="voiceButtonRef" class="input-icon-btn" size="default" circle :disabled="isRecording"
                                     :class="{ 'is-active-special': selectedVoice }" @click="toggleVoiceSelector">
                                     <el-icon :size="18">
                                         <svg t="1765028999430" class="icon" viewBox="0 0 1024 1024" version="1.1"
@@ -795,7 +845,7 @@ defineExpose({ focus, senderRef });
                                 </el-button>
                             </el-tooltip>
                             <el-tooltip content="MCP工具">
-                                <el-button size="default" circle :disabled="isRecording"
+                                <el-button class="input-icon-btn" size="default" circle :disabled="isRecording"
                                     :class="{ 'is-active-special': isMcpActive }" @click="$emit('open-mcp-dialog')">
                                     <el-icon :size="18">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18"
@@ -812,7 +862,7 @@ defineExpose({ focus, senderRef });
                                 </el-button>
                             </el-tooltip>
                             <el-tooltip content="Skill 技能库">
-                                <el-button size="default" circle :disabled="isRecording"
+                                <el-button class="input-icon-btn" size="default" circle :disabled="isRecording"
                                     :class="{ 'is-active-special': activeSkillIds && activeSkillIds.length > 0 }"
                                     @click="$emit('open-skill-dialog')">
                                     <el-icon :size="18">
@@ -821,16 +871,17 @@ defineExpose({ focus, senderRef });
                                 </el-button>
                             </el-tooltip>
                         </div>
+                        <div class="actions-divider"></div>
                         <div class="action-buttons-right">
                             <template v-if="isRecording">
-                                <el-tooltip content="取消录音"><el-button :icon="Close" size="default"
+                                <el-tooltip content="取消录音"><el-button class="input-icon-btn" :icon="Close" size="default"
                                         @click="handleCancelRecording" circle /></el-tooltip>
-                                <el-tooltip content="结束并发送"><el-button :icon="Check" size="default"
+                                <el-tooltip content="结束并发送"><el-button class="input-icon-btn send-action-btn" :icon="Check" size="default"
                                         @click="handleConfirmAndSendRecording" circle /></el-tooltip>
                             </template>
                             <template v-else>
                                 <el-tooltip content="发送语音">
-                                    <el-button ref="audioButtonRef" size="default" @click="toggleAudioSourceSelector"
+                                    <el-button ref="audioButtonRef" class="input-icon-btn" size="default" @click="toggleAudioSourceSelector"
                                         circle>
                                         <el-icon :size="17">
                                             <svg t="1765029327206" class="icon" viewBox="0 0 1024 1024" version="1.1"
@@ -846,21 +897,20 @@ defineExpose({ focus, senderRef });
                                         </el-icon>
                                     </el-button>
                                 </el-tooltip>
-                                <el-button v-if="!loading" @click="onSubmit" circle :disabled="loading">
-                                    <el-icon :size="18">
-                                        <svg t="1765029205363" class="icon" viewBox="0 0 1024 1024" version="1.1"
-                                            xmlns="http://www.w3.org/2000/svg" p-id="63447" width="200" height="200">
-                                            <path
-                                                d="M866.133333 298.666667l-277.333333 396.8 174.933333 64L866.133333 298.666667zM469.333333 691.2l362.666667-482.133333-652.8 332.8 230.4 72.533333c21.333333 8.533333 29.866667 29.866667 21.333333 51.2v4.266667c-12.8 21.333333-42.666667 34.133333-68.266666 21.333333L76.8 597.333333c-21.333333-8.533333-34.133333-29.866667-25.6-55.466666 4.266667-8.533333 12.8-17.066667 21.333333-25.6L913.066667 72.533333c21.333333-12.8 46.933333-4.266667 59.733333 17.066667 4.266667 8.533333 4.266667 17.066667 4.266667 29.866667l-140.8 699.733333c-4.266667 21.333333-25.6 38.4-51.2 34.133333h-4.266667l-238.933333-89.6v162.133334c0 21.333333-17.066667 38.4-38.4 42.666666-21.333333 0-38.4-17.066667-38.4-42.666666"
-                                                p-id="63448"></path>
+                                <el-button v-if="!loading" class="input-icon-btn send-action-btn message-send-btn" @click="onSubmit" circle :disabled="loading">
+                                    <span class="send-state-icon" aria-hidden="true">
+                                        <svg class="send-arrow-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <path d="M12 17V7" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
+                                            <path d="M7 12L12 7L17 12" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round" />
                                         </svg>
-                                    </el-icon>
+                                    </span>
                                 </el-button>
-                                <el-button v-else @click="onCancel" circle class="cancel-button-animated">
-                                    <el-icon class="static-icon">
-                                        <Close />
-                                    </el-icon>
-                                    <div class="cancel-spinner"></div>
+                                <el-button v-else @click="onCancel" circle class="input-icon-btn send-action-btn message-send-btn">
+                                    <span class="send-state-icon" aria-hidden="true">
+                                        <svg class="stop-square-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                            <rect x="5.4" y="5.4" width="13.2" height="13.2" rx="3.2" fill="currentColor" />
+                                        </svg>
+                                    </span>
                                 </el-button>
                             </template>
                         </div>
@@ -907,7 +957,7 @@ html.dark .drag-overlay {
 }
 
 .input-footer {
-    padding: 10px 5% 25px 5%;
+    padding: 8px 8px 12px;
     height: auto;
     width: 100%;
     flex-shrink: 0;
@@ -926,10 +976,10 @@ html.dark .drag-overlay {
     flex-direction: column;
     background-color: var(--el-bg-color-overlay);
     border: 1px solid var(--el-border-color-light);
-    border-radius: 8px;
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    box-shadow: var(--el-box-shadow-light);
     z-index: 100;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
     padding: 0;
     /* padding 移到内部元素 */
     overflow: hidden;
@@ -941,7 +991,7 @@ html.dark .drag-overlay {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
+    padding: 10px 12px;
     background-color: var(--el-fill-color-light);
     border-bottom: 1px solid var(--el-border-color-lighter);
     flex-shrink: 0;
@@ -970,10 +1020,10 @@ html.dark .drag-overlay {
     max-height: 260px;
     /* 列表内容的最大高度 */
     overflow-y: auto;
-    padding: 6px;
+    padding: 8px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
 }
 
 /* 滚动条 */
@@ -1013,8 +1063,8 @@ html.dark .app-container.has-bg .mcp-quick-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 4px 8px 4px 8px;
-    border-radius: 6px;
+    padding: 6px 9px;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.15s ease;
     /* 增加平滑过渡 */
@@ -1107,7 +1157,7 @@ html.dark .app-container.has-bg .mcp-quick-item.active.highlighted {
     justify-content: center;
     min-width: 18px;
     height: 18px;
-    border-radius: 4px;
+    border-radius: 999px;
     background-color: var(--el-fill-color-dark);
     /* 浅色模式默认 */
     color: var(--el-text-color-secondary);
@@ -1119,7 +1169,7 @@ html.dark .app-container.has-bg .mcp-quick-item.active.highlighted {
 
 .mcp-quick-item.active .mcp-index-badge {
     background-color: var(--el-color-primary);
-    color: #ffffff;
+    color: var(--text-on-accent);
 }
 
 html.dark .mcp-index-badge {
@@ -1130,7 +1180,7 @@ html.dark .mcp-index-badge {
 html.dark .mcp-quick-item:hover .mcp-index-badge,
 html.dark .mcp-quick-item.highlighted .mcp-index-badge {
     background-color: rgba(255, 255, 255, 0.25);
-    color: #ffffff;
+    color: #f7f7f3;
 }
 
 html.dark .mcp-quick-item.active .mcp-index-badge {
@@ -1222,7 +1272,7 @@ html.dark .mcp-tag.type-tag {
     align-items: center;
     background-color: var(--el-fill-color-light);
     border: 1px solid var(--el-border-color-light);
-    border-radius: 6px;
+    border-radius: 12px;
     padding: 6px 10px;
     margin-right: 0;
     /* gap已处理间距 */
@@ -1331,7 +1381,7 @@ html.dark .file-card-container::-webkit-scrollbar-thumb:hover {
     width: 100%;
     height: 40px;
     background-color: var(--el-bg-color-input);
-    border-radius: 12px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1376,9 +1426,10 @@ html.dark .waveform-display-area {
 
 .option-selector-wrapper {
     background-color: var(--el-bg-color-input);
-    border-radius: 12px;
+    border-radius: 14px;
     padding: 8px;
     max-height: 132px;
+    border: 1px solid var(--el-border-color-light);
 }
 
 html.dark .option-selector-wrapper {
@@ -1419,48 +1470,75 @@ html.dark .el-divider--vertical {
 
 .input-wrapper {
     position: relative;
-    flex-grow: 1;
+    flex: 0 0 auto;
     display: flex;
+    height: var(--input-text-height, 36px);
+    min-height: var(--input-text-height, 36px);
 }
 
 /* --- Vertical Layout (Chat Input Area) --- */
 .chat-input-area-vertical {
+    --input-text-height: 36px;
     display: flex;
     flex-direction: column;
-    background-color: var(--el-bg-color-input);
-    border-radius: 12px;
-    padding: 10px 12px;
-    border: 1px solid #E4E7ED;
+    border-radius: 24px;
+    padding: 13px 20px 10px;
+    border: 2px solid transparent;
+    background:
+        linear-gradient(color-mix(in srgb, var(--el-bg-color-overlay) 94%, transparent),
+            color-mix(in srgb, var(--el-bg-color-overlay) 94%, transparent)) padding-box,
+        linear-gradient(96deg, rgba(229, 190, 120, 0.95) 0%, rgba(163, 153, 221, 0.95) 100%) border-box;
+    box-shadow: 0 16px 32px rgba(32, 32, 32, 0.08);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
     position: relative;
-    /* 确保绝对定位的 mcp 列表相对此定位 */
 }
 
 html.dark .chat-input-area-vertical {
-    background-color: var(--el-bg-color-input);
-    border: 1px solid #414243;
+    border-color: var(--el-border-color-light);
+    background:
+        linear-gradient(color-mix(in srgb, var(--el-bg-color-input) 94%, transparent),
+            color-mix(in srgb, var(--el-bg-color-input) 94%, transparent)) padding-box,
+        linear-gradient(96deg, rgba(140, 121, 189, 0.82) 0%, rgba(109, 145, 177, 0.82) 100%) border-box;
 }
 
 .chat-textarea-vertical {
     width: 100%;
-    flex-grow: 1;
+    height: 100%;
+}
+
+.chat-textarea-vertical:deep(.el-textarea) {
+    height: 100%;
 }
 
 .chat-textarea-vertical:deep(.el-textarea__inner) {
     background-color: transparent !important;
     box-shadow: none !important;
     border: none !important;
+    height: 100% !important;
+    min-height: 100% !important;
+    max-height: none !important;
     padding: 0;
     color: var(--el-text-color-primary);
-    font-size: 14px;
-    line-height: 1.5;
+    font-size: 15px;
+    line-height: 1.55;
     resize: none;
+    overflow-y: auto;
+}
+
+.chat-textarea-vertical:deep(.el-textarea__inner::placeholder) {
+    color: color-mix(in srgb, var(--el-text-color-secondary) 72%, #b8b4ad);
+    font-size: 15px;
+    font-weight: 400;
 }
 
 .input-actions-bar {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
     margin-top: 8px;
+    padding-top: 0;
+    border-top: none;
     flex-shrink: 0;
 }
 
@@ -1468,7 +1546,7 @@ html.dark .chat-input-area-vertical {
 .chat-input-area-vertical .action-buttons-right {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 9px;
 }
 
 .chat-input-area-vertical .action-buttons-left .el-button,
@@ -1483,17 +1561,61 @@ html.dark .chat-input-area-vertical {
 
 .chat-input-area-vertical .action-buttons-right {
     margin-right: 0px;
+    padding-left: 10px;
 }
 
-.chat-input-area-vertical .el-button {
-    width: 32px;
-    height: 32px;
+.input-top-resizer {
+    position: absolute;
+    top: -8px;
+    left: 16px;
+    right: 16px;
+    height: 14px;
+    cursor: ns-resize;
+    z-index: 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.input-top-resizer-grip {
+    width: 78px;
+    height: 3px;
+    border-radius: 999px;
+    background-color: color-mix(in srgb, var(--el-border-color-dark) 82%, transparent);
+    opacity: 0.7;
+    transition: all 0.2s ease;
+}
+
+.chat-input-area-vertical:hover .input-top-resizer-grip,
+.chat-input-area-vertical.is-resizing .input-top-resizer-grip {
+    opacity: 1;
+    width: 94px;
+}
+
+.chat-input-area-vertical.is-resizing {
+    user-select: none;
+}
+
+.actions-divider {
+    margin-left: auto;
+    width: 1px;
+    height: 26px;
+    border-radius: 99px;
+    background-color: color-mix(in srgb, var(--el-border-color) 86%, transparent);
+}
+
+.chat-input-area-vertical .input-icon-btn {
+    width: 34px;
+    height: 34px;
     background: none;
     border: none;
+    border-radius: 999px;
+    color: color-mix(in srgb, var(--el-text-color-primary) 70%, var(--el-text-color-secondary));
+    transition: all 0.2s ease;
 }
 
-.chat-input-area-vertical .el-button:hover {
-    background-color: rgba(0, 0, 0, 0.05);
+.chat-input-area-vertical .input-icon-btn:hover {
+    background-color: var(--el-fill-color-light);
 }
 
 .chat-input-area-vertical .action-buttons-left .el-button.is-active-special {
@@ -1501,12 +1623,66 @@ html.dark .chat-input-area-vertical {
 }
 
 .chat-input-area-vertical .action-buttons-left .el-button:hover {
-    color: var(--text-on-accent);
-    background-color: var(--el-color-primary-light-8);
+    color: var(--el-text-color-primary);
+    background-color: var(--el-color-primary-light-9);
 }
 
 .chat-input-area-vertical .action-buttons-right .el-button:hover {
-    color: var(--text-on-accent);
+    color: var(--el-text-color-primary);
+}
+
+.chat-input-area-vertical .send-action-btn {
+    width: 34px;
+    height: 34px;
+}
+
+.chat-input-area-vertical .message-send-btn {
+    background-color: #000000;
+    color: #ffffff;
+}
+
+.chat-input-area-vertical .action-buttons-right .message-send-btn:hover,
+.chat-input-area-vertical .action-buttons-right .message-send-btn:focus-visible {
+    background-color: #1a1a1a;
+    color: #ffffff;
+}
+
+@media (max-width: 760px) {
+    .input-footer {
+        padding: 6px 6px 10px;
+    }
+
+    .chat-input-area-vertical {
+        border-radius: 18px;
+        padding: 11px 14px 9px;
+    }
+
+    .input-top-resizer {
+        left: 10px;
+        right: 10px;
+    }
+
+    .input-top-resizer-grip {
+        width: 64px;
+    }
+
+    .chat-textarea-vertical:deep(.el-textarea__inner) {
+        font-size: 14px;
+    }
+
+    .chat-textarea-vertical:deep(.el-textarea__inner::placeholder) {
+        font-size: 14px;
+    }
+
+    .chat-input-area-vertical .input-icon-btn {
+        width: 32px;
+        height: 32px;
+    }
+
+    .chat-input-area-vertical .send-action-btn {
+        width: 32px;
+        height: 32px;
+    }
 }
 
 /* --- Common Styles --- */
@@ -1547,28 +1723,28 @@ html.dark :deep(.el-textarea__inner::-webkit-scrollbar-thumb:hover) {
     background-clip: content-box;
 }
 
-.el-button.is-circle {
+.el-button.is-circle:not(.input-icon-btn) {
     color: var(--el-text-color-regular);
 }
 
-.el-button.is-circle:hover,
-.el-button.is-circle:focus {
+.el-button.is-circle:not(.input-icon-btn):hover,
+.el-button.is-circle:not(.input-icon-btn):focus {
     color: var(--el-color-primary);
     background-color: var(--el-color-primary-light-8);
 }
 
-.el-button.is-circle[type="primary"] {
+.el-button.is-circle:not(.input-icon-btn)[type="primary"] {
     background-color: var(--el-color-primary);
-    color: #ffffff;
+    color: var(--text-on-accent);
 }
 
-.el-button.is-circle[type="primary"]:hover,
-.el-button.is-circle[type="primary"]:focus {
+.el-button.is-circle:not(.input-icon-btn)[type="primary"]:hover,
+.el-button.is-circle:not(.input-icon-btn)[type="primary"]:focus {
     background-color: var(--el-color-primary-light-3);
 }
 
 html.dark .el-button--danger.is-plain {
-    color: #ffffff;
+    color: #f7f7f3;
     background-color: var(--el-color-danger);
     border-color: var(--el-color-danger);
 }
@@ -1577,11 +1753,11 @@ html.dark .el-button--danger.is-plain:hover,
 html.dark .el-button--danger.is-plain:focus {
     background-color: var(--el-color-danger-light-3);
     border-color: var(--el-color-danger-light-3);
-    color: #ffffff;
+    color: #f7f7f3;
 }
 
 html.dark .el-button--success.is-plain {
-    color: #ffffff;
+    color: #f7f7f3;
     background-color: var(--el-color-success);
     border-color: var(--el-color-success);
 }
@@ -1590,58 +1766,25 @@ html.dark .el-button--success.is-plain:hover,
 html.dark .el-button--success.is-plain:focus {
     background-color: var(--el-color-success-light-3);
     border-color: var(--el-color-success-light-3);
-    color: #ffffff;
+    color: #f7f7f3;
 }
 
-/* Cancel Button Animation */
-.cancel-button-animated {
-    position: relative;
+.send-state-icon {
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    line-height: 1;
 }
 
-.static-icon {
-    font-size: 16px;
-    z-index: 1;
-    color: var(--el-text-color-regular);
-}
-
-.cancel-spinner {
-    position: absolute;
-    top: 50%;
-    left: 50%;
+.send-arrow-icon {
     width: 20px;
     height: 20px;
-    margin-left: -10px;
-    margin-top: -10px;
-
-    border: 2px solid transparent;
-    border-top-color: var(--el-text-color-secondary);
-    border-right-color: var(--el-text-color-secondary);
-    border-radius: 50%;
-
-    animation: spin 1s linear infinite;
-    pointer-events: none;
-    box-sizing: border-box;
+    display: block;
 }
 
-html.dark .static-icon {
-    color: var(--el-text-color-primary);
-}
-
-html.dark .cancel-spinner {
-    border-top-color: var(--el-text-color-primary);
-    border-right-color: var(--el-text-color-primary);
-}
-
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
+.stop-square-icon {
+    width: 18px;
+    height: 18px;
+    display: block;
 }
 </style>

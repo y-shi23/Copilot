@@ -1,7 +1,10 @@
 <script setup>
 import { computed } from 'vue';
-import { ElHeader, ElIcon, ElTooltip } from 'element-plus';
-import { Loading, Edit, Search } from '@element-plus/icons-vue'; // 引入 Search
+import { ElHeader, ElTooltip } from 'element-plus';
+import { __iconNode as chevronsUpDownIconNode } from 'lucide-react/dist/esm/icons/chevrons-up-down.js';
+import { __iconNode as pencilIconNode } from 'lucide-react/dist/esm/icons/pencil.js';
+import { __iconNode as searchIconNode } from 'lucide-react/dist/esm/icons/search.js';
+import LucideIcon from './LucideIcon.vue';
 
 const props = defineProps({
   modelMap: Object,
@@ -68,12 +71,7 @@ const logoColor = computed(() => {
               {{ isMcpLoading ? 'MCP工具加载中...' : (modelMap[model] || model || '选择模型') }}
             </span>
             
-            <el-icon class="arrow-icon" :size="12">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7 10L12 5L17 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M7 14L12 19L17 14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
-            </el-icon>
+            <LucideIcon :icon-node="chevronsUpDownIconNode" :size="12" class="arrow-icon" />
           </div>
         </div>
 
@@ -82,7 +80,7 @@ const logoColor = computed(() => {
 
         <!-- 2. 系统提示词展示/编辑 -->
         <div class="model-pill prompt-pill" @click="emit('show-system-prompt')">
-          <el-icon :size="14" class="prompt-icon"><Edit /></el-icon>
+          <LucideIcon :icon-node="pencilIconNode" :size="14" class="prompt-icon" />
           <span v-if="systemPrompt" class="model-text prompt-text">{{ systemPrompt }}</span>
           <span v-else class="model-text prompt-text placeholder">系统提示词</span>
         </div>
@@ -90,7 +88,7 @@ const logoColor = computed(() => {
         <!-- 3. [新增] 搜索按钮 -->
         <el-tooltip content="搜索内容 (Ctrl/Cmd+F)" placement="bottom" :show-after="500">
           <div class="model-pill icon-pill" @click="emit('open-search')">
-            <el-icon :size="14" class="header-icon"><Search /></el-icon>
+            <LucideIcon :icon-node="searchIconNode" :size="14" class="header-icon" />
           </div>
         </el-tooltip>
 
@@ -101,9 +99,9 @@ const logoColor = computed(() => {
 
 <style scoped>
 .model-header {
-  height: 40px; 
+  height: 54px;
   width: 100%;
-  padding: 0 16px;
+  padding: 0px 20px 0;
   flex-shrink: 0;
   z-index: 9;
   background-color: transparent;
@@ -111,17 +109,21 @@ const logoColor = computed(() => {
 
 .model-header-wrapper {
   width: 100%;
-  height: 100%;
+  height: 46px;
   display: flex;
   align-items: center;
+  border: none;
+  background-color: transparent;
+  box-shadow: none;
+  padding: 0 10px;
 }
 
 .header-content-group {
   display: flex;
   align-items: center;
-  gap: 0px; /* 由分隔线控制间距 */
-  flex: 1; 
-  min-width: 0; 
+  gap: 0px;
+  flex: 1;
+  min-width: 0;
 }
 
 /* 垂直分隔线样式 */
@@ -129,7 +131,7 @@ const logoColor = computed(() => {
   width: 1px;
   height: 14px;
   background-color: var(--el-border-color);
-  margin: 0 8px; /* 左右间距 */
+  margin: 0 10px;
   flex-shrink: 0;
 }
 
@@ -138,23 +140,23 @@ const logoColor = computed(() => {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
-  background-color: transparent; /* 默认透明 */
-  border-radius: 12px;
+  padding: 5px 10px;
+  background-color: transparent;
+  border-radius: 10px;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.5, 1);
+  transition: all 0.2s ease;
   user-select: none;
-  height: 20px; 
-  box-sizing: content-box; 
-  flex-shrink: 0; 
+  height: 22px;
+  box-sizing: content-box;
+  flex-shrink: 0;
 }
 
 .model-pill:hover {
-  background-color: var(--el-fill-color); /* Hover 显示背景 */
+  background-color: var(--el-fill-color-light);
 }
 
 .model-pill:active {
-  transform: scale(0.98);
+  transform: none;
 }
 
 .model-pill.is-disabled {
@@ -170,20 +172,20 @@ const logoColor = computed(() => {
   max-width: 0;
   overflow: hidden;
   opacity: 0;
-  transition: max-width 0.3s cubic-bezier(0.25, 0.8, 0.5, 1), opacity 0.2s ease;
+  transition: max-width 0.24s ease, opacity 0.2s ease;
 }
 
 /* 悬浮时展开 OR 加载时展开 */
 .expandable-pill:hover .expandable-content,
 .expandable-pill.is-loading .expandable-content {
-  max-width: 250px; 
+  max-width: 260px;
   opacity: 1;
 }
 
 .expandable-pill:hover,
 .expandable-pill.is-loading {
-  padding-right: 12px; 
-  background-color: var(--el-fill-color); /* 加载时保持背景色 */
+  padding-right: 12px;
+  background-color: var(--el-fill-color-light);
 }
 
 /* 旋转动画 */
@@ -214,15 +216,14 @@ const logoColor = computed(() => {
 
 /* === 系统提示词样式 === */
 .prompt-pill {
-  color: var(--el-text-color-regular); 
-  background-color: transparent; 
-  
-  flex: 1; 
-  min-width: 0; 
+  color: var(--el-text-color-regular);
+  background-color: transparent;
+  flex: 1;
+  min-width: 0;
 }
 
 .prompt-pill:hover {
-  background-color: var(--el-fill-color); 
+  background-color: var(--el-fill-color-light);
 }
 
 .prompt-icon {
@@ -248,7 +249,7 @@ html.dark .prompt-text {
 
 /* 通用文本样式 */
 .model-text {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -265,14 +266,14 @@ html.dark .prompt-text {
 /* 新增：图标按钮样式 */
 .icon-pill {
   color: var(--el-text-color-secondary);
-  flex: 0 0 auto; 
+  flex: 0 0 auto;
   width: 28px;
   justify-content: center;
   margin-left: 2px;
 }
 
 .icon-pill:hover {
-  background-color: var(--el-fill-color);
+  background-color: var(--el-fill-color-light);
   color: var(--el-text-color-primary);
 }
 

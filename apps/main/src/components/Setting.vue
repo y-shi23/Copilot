@@ -579,11 +579,9 @@ async function selectLocalChatPath() {
   <div class="settings-page-container">
     <el-scrollbar class="settings-scrollbar-wrapper">
       <div class="settings-content">
-        <!-- 通用设置卡片 -->
-        <el-card class="settings-card" shadow="never">
-          <template #header>
-            <div class="card-header"><span>{{ t('setting.title') }}</span></div>
-          </template>
+        <!-- 通用设置 -->
+        <section class="settings-section">
+          <h2 class="section-title">{{ t('setting.title') }}</h2>
           <div class="setting-option-item">
             <div class="setting-text-content">
               <span class="setting-option-label">{{ t('setting.language.label') }}</span>
@@ -681,17 +679,15 @@ async function selectLocalChatPath() {
               :placeholder="t('setting.launcher.hotkeyPlaceholder')" style="width: 320px;"
               @change="handleLauncherHotkeyChange" />
           </div>
-        </el-card>
+        </section>
 
-        <!-- [MODIFIED] 语音设置卡片 -->
-        <el-card class="settings-card" shadow="never">
-          <template #header>
-            <div class="card-header">
-              <el-tooltip :content="t('setting.voice.description')" placement="top">
-                <span>{{ t('setting.voice.title') }}</span>
-              </el-tooltip>
-            </div>
-          </template>
+        <!-- [MODIFIED] 语音设置 -->
+        <section class="settings-section">
+          <div class="section-title section-title-inline">
+            <el-tooltip :content="t('setting.voice.description')" placement="top">
+              <span>{{ t('setting.voice.title') }}</span>
+            </el-tooltip>
+          </div>
           <div class="voice-list-container">
             <el-tag v-for="voice in currentConfig.voiceList" :key="voice" closable @click="editVoice(voice)"
               @close="deleteVoice(voice)" class="voice-tag" size="large">
@@ -701,13 +697,11 @@ async function selectLocalChatPath() {
               {{ t('setting.voice.add') }}
             </el-button>
           </div>
-        </el-card>
+        </section>
 
-        <!-- 数据管理卡片 -->
-        <el-card class="settings-card" shadow="never">
-          <template #header>
-            <div class="card-header"><span>{{ t('setting.dataManagement.title') }}</span></div>
-          </template>
+        <!-- 数据管理 -->
+        <section class="settings-section">
+          <h2 class="section-title">{{ t('setting.dataManagement.title') }}</h2>
           <div class="setting-option-item">
             <div class="setting-text-content">
               <span class="setting-option-label">{{ t('setting.dataManagement.exportLabel') }}</span>
@@ -739,13 +733,11 @@ async function selectLocalChatPath() {
               </template>
             </el-input>
           </div>
-        </el-card>
+        </section>
 
-        <!-- WebDAV 卡片 -->
-        <el-card class="settings-card" shadow="never">
-          <template #header>
-            <div class="card-header"><span>WebDAV</span></div>
-          </template>
+        <!-- WebDAV -->
+        <section class="settings-section">
+          <h2 class="section-title">WebDAV</h2>
           <el-form label-width="200px" label-position="left" size="default">
             <el-form-item :label="t('setting.webdav.url')"><el-input v-model="currentConfig.webdav.url"
                 @change="(value) => saveSingleSetting('webdav.url', value)"
@@ -768,7 +760,7 @@ async function selectLocalChatPath() {
               }}</el-button>
             </el-form-item>
           </el-form>
-        </el-card>
+        </section>
       </div>
     </el-scrollbar>
 
@@ -865,40 +857,35 @@ async function selectLocalChatPath() {
 }
 
 .settings-content {
-  padding: 20px;
+  padding: 10px 20px 20px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
 }
 
-.settings-card {
-  --el-card-padding: 0;
-  border: 1px solid var(--border-primary);
-  background-color: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+.settings-section {
+  padding: 6px 12px 4px;
 }
 
-.card-header {
-  padding: 15px 25px;
-  font-size: 18px;
-  color: var(--text-primary);
+.settings-section + .settings-section {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-primary);
 }
 
-/* MODIFIED: Specifically target spans inside the header for boldness */
-.card-header>span,
-.card-header :deep(span) {
-  font-weight: 700;
-  /* or 'bold' */
-}
-
-:deep(.el-card__header) {
-  padding: 0;
+.section-title {
+  margin: 0 0 6px;
+  padding: 2px 0 12px;
   border-bottom: 1px solid var(--border-primary);
+  font-size: 17px;
+  color: var(--text-primary);
+  font-weight: 650;
+  letter-spacing: 0.01em;
 }
 
-:deep(.el-card__body) {
-  padding: 10px 25px;
+.section-title.section-title-inline {
+  display: flex;
+  align-items: center;
 }
 
 .setting-option-item {

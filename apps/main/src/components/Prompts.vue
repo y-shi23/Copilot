@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, computed, inject, watch, nextTick, onMounted } from 'vue';
-import { Plus, Delete, Close, ChatLineRound, UploadFilled, Position, QuestionFilled, Switch, Refresh, Edit, Download } from '@element-plus/icons-vue';
+import { Plus, Delete, Close, ChatLineRound, UploadFilled, Position, QuestionFilled, Switch, Refresh, Edit, Download, Search } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 
@@ -789,6 +789,12 @@ async function refreshPromptsConfig() {
 
 <template>
   <div class="page-container">
+    <!-- 搜索框容器 - 移到顶部,与 MCP 页面保持一致 -->
+    <div class="search-input-container">
+      <el-input v-model="searchQueries[activeTabName]" :placeholder="t('prompts.searchPlaceholder')" :prefix-icon="Search" clearable />
+    </div>
+
+    <!-- 标签行 -->
     <div class="prompts-header">
       <div class="custom-all-tab" :class="{ 'is-active': activeTabName === '__ALL_PROMPTS__' }"
         @click="activeTabName = '__ALL_PROMPTS__'">
@@ -837,9 +843,6 @@ async function refreshPromptsConfig() {
 
     <el-scrollbar class="main-content-scrollbar">
       <div class="content-wrapper">
-        <div class="search-input-container">
-          <el-input v-model="searchQueries[activeTabName]" :placeholder="t('prompts.searchPlaceholder')" clearable />
-        </div>
         <div class="prompts-grid-container">
           <div v-if="!activeTabPrompts.length" class="empty-tag-message">
             <el-text type="info" size="small">{{ activeTabName === '__ALL_PROMPTS__' ? t('prompts.noPrompts') :
@@ -1313,8 +1316,7 @@ async function refreshPromptsConfig() {
   padding: 0 12px;
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-primary);
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 10;
   gap: 16px;
 }
@@ -1459,16 +1461,14 @@ async function refreshPromptsConfig() {
 .content-wrapper {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0px 24px 80px 24px;
+  padding: 0px 24px 20px 24px;
 }
 
 .search-input-container {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 10;
   background-color: var(--bg-primary);
-  padding: 8px 0px 8px 0px;
-  margin: 0px 0px 5px 0px;
+  padding: 8px 24px 8px 24px;
 }
 
 .search-input-container :deep(.el-input__wrapper) {
@@ -1488,19 +1488,18 @@ async function refreshPromptsConfig() {
 
 .prompt-card {
   background-color: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
+  border: 1px solid var(--border-secondary);
   border-radius: var(--radius-md);
   padding: 10px 16px 10px 16px;
-  transition: all 0.25s ease;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
   display: flex;
   flex-direction: column;
   height: 104px;
 }
 
 .prompt-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-sm);
-  border-color: var(--text-accent);
+  border-color: var(--border-primary);
+  background-color: color-mix(in srgb, var(--bg-secondary) 72%, transparent);
 }
 
 .prompt-card-header {
@@ -1578,30 +1577,26 @@ async function refreshPromptsConfig() {
 }
 
 .bottom-actions-container {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  position: static;
   width: 100%;
   display: flex;
-  justify-content: center;
-  gap: 16px;
-  padding: 12px 24px;
-  background-color: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 12px 24px 16px;
+  background-color: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border-top: 1px solid var(--border-primary);
-  z-index: 20;
-}
-
-html.dark .bottom-actions-container {
-  background-color: rgba(23, 24, 28, 0.7);
 }
 
 .bottom-actions-container .action-btn {
   flex-grow: 0;
-  min-width: 180px;
+  min-width: 0;
   font-weight: 500;
+}
+
+.bottom-actions-container .refresh-fab-button {
+  margin-left: auto;
 }
 
 .action-btn.el-button--primary {
@@ -1961,14 +1956,7 @@ html.dark .prompt-textarea-scrollbar :deep(.el-scrollbar__thumb:hover) {
 }
 
 .refresh-fab-button {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 21;
-  width: 24px;
-  height: 24px;
-  font-size: 16px;
-  box-shadow: var(--el-box-shadow-light);
+  margin-left: auto;
 }
 
 .edit-prompt-form :deep(.el-form-item) {

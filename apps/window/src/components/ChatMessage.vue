@@ -1,12 +1,23 @@
 <script setup>
-import { computed, ref, nextTick } from 'vue';
+import { computed, ref, nextTick, onBeforeUnmount } from 'vue';
 import { Bubble, Thinking, XMarkdown } from 'vue-element-plus-x';
-import { ElTooltip, ElButton, ElInput, ElCollapse, ElCollapseItem, ElIcon, ElCheckbox, ElTag } from 'element-plus';
-import { DocumentCopy, Refresh, Delete, Document, CaretTop, CaretBottom, Edit, Check, Close, CloseBold } from '@element-plus/icons-vue';
+import { ElTooltip, ElButton, ElInput, ElCollapse, ElCollapseItem, ElCheckbox, ElTag } from 'element-plus';
+import { __iconNode as copyIconNode } from 'lucide-react/dist/esm/icons/copy.js';
+import { __iconNode as checkIconNode } from 'lucide-react/dist/esm/icons/check.js';
+import { __iconNode as pencilIconNode } from 'lucide-react/dist/esm/icons/pencil.js';
+import { __iconNode as chevronUpIconNode } from 'lucide-react/dist/esm/icons/chevron-up.js';
+import { __iconNode as chevronDownIconNode } from 'lucide-react/dist/esm/icons/chevron-down.js';
+import { __iconNode as refreshCwIconNode } from 'lucide-react/dist/esm/icons/refresh-cw.js';
+import { __iconNode as trash2IconNode } from 'lucide-react/dist/esm/icons/trash-2.js';
+import { __iconNode as xIconNode } from 'lucide-react/dist/esm/icons/x.js';
+import { __iconNode as fileTextIconNode } from 'lucide-react/dist/esm/icons/file-text.js';
+import { __iconNode as wrenchIconNode } from 'lucide-react/dist/esm/icons/wrench.js';
+import { __iconNode as squareIconNode } from 'lucide-react/dist/esm/icons/square.js';
 import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
 
 import { formatTimestamp, formatMessageText, sanitizeToolArgs } from '../utils/formatters.js';
+import LucideIcon from './LucideIcon.vue';
 
 const props = defineProps({
   message: Object,
@@ -24,6 +35,9 @@ const emit = defineEmits(['copy-text', 're-ask', 'delete-message', 'toggle-colla
 const editInputRef = ref(null);
 const isEditing = ref(false);
 const editedContent = ref('');
+const isCopied = ref(false);
+
+let copyFeedbackTimer = null;
 
 // 格式化工具参数为易读的 JSON 字符串
 const formatToolArgs = (argsString) => {
@@ -312,6 +326,15 @@ const shouldShowCollapseButton = computed(() => {
 const onCopy = () => {
   if (props.isLoading && props.isLastMessage) return;
   emit('copy-text', formatMessageText(props.message.content), props.index);
+
+  isCopied.value = true;
+  if (copyFeedbackTimer !== null) {
+    window.clearTimeout(copyFeedbackTimer);
+  }
+  copyFeedbackTimer = window.setTimeout(() => {
+    isCopied.value = false;
+    copyFeedbackTimer = null;
+  }, 1300);
 };
 const onReAsk = () => emit('re-ask');
 const onDelete = () => emit('delete-message', props.index);
@@ -328,6 +351,12 @@ const truncateFilename = (filename, maxLength = 30) => {
   if (charsToKeep < 1) return ellipsis + extension;
   return nameWithoutExt.substring(0, charsToKeep) + ellipsis + extension;
 };
+
+onBeforeUnmount(() => {
+  if (copyFeedbackTimer !== null) {
+    window.clearTimeout(copyFeedbackTimer);
+  }
+});
 </script>
 
 <template>
@@ -353,8 +382,12 @@ const truncateFilename = (filename, maxLength = 30) => {
               resize="none" @keydown="handleEditKeyDown" />
             <div class="editing-actions">
               <span class="edit-shortcut-hint">Ctrl+Enter 确认 / Esc 取消</span>
-              <el-button :icon="Check" @click="finishEdit('save')" size="small" circle type="primary" />
-              <el-button :icon="Close" @click="finishEdit('cancel')" size="small" circle />
+              <el-button @click="finishEdit('save')" size="small" circle type="primary">
+                <LucideIcon :icon-node="checkIconNode" :size="14" />
+              </el-button>
+              <el-button @click="finishEdit('cancel')" size="small" circle>
+                <LucideIcon :icon-node="xIconNode" :size="14" />
+              </el-button>
             </div>
           </div>
         </template>
@@ -362,20 +395,42 @@ const truncateFilename = (filename, maxLength = 30) => {
           <div class="message-footer">
             <div class="footer-wrapper">
               <div class="footer-actions">
-                <el-button :icon="DocumentCopy" @click="onCopy" size="small" circle />
-                <el-button v-if="isEditable" :icon="Edit" @click="emit('edit-message-requested', index)" size="small"
-                  circle />
-                <el-button v-if="shouldShowCollapseButton" :icon="isCollapsed ? CaretBottom : CaretTop"
-                  @click="onToggleCollapse($event)" size="small" circle />
-                <el-button v-if="isLastMessage" :icon="Refresh" @click="onReAsk" size="small" circle />
-                <el-button :icon="Delete" size="small" @click="onDelete" circle />
+                <button class="footer-action-btn" type="button" :class="{ 'is-copied': isCopied }"
+                  :title="isCopied ? '已复制' : '复制'" :aria-label="isCopied ? '已复制' : '复制'"
+                  :disabled="isLoading && isLastMessage" @click="onCopy">
+                  <transition name="copy-icon-swap" mode="out-in">
+                    <LucideIcon :key="isCopied ? 'copy-ok' : 'copy'" :icon-node="isCopied ? checkIconNode : copyIconNode"
+                      class="footer-action-icon" />
+                  </transition>
+                </button>
+                <button v-if="isEditable" class="footer-action-btn" type="button" title="编辑" aria-label="编辑"
+                  @click="emit('edit-message-requested', index)">
+                  <LucideIcon :icon-node="pencilIconNode" class="footer-action-icon" />
+                </button>
+                <button v-if="shouldShowCollapseButton" class="footer-action-btn" type="button"
+                  :title="isCollapsed ? '展开' : '折叠'" :aria-label="isCollapsed ? '展开' : '折叠'"
+                  @click="onToggleCollapse($event)">
+                  <LucideIcon :icon-node="isCollapsed ? chevronDownIconNode : chevronUpIconNode"
+                    class="footer-action-icon" />
+                </button>
+                <button v-if="isLastMessage" class="footer-action-btn" type="button" title="重新生成" aria-label="重新生成"
+                  @click="onReAsk">
+                  <LucideIcon :icon-node="refreshCwIconNode" class="footer-action-icon" />
+                </button>
+                <button class="footer-action-btn" type="button" title="删除" aria-label="删除" @click="onDelete">
+                  <LucideIcon :icon-node="trash2IconNode" class="footer-action-icon" />
+                </button>
               </div>
               <div class="message-files-vertical-list" v-if="formatMessageFile(message.content).length > 0">
                 <el-tooltip v-for="(file_name, idx) in formatMessageFile(message.content)" :key="idx"
                   :content="file_name" placement="top" :disabled="file_name.length < 30"
                   :popper-style="{ maxWidth: '30vw', wordBreak: 'break-all' }">
-                  <el-button class="file-button" type="info" plain size="small" :icon="Document">{{
-                    truncateFilename(file_name, 20) }}</el-button>
+                  <el-button class="file-button" type="info" plain size="small">
+                    <template #icon>
+                      <LucideIcon :icon-node="fileTextIconNode" :size="14" />
+                    </template>
+                    {{ truncateFilename(file_name, 20) }}
+                  </el-button>
                 </el-tooltip>
               </div>
             </div>
@@ -417,8 +472,12 @@ const truncateFilename = (filename, maxLength = 30) => {
               resize="none" @keydown="handleEditKeyDown" />
             <div class="editing-actions">
               <span class="edit-shortcut-hint">Ctrl+Enter 确认 / Esc 取消</span>
-              <el-button :icon="Check" @click="finishEdit('save')" size="small" circle type="primary" />
-              <el-button :icon="Close" @click="finishEdit('cancel')" size="small" circle />
+              <el-button @click="finishEdit('save')" size="small" circle type="primary">
+                <LucideIcon :icon-node="checkIconNode" :size="14" />
+              </el-button>
+              <el-button @click="finishEdit('cancel')" size="small" circle>
+                <LucideIcon :icon-node="xIconNode" :size="14" />
+              </el-button>
             </div>
           </div>
           <div v-if="message.tool_calls && message.tool_calls.length > 0" class="tool-calls-container">
@@ -428,16 +487,7 @@ const truncateFilename = (filename, maxLength = 30) => {
                 <el-collapse-item :name="toolCall.id">
                   <template #title>
                     <div class="tool-call-title">
-                      <el-icon class="tool-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                          stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <path d="m15 12-8.373 8.373a1 1 0 0 1-3-3L12 9"></path>
-                          <path d="m18 15 4-4"></path>
-                          <path
-                            d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5">
-                          </path>
-                        </svg>
-                      </el-icon>
+                      <LucideIcon :icon-node="wrenchIconNode" :size="15" class="tool-icon" />
                       <span class="tool-name">{{ toolCall.name }}</span>
                       <div class="tool-header-right">
                         <el-tag v-if="toolCall.approvalStatus === 'waiting'" type="warning" size="small" effect="light"
@@ -450,9 +500,7 @@ const truncateFilename = (filename, maxLength = 30) => {
                           effect="plain" round>完成</el-tag>
                         <el-tooltip content="停止执行" placement="top" v-if="toolCall.approvalStatus === 'executing'">
                           <div class="stop-btn-wrapper" @click.stop="$emit('cancel-tool-call', toolCall.id)">
-                            <el-icon>
-                              <CloseBold />
-                            </el-icon>
+                            <LucideIcon :icon-node="squareIconNode" :size="14" />
                           </div>
                         </el-tooltip>
                       </div>
@@ -475,9 +523,18 @@ const truncateFilename = (filename, maxLength = 30) => {
               </el-collapse>
               <div v-if="toolCall.approvalStatus === 'waiting'" class="tool-approval-actions">
                 <div class="actions-left">
-                  <el-button type="primary" size="small" :icon="Check"
-                    @click="$emit('confirm-tool', toolCall.id, true)">确认</el-button>
-                  <el-button size="small" :icon="Close" @click="$emit('reject-tool', toolCall.id, false)">取消</el-button>
+                  <el-button type="primary" size="small" @click="$emit('confirm-tool', toolCall.id, true)">
+                    <template #icon>
+                      <LucideIcon :icon-node="checkIconNode" :size="14" />
+                    </template>
+                    确认
+                  </el-button>
+                  <el-button size="small" @click="$emit('reject-tool', toolCall.id, false)">
+                    <template #icon>
+                      <LucideIcon :icon-node="xIconNode" :size="14" />
+                    </template>
+                    取消
+                  </el-button>
                 </div>
                 <div class="actions-right">
                   <el-checkbox :model-value="isAutoApprove" @change="(val) => $emit('update-auto-approve', val)"
@@ -490,13 +547,30 @@ const truncateFilename = (filename, maxLength = 30) => {
         <template #footer>
           <div class="message-footer">
             <div class="footer-actions">
-              <el-button :icon="DocumentCopy" @click="onCopy" size="small" circle />
-              <el-button v-if="isEditable" :icon="Edit" @click="emit('edit-message-requested', index)" size="small"
-                circle />
-              <el-button v-if="shouldShowCollapseButton" :icon="isCollapsed ? CaretBottom : CaretTop"
-                @click="onToggleCollapse($event)" size="small" circle />
-              <el-button v-if="isLastMessage" :icon="Refresh" @click="onReAsk" size="small" circle />
-              <el-button :icon="Delete" size="small" @click="onDelete" circle />
+              <button class="footer-action-btn" type="button" :class="{ 'is-copied': isCopied }"
+                :title="isCopied ? '已复制' : '复制'" :aria-label="isCopied ? '已复制' : '复制'"
+                :disabled="isLoading && isLastMessage" @click="onCopy">
+                <transition name="copy-icon-swap" mode="out-in">
+                  <LucideIcon :key="isCopied ? 'copy-ok' : 'copy'" :icon-node="isCopied ? checkIconNode : copyIconNode"
+                    class="footer-action-icon" />
+                </transition>
+              </button>
+              <button v-if="isEditable" class="footer-action-btn" type="button" title="编辑" aria-label="编辑"
+                @click="emit('edit-message-requested', index)">
+                <LucideIcon :icon-node="pencilIconNode" class="footer-action-icon" />
+              </button>
+              <button v-if="shouldShowCollapseButton" class="footer-action-btn" type="button"
+                :title="isCollapsed ? '展开' : '折叠'" :aria-label="isCollapsed ? '展开' : '折叠'" @click="onToggleCollapse($event)">
+                <LucideIcon :icon-node="isCollapsed ? chevronDownIconNode : chevronUpIconNode"
+                  class="footer-action-icon" />
+              </button>
+              <button v-if="isLastMessage" class="footer-action-btn" type="button" title="重新生成" aria-label="重新生成"
+                @click="onReAsk">
+                <LucideIcon :icon-node="refreshCwIconNode" class="footer-action-icon" />
+              </button>
+              <button class="footer-action-btn" type="button" title="删除" aria-label="删除" @click="onDelete">
+                <LucideIcon :icon-node="trash2IconNode" class="footer-action-icon" />
+              </button>
             </div>
           </div>
         </template>
@@ -508,11 +582,11 @@ const truncateFilename = (filename, maxLength = 30) => {
 <style scoped lang="less">
 /* 使用与原文件相同的样式 */
 .chat-message {
-  margin: 15px 0 0 0;
+  margin: 12px 0 0;
   display: flex;
   flex-direction: column;
   overflow-x: hidden;
-  padding: 0px;
+  padding: 0;
 }
 
 .message-wrapper {
@@ -523,16 +597,16 @@ const truncateFilename = (filename, maxLength = 30) => {
 .user-wrapper {
   align-self: flex-end;
   align-items: flex-end;
-  max-width: 90%;
-  margin-right: 4%;
-  margin-left: 5%;
+  max-width: 88%;
+  margin-right: 3%;
+  margin-left: 6%;
 }
 
 .ai-wrapper {
   align-self: flex-start;
   align-items: flex-start;
-  margin-left: 5%;
-  margin-right: 5%;
+  margin-left: 4%;
+  margin-right: 8%;
   max-width: 100%;
 }
 
@@ -575,8 +649,8 @@ const truncateFilename = (filename, maxLength = 30) => {
 }
 
 .chat-avatar-top {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   cursor: pointer;
   object-fit: cover;
   transition: transform 0.2s;
@@ -591,7 +665,7 @@ const truncateFilename = (filename, maxLength = 30) => {
 }
 
 .ai-avatar {
-  border-radius: 6px;
+  border-radius: 10px;
 }
 
 .ai-name {
@@ -605,12 +679,14 @@ const truncateFilename = (filename, maxLength = 30) => {
 
 .chat-message .user-bubble {
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    border-radius: 18px;
+    border-radius: 24px;
     background-color: var(--el-bg-color-userbubble);
+    border: 1px solid var(--el-border-color-lighter);
     padding-top: 10px;
     padding-bottom: 10px;
-    margin-bottom: 0px;
+    margin-bottom: 0;
     padding-right: 14px;
+    box-shadow: none;
   }
 
   :deep(.el-bubble-content-wrapper .el-bubble-footer) {
@@ -620,18 +696,31 @@ const truncateFilename = (filename, maxLength = 30) => {
 
 html.dark .chat-message .user-bubble {
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    background: #393939;
-    border: #383838 0px solid;
+    background: var(--el-bg-color-userbubble);
+    border: 1px solid var(--el-border-color-lighter);
   }
 }
 
 .chat-message .ai-bubble {
+  :deep(.el-bubble-content-wrapper) {
+    background: transparent;
+    box-shadow: none;
+    border: none;
+    padding: 0;
+  }
+
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
     background-color: transparent;
-    padding-left: 4px;
-    padding-right: 0px;
-    padding-bottom: 2px;
-    padding-top: 4px;
+    border: none;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+
+  :deep(.el-bubble-content-wrapper .el-bubble-arrow),
+  :deep(.el-bubble-content-wrapper .el-bubble-arrow::before),
+  :deep(.el-bubble-content-wrapper .el-bubble-arrow::after) {
+    display: none;
   }
 
   :deep(.el-bubble-content-wrapper .el-bubble-footer) {
@@ -640,8 +729,16 @@ html.dark .chat-message .user-bubble {
 }
 
 html.dark .chat-message .ai-bubble {
+  :deep(.el-bubble-content-wrapper) {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+  }
+
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    background: var(--el-bg-color);
+    background: transparent;
+    border: none;
+    box-shadow: none;
   }
 }
 
@@ -656,10 +753,23 @@ html.dark .chat-message .ai-bubble {
     padding: 0;
     color: var(--text-primary);
     font-size: 14px;
-    line-height: 1.5;
+    line-height: 1.65;
     tab-size: 4;
     font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
     word-break: break-word;
+  }
+
+  /* Remove the extra blank line at message top caused by default block margins. */
+  :deep(.elx-xmarkdown-container > :first-child) {
+    margin-top: 0 !important;
+  }
+
+  :deep(.elx-xmarkdown-container > :last-child) {
+    margin-bottom: 0 !important;
+  }
+
+  :deep(.elx-xmarkdown-container p:empty) {
+    display: none;
   }
 
   :deep(pre) {
@@ -667,7 +777,10 @@ html.dark .chat-message .ai-bubble {
     overflow-x: auto;
     white-space: pre;
     box-sizing: border-box;
-    border-radius: 6px;
+    border-radius: 10px;
+    background-color: color-mix(in srgb, var(--el-fill-color-light) 92%, transparent);
+    border: 1px solid var(--el-border-color-lighter);
+    padding: 12px;
   }
 
   :deep(.katex) {
@@ -816,6 +929,7 @@ html.dark .chat-message .ai-bubble {
   }
 
   :deep(p) {
+    margin-top: 0;
     margin-bottom: 1em;
   }
 
@@ -840,7 +954,7 @@ html.dark .chat-message .ai-bubble {
     margin-top: 0.5em;
     margin-bottom: 0.8em;
     padding-bottom: 0.3em;
-    border-bottom: 1px solid #d0d7de;
+    border-bottom: 1px solid var(--el-border-color-lighter);
   }
 
   :deep(h1) {
@@ -865,13 +979,13 @@ html.dark .chat-message .ai-bubble {
 
   :deep(h6) {
     font-size: 0.9em;
-    color: #656d76;
+    color: var(--el-text-color-secondary);
   }
 
   :deep(blockquote) {
     margin: 1em 0;
     padding: 0.5em 1em;
-    border-left: 4px solid #b3b3b3;
+    border-left: 4px solid var(--el-border-color-dark);
     background-color: rgba(0, 0, 0, 0.035) !important;
     color: var(--el-text-color-secondary);
     border-radius: 0 8px 8px 0;
@@ -900,11 +1014,11 @@ html.dark .chat-message .ai-bubble {
     padding: 0.2em 0.4em;
     margin: 0;
     border-radius: 4px;
-    background-color: rgba(175, 184, 193, 0.2);
+    background-color: color-mix(in srgb, var(--el-fill-color-dark) 70%, transparent);
   }
 
   html:not(.dark) & :deep(pre.shiki) {
-    background-color: #f6f8fa !important;
+    background-color: color-mix(in srgb, var(--el-fill-color-light) 94%, transparent) !important;
   }
 
   html.dark & {
@@ -1252,13 +1366,86 @@ html.dark .ai-name {
   justify-content: flex-end;
   align-items: center;
   width: 100%;
-  margin-top: 8px;
+  margin-top: 6px;
+  min-height: 20px;
 }
 
 .footer-actions {
   display: flex;
   align-items: center;
-  gap: 0px;
+  gap: 4px;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.16s ease, visibility 0.16s ease;
+}
+
+.message-wrapper:hover .footer-actions,
+.message-wrapper:focus-within .footer-actions {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.footer-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  opacity: 0.82;
+  transition: color 0.16s ease, opacity 0.16s ease, transform 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.footer-action-btn:hover {
+  color: var(--el-text-color-primary);
+  opacity: 1;
+  background-color: var(--el-color-primary-light-9);
+  box-shadow: 0 5px 10px -7px color-mix(in srgb, var(--el-color-primary) 36%, transparent);
+}
+
+.footer-action-btn:active {
+  transform: translateY(1px);
+}
+
+.footer-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.38;
+}
+
+.footer-action-btn.is-copied {
+  color: var(--el-color-success);
+  opacity: 1;
+}
+
+.footer-action-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.copy-icon-swap-enter-active,
+.copy-icon-swap-leave-active {
+  transition: opacity 0.14s ease, transform 0.14s ease;
+}
+
+.copy-icon-swap-enter-from,
+.copy-icon-swap-leave-to {
+  opacity: 0;
+  transform: scale(0.82);
+}
+
+@media (hover: none) {
+  .footer-actions {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
 }
 
 .footer-wrapper {
@@ -1282,6 +1469,27 @@ html.dark .ai-name {
   opacity: 0.8;
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+.ai-bubble :deep(.el-thinking .trigger) {
+  background-color: color-mix(in srgb, var(--el-fill-color-light) 86%, var(--el-bg-color) 14%);
+  color: var(--el-text-color-regular);
+  border-color: var(--el-border-color-lighter);
+}
+
+.ai-bubble :deep(.el-thinking .el-icon) {
+  color: var(--el-text-color-secondary);
+}
+
+.ai-bubble :deep(.el-thinking-popper) {
+  max-width: 85vw;
+  background-color: color-mix(in srgb, var(--el-fill-color-light) 90%, var(--el-bg-color) 10%) !important;
+  border-color: var(--el-border-color) !important;
+}
+
+.ai-bubble :deep(.el-thinking-popper .el-popper__arrow::before) {
+  background: color-mix(in srgb, var(--el-fill-color-light) 90%, var(--el-bg-color) 10%) !important;
+  border-color: var(--el-border-color) !important;
 }
 
 html.dark .ai-bubble :deep(.el-thinking .trigger) {
@@ -1311,6 +1519,8 @@ html.dark .ai-bubble :deep(.el-thinking-popper .el-popper__arrow::before) {
   white-space: pre-wrap;
   word-break: break-word;
   box-sizing: border-box;
+  background-color: color-mix(in srgb, var(--el-fill-color-light) 94%, var(--el-bg-color) 6%);
+  border: 1px solid var(--el-border-color-lighter);
 }
 
 html.dark .ai-bubble :deep(.el-thinking .content pre) {
@@ -1419,7 +1629,7 @@ html.dark .stop-btn-wrapper {
   color: #141414;
 
   &:hover {
-    background-color: #ffffff;
+    background-color: #f7f7f3;
   }
 }
 

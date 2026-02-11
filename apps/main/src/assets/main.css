@@ -1,32 +1,120 @@
 @import './base.css';
 
 #app {
-  /*
-    Remove max-width and margin: auto to allow the app to fill the full width.
-    The height: 100% is already set in index.html's inline styles,
-    which is correct for this application layout.
-  */
   width: 100%;
   height: 100%;
-  font-weight: normal;
+  font-weight: 400;
+  color: var(--text-primary);
 }
 
 a,
-.green {
+a:visited {
+  color: var(--text-accent);
   text-decoration: none;
-  color: hsla(160, 100%, 37%, 1);
-  transition: 0.4s;
-  padding: 3px;
 }
 
-@media (hover: hover) {
-  a:hover {
-    background-color: hsla(160, 100%, 37%, 0.2);
-  }
+a:hover {
+  color: var(--text-primary);
 }
 
-/*
-  The media query below was the main cause of the issue on larger screens.
-  It forced a grid layout and flex on the body, which is not suitable for this UI.
-  It has been completely removed.
-*/
+.el-main {
+  background: transparent !important;
+}
+
+:where(.page-container, .chats-page-container, .providers-page-container, .settings-page-container) {
+  background: transparent !important;
+}
+
+:where(.content-wrapper, .chats-content-wrapper, .providers-content-wrapper > .el-container) {
+  border: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+:where(.settings-card, .mcp-card, .skill-card, .prompt-card) {
+  border-radius: var(--radius-lg) !important;
+  border: 1px solid var(--border-secondary) !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+:where(.content-wrapper, .providers-content-wrapper, .settings-content, .chats-page-container) {
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+
+:where(.search-input-container, .search-bar-container, .path-bar-container) {
+  padding-top: 4px !important;
+  margin-bottom: 10px !important;
+  background: transparent !important;
+}
+
+:where(.search-input-container, .search-bar-container, .path-bar-container) :where(.el-input__wrapper) {
+  border-radius: var(--radius-md) !important;
+  min-height: 40px;
+  padding-left: 14px !important;
+}
+
+:where(.bottom-actions-container) {
+  position: static !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: 100% !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-top: 1px solid var(--border-primary) !important;
+  margin-top: 14px;
+  padding: 12px 10px 10px !important;
+  display: flex;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+:where(.bottom-actions-container) .action-btn {
+  min-width: 0 !important;
+  min-height: 34px;
+}
+
+:where(.refresh-fab-button) {
+  position: static !important;
+  width: 32px !important;
+  height: 32px !important;
+  right: auto !important;
+  bottom: auto !important;
+}
+
+:where(.mcp-card, .skill-card, .prompt-card) {
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+:where(.mcp-card, .skill-card, .prompt-card):hover {
+  border-color: var(--border-primary) !important;
+  background: color-mix(in srgb, var(--bg-secondary) 65%, transparent) !important;
+}
+
+:where(.tab-name, .mcp-name, .skill-name, .prompt-name, .provider-name) {
+  letter-spacing: 0.01em;
+}
+
+:where(.tab-count, .mcp-provider, .skill-id-sub, .setting-option-description, .form-item-description) {
+  color: var(--text-tertiary) !important;
+}
+
+:where(.el-empty__description p) {
+  color: var(--text-tertiary) !important;
+}
+
+:where(pre, code) {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+:where(pre) {
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--bg-tertiary) 80%, transparent);
+}
