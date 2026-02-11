@@ -63,18 +63,8 @@ onBeforeUnmount(() => {
     
     <!-- 1. 左侧区域 -->
     <div class="left-container">
-      <!-- macOS 红绿灯 -->
-      <div v-if="isMac" class="window-controls mac-traffic-lights no-drag">
-        <div class="traffic-btn close" @click="emit('close')">
-          <el-icon class="traffic-icon"><LucideIcon :icon-node="xIconNode" :size="8" /></el-icon>
-        </div>
-        <div class="traffic-btn minimize" @click="emit('minimize')">
-          <el-icon class="traffic-icon icon-minus"><LucideIcon :icon-node="minusIconNode" :size="8" /></el-icon>
-        </div>
-        <div class="traffic-btn maximize" @click="emit('maximize')">
-          <el-icon class="traffic-icon icon-fullscreen"><LucideIcon :icon-node="maximize2IconNode" :size="8" /></el-icon>
-        </div>
-      </div>
+      <!-- macOS 原生红绿灯占位，避免与左侧内容重叠 -->
+      <div v-if="isMac" class="mac-native-controls-spacer" aria-hidden="true"></div>
 
       <!-- App 信息 (始终显示) -->
       <div class="app-info no-drag" @click="emit('save-window-size')" @dblclick.stop="emit('maximize')">
@@ -251,6 +241,13 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
   margin-right: 10px;
 }
 
+.mac-native-controls-spacer {
+  width: 72px;
+  min-width: 72px;
+  height: 1px;
+  flex-shrink: 0;
+}
+
 .right-container {
   display: flex;
   align-items: center;
@@ -417,75 +414,6 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 .win-btn.close:hover {
   background-color: #E81123;
   color: white;
-}
-
-/* ============ macOS 样式 ============ */
-.mac-traffic-lights {
-  display: flex;
-  gap: 8px; 
-  margin-right: 12px;
-  align-items: center;
-  height: 100%;
-  padding-left: 2px;
-}
-
-.traffic-btn {
-  width: 13px; /* 微调尺寸 */
-  height: 13px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  position: relative;
-  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.12);
-  
-  transform-origin: center center;
-  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-  will-change: transform;
-}
-
-.traffic-btn.close { background-color: #FF5F57; border: 0.5px solid #E0443E; }
-.traffic-btn.minimize { background-color: #FFBD2E; border: 0.5px solid #D69E2E; }
-.traffic-btn.maximize { background-color: #28C840; border: 0.5px solid #1C9A29; }
-
-.mac-traffic-lights:hover .traffic-btn {
-  transform: scale(1.1); 
-}
-
-.mac-traffic-lights:hover .traffic-icon {
-  opacity: 1;
-  color: rgba(0, 0, 0, 0.6);
-}
-
-.traffic-btn:active {
-  transform: scale(0.95) !important;
-  filter: brightness(0.9);
-}
-
-.traffic-icon {
-  font-size: 7px; 
-  color: rgba(0, 0, 0, 0.6);
-  opacity: 0; 
-  transition: opacity 0.2s ease, color 0.1s ease;
-}
-
-.traffic-icon :deep(.lucide) {
-  width: 8px;
-  height: 8px;
-  stroke: currentColor;
-  stroke-width: 2.2;
-}
-
-.icon-minus :deep(.lucide) { stroke-width: 2.6; }
-.icon-fullscreen :deep(.lucide) { stroke-width: 2; }
-
-.dark-mode .traffic-btn {
-  border: none;
-  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.1);
-}
-.dark-mode .traffic-icon {
-  color: rgba(0, 0, 0, 0.7);
 }
 
 /* ============ Linux 样式 ============ */

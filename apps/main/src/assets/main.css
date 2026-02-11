@@ -38,9 +38,14 @@ a:hover {
   background: transparent !important;
 }
 
-:where(.content-wrapper, .providers-content-wrapper, .settings-content, .chats-page-container) {
+:where(.content-wrapper, .settings-content) {
   padding-left: 8px !important;
   padding-right: 8px !important;
+}
+
+:where(.providers-content-wrapper, .chats-page-container) {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 :where(.search-input-container, .search-bar-container, .path-bar-container) {

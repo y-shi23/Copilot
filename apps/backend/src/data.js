@@ -929,6 +929,7 @@ async function openWindow(config, msg) {
   const promptCode = msg.originalCode || msg.code;
   const { x, y, width, height } = getPosition(config, promptCode);
   const promptConfig = config.prompts[promptCode];
+  const isMac = utools.isMacOS();
   const isAlwaysOnTop = promptConfig?.isAlwaysOnTop ?? true;
   let channel = "window";
   const backgroundColor = config.isDarkMode ? `rgba(33, 33, 33, 1)` : 'rgba(255, 255, 253, 1)';
@@ -943,7 +944,7 @@ async function openWindow(config, msg) {
   const windowOptions = {
     show: false,
     backgroundColor: backgroundColor,
-    title: "Anywhere",
+    title: isMac ? "" : "Anywhere",
     width: width,
     height: height,
     minWidth: effectiveMinWidth,
@@ -951,7 +952,8 @@ async function openWindow(config, msg) {
     alwaysOnTop: isAlwaysOnTop,
     x: x,
     y: y,
-    frame: false,
+    frame: !isMac,
+    ...(isMac ? { titleBarStyle: "hiddenInset" } : {}),
     transparent: false,
     hasShadow: true,
     webPreferences: {

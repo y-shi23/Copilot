@@ -550,9 +550,9 @@ watch(locale, () => {
 
 .nav-item.active-tab {
   color: var(--text-primary);
-  border-color: rgba(218, 214, 211, 0.9);
-  background-color: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 6px 14px rgba(26, 24, 22, 0.06);
+  border-color: transparent;
+  background-color: #EAE9E8;
+  box-shadow: none;
 }
 
 .nav-item:focus-visible {
@@ -614,9 +614,9 @@ html.dark .nav-item:hover {
 }
 
 html.dark .nav-item.active-tab {
-  border-color: rgba(255, 255, 255, 0.16);
-  background-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.24);
+  border-color: transparent;
+  background-color: #353A42;
+  box-shadow: none;
 }
 
 html.dark .workspace-main {

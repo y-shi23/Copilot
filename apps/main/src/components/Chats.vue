@@ -586,8 +586,8 @@ async function executeAutoClean() {
 
             <div class="footer-bar">
                 <div class="footer-left">
-                    <el-button :icon="Refresh" @click="refreshData">{{ t('common.refresh') }}</el-button>
-                    <el-button type="danger" :icon="DeleteIcon" @click="deleteFiles(selectedFiles)"
+                    <el-button class="footer-action-btn" :icon="Refresh" @click="refreshData">{{ t('common.refresh') }}</el-button>
+                    <el-button class="footer-action-btn" type="danger" :icon="DeleteIcon" @click="deleteFiles(selectedFiles)"
                         :disabled="selectedFiles.length === 0">
                         {{ t('common.deleteSelected') }} ({{ selectedFiles.length }})
                     </el-button>
@@ -668,7 +668,7 @@ async function executeAutoClean() {
     width: 100%;
     display: flex;
     flex-direction: column;
-    padding: 21px;
+    padding: 21px 21px 0 21px;
     box-sizing: border-box;
     overflow: hidden;
     background-color: var(--bg-primary);
@@ -814,6 +814,11 @@ async function executeAutoClean() {
     display: flex;
     align-items: center;
     gap: 10px;
+}
+
+.footer-action-btn {
+    height: 34px;
+    min-height: 34px;
 }
 
 .footer-center {

@@ -760,7 +760,7 @@ const apiKeyCount = computed(() => {
   background-color: transparent;
   overflow: hidden;
   display: flex;
-  padding: 20px;
+  padding: 20px 20px 0 20px;
   gap: 20px;
 }
 
@@ -840,6 +840,11 @@ const apiKeyCount = computed(() => {
 .action-group {
   display: flex;
   width: 100%;
+}
+
+.action-group .el-button {
+  height: 34px;
+  min-height: 34px;
 }
 
 .action-group .el-button:first-child {
