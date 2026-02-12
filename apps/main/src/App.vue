@@ -60,6 +60,97 @@ const config = ref(null);
 const platformName = String(navigator.userAgentData?.platform || navigator.platform || '').toLowerCase();
 const isMacOS = computed(() => platformName.includes('mac'));
 
+const SIDEBAR_WIDTH_STORAGE_KEY = 'anywhere_main_sidebar_width_v1';
+const SIDEBAR_DEFAULT_WIDTH = 230;
+const SIDEBAR_MIN_WIDTH = 230; // About 15% wider than the previous 220px fixed width.
+const SIDEBAR_MAX_WIDTH = 480;
+const SIDEBAR_MOBILE_BREAKPOINT = 700;
+const SIDEBAR_KEYBOARD_STEP = 12;
+
+const viewportWidth = ref(window.innerWidth || 1200);
+const sidebarWidth = ref(SIDEBAR_DEFAULT_WIDTH);
+const isSidebarResizing = ref(false);
+
+const isSidebarResizable = computed(() => viewportWidth.value > SIDEBAR_MOBILE_BREAKPOINT);
+const sidebarMaxWidth = computed(() => {
+  const byViewport = Math.floor(viewportWidth.value * 0.46);
+  return Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, byViewport));
+});
+const rootInlineStyles = computed(() => ({
+  '--sidebar-region-width': isSidebarResizable.value ? `${sidebarWidth.value}px` : '100%',
+}));
+
+let sidebarResizeStartX = 0;
+let sidebarResizeStartWidth = SIDEBAR_DEFAULT_WIDTH;
+
+const clampSidebarWidth = (rawWidth) => {
+  const width = Number(rawWidth);
+  if (!Number.isFinite(width)) return SIDEBAR_MIN_WIDTH;
+  return Math.max(SIDEBAR_MIN_WIDTH, Math.min(Math.round(width), sidebarMaxWidth.value));
+};
+
+const persistSidebarWidth = () => {
+  try {
+    localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth.value));
+  } catch (_error) {
+    // ignore localStorage failures
+  }
+};
+
+const applySidebarWidth = (nextWidth, options = {}) => {
+  const persist = options.persist === true;
+  const clamped = clampSidebarWidth(nextWidth);
+  if (sidebarWidth.value !== clamped) {
+    sidebarWidth.value = clamped;
+  }
+  if (persist) {
+    persistSidebarWidth();
+  }
+};
+
+const handleSidebarResizeMove = (event) => {
+  if (!isSidebarResizing.value) return;
+  const deltaX = event.clientX - sidebarResizeStartX;
+  applySidebarWidth(sidebarResizeStartWidth + deltaX);
+};
+
+const stopSidebarResize = () => {
+  if (!isSidebarResizing.value) return;
+  isSidebarResizing.value = false;
+  document.body?.classList.remove('sidebar-resizing');
+  window.removeEventListener('mousemove', handleSidebarResizeMove);
+  window.removeEventListener('mouseup', stopSidebarResize);
+  persistSidebarWidth();
+};
+
+const startSidebarResize = (event) => {
+  if (!isSidebarResizable.value) return;
+  if (event.button !== 0) return;
+
+  isSidebarResizing.value = true;
+  sidebarResizeStartX = event.clientX;
+  sidebarResizeStartWidth = sidebarWidth.value;
+  document.body?.classList.add('sidebar-resizing');
+
+  window.addEventListener('mousemove', handleSidebarResizeMove);
+  window.addEventListener('mouseup', stopSidebarResize);
+  event.preventDefault();
+};
+
+const nudgeSidebarWidth = (delta) => {
+  if (!isSidebarResizable.value) return;
+  applySidebarWidth(sidebarWidth.value + delta, { persist: true });
+};
+
+const handleViewportResize = () => {
+  viewportWidth.value = window.innerWidth || 1200;
+  if (!isSidebarResizable.value) {
+    stopSidebarResize();
+    return;
+  }
+  applySidebarWidth(sidebarWidth.value);
+};
+
 const applyMainVibrancyBodyClass = () => {
   const enableNativeVibrancy = isMacOS.value;
   document.documentElement.classList.toggle('macos-vibrancy-main', enableNativeVibrancy);
@@ -335,6 +426,16 @@ const handleDocLinks = (event) => {
 
 onMounted(async () => {
   applyMainVibrancyBodyClass();
+  try {
+    const storedWidth = Number(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
+    if (Number.isFinite(storedWidth)) {
+      sidebarWidth.value = storedWidth;
+    }
+  } catch (_error) {
+    // ignore localStorage failures
+  }
+  handleViewportResize();
+  window.addEventListener('resize', handleViewportResize);
 
   // 异步获取文档更新时间，获取后会自动更新UI红点
   fetchAllDocsMetadata();
@@ -370,10 +471,13 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  stopSidebarResize();
+  window.removeEventListener('resize', handleViewportResize);
   window.removeEventListener('keydown', handleGlobalEsc, true);
   mediaQuery.removeEventListener('change', handleSystemThemeChange);
   document.documentElement.classList.remove('macos-vibrancy-main');
   document.body?.classList.remove('macos-vibrancy-main');
+  document.body?.classList.remove('sidebar-resizing');
 });
 
 function changeTab(newTab) {
@@ -399,7 +503,11 @@ watch(locale, () => {
 </script>
 
 <template>
-  <div class="window-root" :class="{ 'native-vibrancy': isMacOS, 'fallback-vibrancy': !isMacOS }">
+  <div
+    class="window-root"
+    :class="{ 'native-vibrancy': isMacOS, 'fallback-vibrancy': !isMacOS }"
+    :style="rootInlineStyles"
+  >
     <el-container class="common-layout">
       <el-aside class="app-sidebar">
         <div class="sidebar-panel">
@@ -429,6 +537,21 @@ watch(locale, () => {
           </nav>
         </div>
       </el-aside>
+      <div
+        v-if="isSidebarResizable"
+        class="sidebar-resize-handle no-drag"
+        :class="{ 'is-resizing': isSidebarResizing }"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize sidebar width"
+        :aria-valuemin="SIDEBAR_MIN_WIDTH"
+        :aria-valuemax="sidebarMaxWidth"
+        :aria-valuenow="sidebarWidth"
+        tabindex="0"
+        @mousedown="startSidebarResize"
+        @keydown.left.prevent="nudgeSidebarWidth(-SIDEBAR_KEYBOARD_STEP)"
+        @keydown.right.prevent="nudgeSidebarWidth(SIDEBAR_KEYBOARD_STEP)"
+      ></div>
 
       <el-main class="workspace-main" v-if="config">
         <header class="workspace-header" :class="{ 'window-drag-region': isMacOS }">
@@ -477,10 +600,16 @@ watch(locale, () => {
   background: transparent !important;
 }
 
+:global(body.sidebar-resizing),
+:global(body.sidebar-resizing *) {
+  user-select: none !important;
+  cursor: col-resize !important;
+}
+
 .window-root {
   --layout-shell-bg: rgba(245, 244, 243, 0.9);
   --workspace-surface-bg: #ffffff;
-  --sidebar-region-width: 220px;
+  --sidebar-region-width: 268px;
   width: 100%;
   height: 100%;
   display: flex;
@@ -529,18 +658,16 @@ watch(locale, () => {
 
 .window-root.native-vibrancy .common-layout::before {
   background-color: rgba(255, 255, 255, 0.1);
-  border-right: 1px solid rgba(32, 32, 32, 0.1);
 }
 
 .window-root.fallback-vibrancy .common-layout::before {
   background-color: rgba(247, 246, 244, 0.62);
-  border-right: 1px solid rgba(32, 32, 32, 0.08);
   backdrop-filter: blur(20px) saturate(125%);
   -webkit-backdrop-filter: blur(20px) saturate(125%);
 }
 
 .app-sidebar {
-  --el-aside-width: 220px;
+  --el-aside-width: var(--sidebar-region-width);
   width: var(--sidebar-region-width);
   min-width: var(--sidebar-region-width);
   flex-shrink: 0;
@@ -558,6 +685,44 @@ watch(locale, () => {
   flex-direction: column;
   gap: 12px;
   background-color: transparent;
+}
+
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--sidebar-region-width);
+  width: 12px;
+  transform: translateX(-50%);
+  z-index: 3;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: col-resize;
+}
+
+.sidebar-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background-color: color-mix(in srgb, var(--border-primary) 78%, transparent);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sidebar-resize-handle:hover::before,
+.sidebar-resize-handle.is-resizing::before,
+.sidebar-resize-handle:focus-visible::before {
+  background-color: color-mix(in srgb, var(--text-accent) 74%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-accent) 16%, transparent);
+}
+
+.sidebar-resize-handle:focus-visible {
+  outline: none;
 }
 
 .brand-section {
@@ -656,8 +821,10 @@ watch(locale, () => {
   position: relative;
   z-index: 1;
   border-radius: var(--radius-xl);
+  border: 1px solid color-mix(in srgb, var(--border-primary) 55%, transparent);
+  border-left: none;
   background-color: var(--workspace-surface-bg);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border-primary) 55%, transparent);
+  box-shadow: none;
 }
 
 .workspace-header {
@@ -715,12 +882,10 @@ html.dark .window-root.native-vibrancy {
 
 html.dark .window-root.native-vibrancy .common-layout::before {
   background-color: rgba(15, 16, 18, 0.2);
-  border-right-color: rgba(255, 255, 255, 0.12);
 }
 
 html.dark .window-root.fallback-vibrancy .common-layout::before {
   background-color: rgba(35, 37, 40, 0.62);
-  border-right-color: rgba(255, 255, 255, 0.12);
 }
 
 .header-title-text {
@@ -934,21 +1099,10 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
 }
 
 @media (max-width: 860px) {
-  .window-root {
-    --sidebar-region-width: 196px;
-  }
-
   .common-layout,
   .el-container {
     padding: 8px 10px;
     gap: 0;
-  }
-
-  .app-sidebar {
-    --el-aside-width: 196px;
-    width: var(--sidebar-region-width);
-    min-width: var(--sidebar-region-width);
-    margin-right: 0;
   }
 
   .workspace-header {
@@ -983,6 +1137,7 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
   }
 
   .workspace-main {
+    border: none;
     border-top: none;
     border-radius: 0;
     box-shadow: none;
