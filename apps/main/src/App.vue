@@ -462,11 +462,14 @@ watch(locale, () => {
 
 <style scoped>
 .window-root {
+  --layout-shell-bg: rgba(245, 244, 243, 0.9);
+  --workspace-surface-bg: #ffffff;
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background-color: var(--layout-shell-bg);
 }
 
 .window-drag-region {
@@ -485,7 +488,7 @@ watch(locale, () => {
   margin: 0;
   gap: 0;
   overflow: hidden;
-  background-color: transparent;
+  background-color: var(--layout-shell-bg);
   display: flex;
   flex-direction: row;
 }
@@ -498,10 +501,7 @@ watch(locale, () => {
   overflow: hidden;
   position: relative;
   margin-right: 0;
-  background-color: rgba(245, 244, 243, 0.86);
-  backdrop-filter: blur(10px) saturate(118%);
-  -webkit-backdrop-filter: blur(10px) saturate(118%);
-  border-right: 1px solid rgba(227, 224, 221, 0.9);
+  background-color: var(--layout-shell-bg);
 }
 
 .sidebar-panel {
@@ -605,14 +605,15 @@ watch(locale, () => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background-color: #ffffff;
-  box-shadow: none;
+  border-radius: var(--radius-xl);
+  background-color: var(--workspace-surface-bg);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--border-primary) 55%, transparent);
 }
 
 .workspace-header {
   padding: 10px 12px 14px;
   flex-shrink: 0;
-  background-color: #ffffff;
+  background-color: var(--workspace-surface-bg);
 }
 
 .workspace-content {
@@ -620,12 +621,11 @@ watch(locale, () => {
   min-height: 0;
   overflow: auto;
   padding: 8px 0 0;
-  background-color: #ffffff;
+  background-color: var(--workspace-surface-bg);
 }
 
 html.dark .app-sidebar {
-  background-color: rgba(46, 47, 49, 0.78);
-  border-right-color: rgba(255, 255, 255, 0.12);
+  background-color: var(--layout-shell-bg);
 }
 
 html.dark .help-button:hover {
@@ -643,15 +643,20 @@ html.dark .nav-item.active-tab {
 }
 
 html.dark .workspace-main {
-  background-color: #1f2022;
+  background-color: var(--workspace-surface-bg);
 }
 
 html.dark .workspace-header {
-  background-color: #1f2022;
+  background-color: var(--workspace-surface-bg);
 }
 
 html.dark .workspace-content {
-  background-color: #1f2022;
+  background-color: var(--workspace-surface-bg);
+}
+
+html.dark .window-root {
+  --layout-shell-bg: rgba(46, 47, 49, 0.84);
+  --workspace-surface-bg: #1f2022;
 }
 
 .header-title-text {
@@ -902,6 +907,8 @@ html.dark .workspace-content {
 
   .workspace-main {
     border-top: none;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   html.dark .app-sidebar {
