@@ -932,21 +932,20 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
 .bell-badge :deep(.el-badge__content.is-fixed.is-dot) {
   right: 3px;
   top: 3px;
+  background-color: var(--text-accent);
 }
 
 .doc-container {
   display: flex;
   height: 60vh;
-  border: 1px solid var(--border-primary);
   border-radius: var(--radius-xl);
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
 }
 
 .doc-sidebar {
   width: 190px;
   border-right: 1px solid var(--border-primary);
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-secondary);
   flex-shrink: 0;
 }
 
@@ -969,8 +968,8 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
 }
 
 .doc-menu :deep(.el-menu-item.is-active) {
-  color: var(--text-primary);
-  background-color: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+  color: var(--text-accent);
+  background-color: color-mix(in srgb, var(--text-accent) 12%, transparent);
   font-weight: 600;
   border-right: none;
 }
@@ -985,7 +984,7 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
 .doc-update-dot {
   width: 6px;
   height: 6px;
-  background-color: var(--el-color-danger);
+  background-color: var(--text-accent);
   border-radius: 50%;
   margin-left: 8px;
   display: inline-block;
@@ -993,7 +992,7 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
 
 .doc-content {
   flex: 1;
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-primary);
   padding: 0;
   overflow: hidden;
 }
@@ -1010,13 +1009,12 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
 /* 标题样式优化 */
 .markdown-body :deep(h1), 
 .markdown-body :deep(h2) {
-  border-bottom: 1px solid var(--border-primary);
   padding-bottom: 0.4em;
   margin-top: 1.5em;
   margin-bottom: 1em;
   color: var(--text-primary);
-  font-weight: 700; /* 强制加粗 */
-  letter-spacing: -0.01em; /* 标题字间距微调 */
+  font-weight: 700;
+  letter-spacing: -0.01em;
   line-height: 1.3;
 }
 
@@ -1058,14 +1056,12 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
   background-color: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
-  /* 等宽字体栈 */
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 0.85em;
-  color: var(--text-primary); /* 使用主题色，让代码更显眼 */
+  color: var(--text-primary);
   margin: 0 2px;
 }
 
-/* 多行代码块 */
 .markdown-body :deep(pre) {
   background-color: color-mix(in srgb, var(--bg-tertiary) 72%, transparent);
   padding: 16px;
@@ -1073,7 +1069,6 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
   overflow-x: auto;
   margin-bottom: 1.2em;
   line-height: 1.5;
-  border: 1px solid var(--border-primary);
 }
 
 .markdown-body :deep(pre code) {
@@ -1085,28 +1080,24 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
-/* 引用块优化 */
 .markdown-body :deep(blockquote) {
   margin: 1.2em 0;
   padding: 8px 16px;
   color: var(--text-secondary);
-  border-left: 4px solid var(--border-accent); /* 使用主题色作为边框 */
-  background-color: var(--bg-tertiary); /* 改用浅色背景而不是纯灰 */
-  border-radius: 0 4px 4px 0;
+  border-left: 3px solid var(--text-accent);
+  background-color: color-mix(in srgb, var(--bg-tertiary) 50%, transparent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
 .markdown-body :deep(blockquote p) {
-  margin-bottom: 0; /* 引用块内的段落去掉底部间距 */
+  margin-bottom: 0;
 }
 
-/* 图片优化 */
 .markdown-body :deep(img) {
   max-width: 100%;
   border-radius: var(--radius-md);
   margin: 12px 0;
-  border: 1px solid var(--border-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* 增加轻微阴影 */
-  display: block; /* 防止图片底部有空隙 */
+  display: block;
 }
 
 /* 链接优化 */
@@ -1127,9 +1118,9 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
   padding: 0 !important;
 }
 :deep(.doc-dialog .el-dialog__header) {
-  padding: 5px 15px 15px 15px !important;
+  padding: 12px 20px 8px 20px !important;
   margin-right: 0;
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: none;
 }
 
 @media (max-width: 860px) {
