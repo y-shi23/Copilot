@@ -145,6 +145,32 @@ function registerManagedWindow(win) {
   });
 }
 
+function applyMacVibrancy(win, options = {}) {
+  if (process.platform !== 'darwin') return;
+  if (!win || win.isDestroyed()) return;
+
+  const material = typeof options.vibrancy === 'string' ? options.vibrancy.trim() : '';
+  if (!material) return;
+
+  try {
+    if (typeof win.setVisualEffectState === 'function') {
+      const visualEffectState = typeof options.visualEffectState === 'string'
+        ? options.visualEffectState
+        : 'active';
+      win.setVisualEffectState(visualEffectState);
+    }
+
+    const duration = Number(options.animationDuration);
+    if (Number.isFinite(duration) && duration >= 0) {
+      win.setVibrancy(material, { animationDuration: Math.round(duration) });
+      return;
+    }
+    win.setVibrancy(material);
+  } catch (error) {
+    console.warn(`[Vibrancy] Failed to apply vibrancy "${material}":`, error);
+  }
+}
+
 function getLauncherBounds() {
   const width = LAUNCHER_WIDTH;
   const height = LAUNCHER_HEIGHT;
@@ -337,12 +363,13 @@ function createMainWindow() {
     height: 820,
     minWidth: 1000,
     minHeight: 680,
-    backgroundColor: '#f7f7f5',
+    backgroundColor: isMac ? '#00000000' : '#f7f7f5',
     autoHideMenuBar: true,
     title: isMac ? '' : 'Anywhere',
     ...(isMac
       ? {
           titleBarStyle: 'hiddenInset',
+          transparent: true,
         }
       : {}),
     webPreferences: {
@@ -362,6 +389,11 @@ function createMainWindow() {
   });
 
   mainWindow.loadURL(resolveMainEntryUrl());
+  applyMacVibrancy(mainWindow, {
+    vibrancy: 'sidebar',
+    visualEffectState: 'active',
+    animationDuration: 120,
+  });
 }
 
 function ensureBuildArtifacts() {
@@ -445,7 +477,25 @@ ipcMain.on('utools:create-browser-window', (event, payload = {}) => {
     webPreferences: normalizeWebPreferences(rawOptions.webPreferences || {}, baseDir),
   };
 
+  const windowVibrancy = typeof normalizedOptions.macOSVibrancy === 'string'
+    ? normalizedOptions.macOSVibrancy
+    : (typeof normalizedOptions.vibrancy === 'string' ? normalizedOptions.vibrancy : '');
+  const windowVisualEffectState = typeof normalizedOptions.macOSVisualEffectState === 'string'
+    ? normalizedOptions.macOSVisualEffectState
+    : 'active';
+  const windowVibrancyAnimationDuration = normalizedOptions.macOSVibrancyAnimationDuration;
+
+  delete normalizedOptions.macOSVibrancy;
+  delete normalizedOptions.macOSVisualEffectState;
+  delete normalizedOptions.macOSVibrancyAnimationDuration;
+  delete normalizedOptions.vibrancy;
+
   const win = new BrowserWindow(normalizedOptions);
+  applyMacVibrancy(win, {
+    vibrancy: windowVibrancy,
+    visualEffectState: windowVisualEffectState,
+    animationDuration: windowVibrancyAnimationDuration,
+  });
   registerManagedWindow(win);
 
   const readyChannel = `utools:window-ready:${win.id}`;

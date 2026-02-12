@@ -60,6 +60,12 @@ const config = ref(null);
 const platformName = String(navigator.userAgentData?.platform || navigator.platform || '').toLowerCase();
 const isMacOS = computed(() => platformName.includes('mac'));
 
+const applyMainVibrancyBodyClass = () => {
+  const enableNativeVibrancy = isMacOS.value;
+  document.documentElement.classList.toggle('macos-vibrancy-main', enableNativeVibrancy);
+  document.body?.classList.toggle('macos-vibrancy-main', enableNativeVibrancy);
+};
+
 //将 config provide 给所有子组件
 provide('config', config);
 
@@ -328,6 +334,8 @@ const handleDocLinks = (event) => {
 };
 
 onMounted(async () => {
+  applyMainVibrancyBodyClass();
+
   // 异步获取文档更新时间，获取后会自动更新UI红点
   fetchAllDocsMetadata();
 
@@ -364,6 +372,8 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleGlobalEsc, true);
   mediaQuery.removeEventListener('change', handleSystemThemeChange);
+  document.documentElement.classList.remove('macos-vibrancy-main');
+  document.body?.classList.remove('macos-vibrancy-main');
 });
 
 function changeTab(newTab) {
@@ -389,7 +399,7 @@ watch(locale, () => {
 </script>
 
 <template>
-  <div class="window-root">
+  <div class="window-root" :class="{ 'native-vibrancy': isMacOS, 'fallback-vibrancy': !isMacOS }">
     <el-container class="common-layout">
       <el-aside class="app-sidebar">
         <div class="sidebar-panel">
@@ -461,15 +471,26 @@ watch(locale, () => {
 </template>
 
 <style scoped>
+:global(html.macos-vibrancy-main),
+:global(body.macos-vibrancy-main),
+:global(html.macos-vibrancy-main #app) {
+  background: transparent !important;
+}
+
 .window-root {
   --layout-shell-bg: rgba(245, 244, 243, 0.9);
   --workspace-surface-bg: #ffffff;
+  --sidebar-region-width: 220px;
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   background-color: var(--layout-shell-bg);
+}
+
+.window-root.native-vibrancy {
+  --layout-shell-bg: transparent;
 }
 
 .window-drag-region {
@@ -482,6 +503,7 @@ watch(locale, () => {
 
 .common-layout,
 .el-container {
+  position: relative;
   width: 100%;
   height: 100%;
   padding: 0;
@@ -493,15 +515,40 @@ watch(locale, () => {
   flex-direction: row;
 }
 
+.window-root.native-vibrancy .common-layout::before,
+.window-root.fallback-vibrancy .common-layout::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: calc(var(--sidebar-region-width) + var(--radius-xl));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.window-root.native-vibrancy .common-layout::before {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-right: 1px solid rgba(32, 32, 32, 0.1);
+}
+
+.window-root.fallback-vibrancy .common-layout::before {
+  background-color: rgba(247, 246, 244, 0.62);
+  border-right: 1px solid rgba(32, 32, 32, 0.08);
+  backdrop-filter: blur(20px) saturate(125%);
+  -webkit-backdrop-filter: blur(20px) saturate(125%);
+}
+
 .app-sidebar {
   --el-aside-width: 220px;
-  width: 220px;
-  min-width: 220px;
+  width: var(--sidebar-region-width);
+  min-width: var(--sidebar-region-width);
   flex-shrink: 0;
   overflow: hidden;
   position: relative;
+  z-index: 1;
   margin-right: 0;
-  background-color: var(--layout-shell-bg);
+  background-color: transparent;
 }
 
 .sidebar-panel {
@@ -510,6 +557,7 @@ watch(locale, () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  background-color: transparent;
 }
 
 .brand-section {
@@ -605,6 +653,8 @@ watch(locale, () => {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 1;
   border-radius: var(--radius-xl);
   background-color: var(--workspace-surface-bg);
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--border-primary) 55%, transparent);
@@ -625,7 +675,7 @@ watch(locale, () => {
 }
 
 html.dark .app-sidebar {
-  background-color: var(--layout-shell-bg);
+  background-color: transparent;
 }
 
 html.dark .help-button:hover {
@@ -657,6 +707,20 @@ html.dark .workspace-content {
 html.dark .window-root {
   --layout-shell-bg: rgba(46, 47, 49, 0.84);
   --workspace-surface-bg: #1f2022;
+}
+
+html.dark .window-root.native-vibrancy {
+  --layout-shell-bg: transparent;
+}
+
+html.dark .window-root.native-vibrancy .common-layout::before {
+  background-color: rgba(15, 16, 18, 0.2);
+  border-right-color: rgba(255, 255, 255, 0.12);
+}
+
+html.dark .window-root.fallback-vibrancy .common-layout::before {
+  background-color: rgba(35, 37, 40, 0.62);
+  border-right-color: rgba(255, 255, 255, 0.12);
 }
 
 .header-title-text {
@@ -870,6 +934,10 @@ html.dark .window-root {
 }
 
 @media (max-width: 860px) {
+  .window-root {
+    --sidebar-region-width: 196px;
+  }
+
   .common-layout,
   .el-container {
     padding: 8px 10px;
@@ -878,8 +946,8 @@ html.dark .window-root {
 
   .app-sidebar {
     --el-aside-width: 196px;
-    width: 196px;
-    min-width: 196px;
+    width: var(--sidebar-region-width);
+    min-width: var(--sidebar-region-width);
     margin-right: 0;
   }
 
@@ -889,10 +957,19 @@ html.dark .window-root {
 }
 
 @media (max-width: 700px) {
+  .window-root {
+    --sidebar-region-width: 100%;
+  }
+
   .common-layout,
   .el-container {
     flex-direction: column;
     padding: 0;
+  }
+
+  .window-root.native-vibrancy .common-layout::before,
+  .window-root.fallback-vibrancy .common-layout::before {
+    display: none;
   }
 
   .app-sidebar {

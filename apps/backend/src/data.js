@@ -930,9 +930,12 @@ async function openWindow(config, msg) {
   const { x, y, width, height } = getPosition(config, promptCode);
   const promptConfig = config.prompts[promptCode];
   const isMac = utools.isMacOS();
+  const useNativeMacVibrancy = isMac;
   const isAlwaysOnTop = promptConfig?.isAlwaysOnTop ?? true;
   let channel = "window";
-  const backgroundColor = config.isDarkMode ? `rgba(33, 33, 33, 1)` : 'rgba(255, 255, 253, 1)';
+  const backgroundColor = useNativeMacVibrancy
+    ? '#00000000'
+    : (config.isDarkMode ? 'rgba(33, 33, 33, 1)' : 'rgba(255, 255, 253, 1)');
 
   // 为窗口生成唯一ID并添加到消息中
   const senderId = crypto.randomUUID();
@@ -954,8 +957,15 @@ async function openWindow(config, msg) {
     y: y,
     frame: !isMac,
     ...(isMac ? { titleBarStyle: "hiddenInset" } : {}),
-    transparent: false,
+    transparent: useNativeMacVibrancy,
     hasShadow: true,
+    ...(useNativeMacVibrancy
+      ? {
+          macOSVibrancy: 'under-window',
+          macOSVisualEffectState: 'active',
+          macOSVibrancyAnimationDuration: 120,
+        }
+      : {}),
     webPreferences: {
       preload: "./window_preload.js",
       devTools: utools.isDev()

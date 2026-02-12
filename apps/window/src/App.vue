@@ -114,7 +114,19 @@ const modelList = ref([]);
 const modelMap = ref({});
 const model = ref("");
 const isAlwaysOnTop = ref(true);
-const currentOS = ref('win');
+const platformName = String(navigator.userAgentData?.platform || navigator.platform || '').toLowerCase();
+const currentOS = ref(platformName.includes('mac') ? 'macos' : (platformName.includes('win') ? 'win' : 'linux'));
+const isNativeMacVibrancy = computed(() => currentOS.value === 'macos');
+
+const applyWindowVibrancyBodyClass = () => {
+  const enableNativeVibrancy = isNativeMacVibrancy.value;
+  document.documentElement.classList.toggle('mac-native-vibrancy', enableNativeVibrancy);
+  document.body?.classList.toggle('mac-native-vibrancy', enableNativeVibrancy);
+};
+
+watch(isNativeMacVibrancy, () => {
+  applyWindowVibrancyBodyClass();
+}, { immediate: true });
 
 const currentProviderID = ref(defaultConfig.config.providerOrder[0]);
 const base_url = ref("");
@@ -1396,6 +1408,9 @@ onBeforeUnmount(async () => {
     chatObserver.disconnect();
     chatObserver = null;
   }
+
+  document.documentElement.classList.remove('mac-native-vibrancy');
+  document.body?.classList.remove('mac-native-vibrancy');
 });
 
 const saveWindowSize = async () => {
@@ -3548,7 +3563,7 @@ const scrollToMessageByIndex = (index) => {
 </script>
 
 <template>
-  <main>
+  <main :class="{ 'native-vibrancy': isNativeMacVibrancy, 'fallback-vibrancy': !isNativeMacVibrancy }">
     <div v-if="windowBackgroundImage" class="window-bg-base"></div>
     <div class="window-bg-layer" :class="{ 'is-visible': !!windowBackgroundImage }" :style="{
       backgroundImage: windowBackgroundImage ? `url('${windowBackgroundImage}')` : 'none',
@@ -3556,7 +3571,11 @@ const scrollToMessageByIndex = (index) => {
       filter: `blur(${windowBackgroundBlur}px)`
     }">
     </div>
-    <el-container class="app-container" :class="{ 'has-bg': !!windowBackgroundImage }">
+    <el-container class="app-container" :class="{
+      'has-bg': !!windowBackgroundImage,
+      'native-vibrancy': isNativeMacVibrancy,
+      'fallback-vibrancy': !isNativeMacVibrancy
+    }">
       <TitleBar :favicon="favicon" :promptName="CODE" :conversationName="defaultConversationName"
         :isAlwaysOnTop="isAlwaysOnTop" :autoCloseOnBlur="autoCloseOnBlur" :isDarkMode="currentConfig.isDarkMode"
         :os="currentOS" @save-window-size="handleSaveWindowSize" @save-session="handleSaveSession"
@@ -4019,6 +4038,11 @@ html.dark {
 
 html.dark body {
   background: radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.06), transparent 40%), #1d1f22;
+}
+
+html.mac-native-vibrancy,
+html.mac-native-vibrancy body {
+  background: transparent !important;
 }
 
 .el-dialog,
@@ -4508,6 +4532,24 @@ main > .app-container {
 
 html.dark .app-container {
   background-color: color-mix(in srgb, var(--el-bg-color-page) 80%, transparent);
+}
+
+main.native-vibrancy .app-container.native-vibrancy {
+  background-color: rgba(255, 255, 255, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow: 0 14px 32px rgba(32, 32, 32, 0.16);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html.dark main.native-vibrancy .app-container.native-vibrancy {
+  background-color: rgba(18, 19, 21, 0.32);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+main.fallback-vibrancy .app-container.fallback-vibrancy {
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
 }
 
 .app-container :deep(.title-bar),
