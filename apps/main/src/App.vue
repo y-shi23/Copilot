@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, provide, onBeforeUnmount, computed } from 'vue'
+import { ref, watch, onMounted, provide, onBeforeUnmount, computed, h } from 'vue'
 import Chats from './components/Chats.vue'
 import Prompts from './components/Prompts.vue'
 import Mcp from './components/Mcp.vue'
@@ -12,7 +12,6 @@ import {
   Bell,
   ChatDotRound,
   MagicStick,
-  Connection,
   Collection,
   Cloudy,
   Setting as SettingIcon,
@@ -24,10 +23,34 @@ import { ElBadge } from 'element-plus'; // 确保引入 ElBadge
 const { t, locale } = useI18n()
 const tab = ref(0);
 const header_text = ref(t('app.header.chats'));
+
+const McpToolIcon = {
+  name: 'McpToolIcon',
+  render() {
+    return h(
+      'svg',
+      {
+        xmlns: 'http://www.w3.org/2000/svg',
+        viewBox: '0 0 24 24',
+        fill: 'none',
+        stroke: 'currentColor',
+        'stroke-width': '2',
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round'
+      },
+      [
+        h('path', { d: 'm15 12-8.373 8.373a1 1 0 1 1-3-3L12 9' }),
+        h('path', { d: 'm18 15 4-4' }),
+        h('path', { d: 'm21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5' })
+      ]
+    );
+  }
+};
+
 const navItems = computed(() => ([
   { id: 0, label: t('app.tabs.chats'), icon: ChatDotRound },
   { id: 1, label: t('app.tabs.prompts'), icon: MagicStick },
-  { id: 2, label: t('app.tabs.mcp'), icon: Connection },
+  { id: 2, label: t('app.tabs.mcp'), icon: McpToolIcon },
   { id: 3, label: t('app.tabs.skills'), icon: Collection },
   { id: 4, label: t('app.tabs.providers'), icon: Cloudy },
   { id: 5, label: t('app.tabs.settings'), icon: SettingIcon }

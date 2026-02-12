@@ -587,7 +587,14 @@ async function selectLocalChatPath() {
               <span class="setting-option-label">{{ t('setting.language.label') }}</span>
               <span class="setting-option-description">{{ t('setting.language.selectPlaceholder') }}</span>
             </div>
-            <el-select v-model="selectedLanguage" @change="handleLanguageChange" size="default" style="width: 120px;">
+            <el-select
+              v-model="selectedLanguage"
+              @change="handleLanguageChange"
+              size="default"
+              style="width: 120px;"
+              class="setting-inline-select"
+              popper-class="settings-select-popper"
+            >
               <el-option :label="t('setting.language.chinese')" value="zh"></el-option>
               <el-option :label="t('setting.language.english')" value="en"></el-option>
               <el-option :label="t('setting.language.japanese')" value="ja"></el-option>
@@ -599,8 +606,14 @@ async function selectLocalChatPath() {
               <span class="setting-option-label">{{ t('setting.darkMode.label') }}</span>
               <span class="setting-option-description">{{ t('setting.darkMode.description') }}</span>
             </div>
-            <el-select v-model="currentConfig.themeMode" @change="handleThemeChange" size="default"
-              style="width: 120px;">
+            <el-select
+              v-model="currentConfig.themeMode"
+              @change="handleThemeChange"
+              size="default"
+              style="width: 120px;"
+              class="setting-inline-select"
+              popper-class="settings-select-popper"
+            >
               <el-option :label="t('setting.darkMode.system')" value="system"></el-option>
               <el-option :label="t('setting.darkMode.light')" value="light"></el-option>
               <el-option :label="t('setting.darkMode.dark')" value="dark"></el-option>
@@ -874,9 +887,8 @@ async function selectLocalChatPath() {
 }
 
 .section-title {
-  margin: 0 0 6px;
-  padding: 2px 0 12px;
-  border-bottom: 1px solid var(--border-primary);
+  margin: 0 0 8px;
+  padding: 2px 0 6px;
   font-size: 17px;
   color: var(--text-primary);
   font-weight: 650;
@@ -892,15 +904,13 @@ async function selectLocalChatPath() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border-primary);
+  padding: 10px 0;
   gap: 20px;
   flex-wrap: wrap;
 }
 
-.setting-option-item:last-child,
-.setting-option-item.no-border {
-  border-bottom: none;
+.setting-option-item + .setting-option-item {
+  margin-top: 2px;
 }
 
 .setting-text-content {
@@ -934,6 +944,10 @@ async function selectLocalChatPath() {
 .el-button,
 .el-input-number {
   flex-shrink: 0;
+}
+
+:deep(.setting-inline-select .el-select__wrapper) {
+  border-radius: var(--radius-lg);
 }
 
 :deep(.el-form-item__label) {

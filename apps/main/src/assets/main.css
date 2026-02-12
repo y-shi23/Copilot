@@ -115,6 +115,33 @@ a:hover {
   color: var(--text-tertiary) !important;
 }
 
+.settings-select-popper.el-select__popper.el-popper {
+  border: none !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.settings-select-popper .el-select-dropdown {
+  border: 1px solid var(--border-primary) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--bg-secondary) !important;
+  box-shadow: none !important;
+  overflow: hidden !important;
+}
+
+.settings-select-popper .el-select-dropdown__wrap,
+.settings-select-popper .el-scrollbar__wrap,
+.settings-select-popper .el-scrollbar {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.settings-select-popper .el-popper__arrow,
+.settings-select-popper .el-popper__arrow::before {
+  display: none !important;
+}
+
 :where(pre, code) {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
