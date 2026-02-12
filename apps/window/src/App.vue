@@ -3995,7 +3995,7 @@ html.dark {
   --text-primary: #ececec;
   --text-secondary: #aeaeae;
   --text-tertiary: #8f8f8f;
-  --text-on-accent: #1f2124;
+  --text-on-accent: #f7f7f3;
 
   --el-bg-color-page: #1d1f22;
   --el-bg-color: #25282d;
@@ -4022,13 +4022,13 @@ html.dark {
   --el-text-color-placeholder: var(--text-tertiary);
   --el-text-color-disabled: #7b7b7b;
 
-  --el-color-primary: #d2dae3;
-  --el-color-primary-light-3: #e0e6ec;
-  --el-color-primary-light-5: #edf1f5;
-  --el-color-primary-light-7: #3a3e45;
-  --el-color-primary-light-8: #343840;
-  --el-color-primary-light-9: #2f333a;
-  --el-color-primary-dark-2: #bdc8d3;
+  --el-color-primary: #14B8A6;
+  --el-color-primary-light-3: #2DD4BF;
+  --el-color-primary-light-5: #5EEAD4;
+  --el-color-primary-light-7: #0D9488;
+  --el-color-primary-light-8: #0F766E;
+  --el-color-primary-light-9: #115E59;
+  --el-color-primary-dark-2: #0F766E;
 
   --el-box-shadow: 0 16px 44px rgba(8, 8, 8, 0.34);
   --el-box-shadow-light: 0 10px 24px rgba(8, 8, 8, 0.28);
