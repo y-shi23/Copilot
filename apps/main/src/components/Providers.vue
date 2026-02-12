@@ -974,10 +974,11 @@ const apiKeyCount = computed(() => {
 }
 
 .model-tag {
-  background-color: var(--bg-accent) !important;
-  color: var(--text-on-accent) !important;
-  border: none !important;
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border-primary) !important;
   font-weight: 500;
+  border-radius: 999px !important;
 
   display: inline-flex !important;
   align-items: center !important;
@@ -1000,13 +1001,13 @@ const apiKeyCount = computed(() => {
 }
 
 .model-tag :deep(.el-tag__close:hover) {
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  color: var(--text-on-accent) !important;
+  background-color: var(--border-primary) !important;
+  color: var(--text-primary) !important;
 }
 
 html.dark .model-tag :deep(.el-tag__close:hover) {
-  background-color: rgba(0, 0, 0, 0.2) !important;
-  color: var(--text-on-accent) !important;
+  background-color: var(--border-primary) !important;
+  color: var(--text-primary) !important;
 }
 
 .draggable-models-list .model-tag {

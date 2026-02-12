@@ -899,14 +899,14 @@ html.dark .workspace-content {
 
 html.dark .window-root {
   --layout-shell-bg: #1a1b1d;
-  --workspace-surface-bg: #121417;
+  --workspace-surface-bg: #181818;
   --sidebar-vibrancy-divider: rgba(255, 255, 255, 0.07);
   --workspace-edge-color: rgba(6, 8, 11, 0.88);
 }
 
 html.dark .window-root.fallback-vibrancy {
   --layout-shell-bg: #191b1e;
-  --workspace-surface-bg: #121417;
+  --workspace-surface-bg: #181818;
   --sidebar-fallback-tint: rgba(44, 42, 42, 0.92);
 }
 
