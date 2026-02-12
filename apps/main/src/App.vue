@@ -609,6 +609,10 @@ watch(locale, () => {
 .window-root {
   --layout-shell-bg: rgba(245, 244, 243, 0.9);
   --workspace-surface-bg: #ffffff;
+  --workspace-edge-color: color-mix(in srgb, var(--border-primary) 55%, transparent);
+  --sidebar-vibrancy-tint: rgba(255, 255, 255, 0.1);
+  --sidebar-fallback-tint: rgba(247, 246, 244, 0.62);
+  --sidebar-vibrancy-divider: color-mix(in srgb, var(--border-primary) 62%, transparent);
   --sidebar-region-width: 268px;
   width: 100%;
   height: 100%;
@@ -620,6 +624,12 @@ watch(locale, () => {
 
 .window-root.native-vibrancy {
   --layout-shell-bg: transparent;
+}
+
+.window-root.fallback-vibrancy {
+  --layout-shell-bg: #f1efec;
+  --workspace-surface-bg: #fcfcfb;
+  --sidebar-fallback-tint: rgba(238, 235, 231, 0.86);
 }
 
 .window-drag-region {
@@ -657,13 +667,15 @@ watch(locale, () => {
 }
 
 .window-root.native-vibrancy .common-layout::before {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: var(--sidebar-vibrancy-tint);
+  box-shadow: inset -1px 0 0 var(--sidebar-vibrancy-divider);
 }
 
 .window-root.fallback-vibrancy .common-layout::before {
-  background-color: rgba(247, 246, 244, 0.62);
+  background-color: var(--sidebar-fallback-tint);
   backdrop-filter: blur(20px) saturate(125%);
   -webkit-backdrop-filter: blur(20px) saturate(125%);
+  box-shadow: inset -1px 0 0 var(--sidebar-vibrancy-divider);
 }
 
 .app-sidebar {
@@ -821,7 +833,7 @@ watch(locale, () => {
   position: relative;
   z-index: 1;
   border-radius: var(--radius-xl);
-  border: 1px solid color-mix(in srgb, var(--border-primary) 55%, transparent);
+  border: 1px solid var(--workspace-edge-color);
   border-left: none;
   background-color: var(--workspace-surface-bg);
   box-shadow: none;
@@ -845,22 +857,36 @@ html.dark .app-sidebar {
   background-color: transparent;
 }
 
+html.dark .help-button {
+  color: #b9b7b4;
+}
+
 html.dark .help-button:hover {
+  color: #f0eeea;
   background-color: rgba(255, 255, 255, 0.1);
 }
 
+html.dark .nav-item {
+  color: #bfbcb8;
+}
+
 html.dark .nav-item:hover {
+  color: #efede9;
   background-color: rgba(255, 255, 255, 0.08);
 }
 
 html.dark .nav-item.active-tab {
   border-color: transparent;
-  background-color: #353A42;
+  color: #f7f4ef;
+  background-color: rgba(255, 255, 255, 0.14);
   box-shadow: none;
 }
 
 html.dark .workspace-main {
   background-color: var(--workspace-surface-bg);
+  border-top-color: var(--workspace-edge-color);
+  border-right-color: var(--workspace-edge-color);
+  border-bottom-color: var(--workspace-edge-color);
 }
 
 html.dark .workspace-header {
@@ -872,8 +898,16 @@ html.dark .workspace-content {
 }
 
 html.dark .window-root {
-  --layout-shell-bg: rgba(46, 47, 49, 0.84);
-  --workspace-surface-bg: #1f2022;
+  --layout-shell-bg: #1a1b1d;
+  --workspace-surface-bg: #121417;
+  --sidebar-vibrancy-divider: rgba(255, 255, 255, 0.07);
+  --workspace-edge-color: rgba(6, 8, 11, 0.88);
+}
+
+html.dark .window-root.fallback-vibrancy {
+  --layout-shell-bg: #191b1e;
+  --workspace-surface-bg: #121417;
+  --sidebar-fallback-tint: rgba(44, 42, 42, 0.92);
 }
 
 html.dark .window-root.native-vibrancy {
@@ -881,11 +915,11 @@ html.dark .window-root.native-vibrancy {
 }
 
 html.dark .window-root.native-vibrancy .common-layout::before {
-  background-color: rgba(15, 16, 18, 0.2);
+  background: linear-gradient(180deg, rgba(43, 41, 40, 0.58) 0%, rgba(34, 33, 35, 0.68) 100%);
 }
 
 html.dark .window-root.fallback-vibrancy .common-layout::before {
-  background-color: rgba(35, 37, 40, 0.62);
+  background: linear-gradient(180deg, rgba(44, 42, 42, 0.9) 0%, rgba(36, 35, 37, 0.94) 100%);
 }
 
 .header-title-text {

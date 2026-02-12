@@ -26,6 +26,18 @@ function appendQueryParam(rawUrl, key, value) {
   }
 }
 
+function syncNativeTheme(config = {}) {
+  if (typeof utools?.isMacOS === 'function' && !utools.isMacOS()) return;
+  if (!ipcRenderer || typeof ipcRenderer.send !== 'function') return;
+
+  const payload = {
+    themeMode: typeof config.themeMode === 'string' ? config.themeMode : 'system',
+    isDarkMode: !!config.isDarkMode,
+  };
+
+  ipcRenderer.send('utools:sync-native-theme', payload);
+}
+
 // 默认配置 (保持不变)
 const defaultConfig = {
   config: {
@@ -637,6 +649,10 @@ async function saveSetting(keyPath, value) {
       }
     }
 
+    if (keyPath === 'themeMode' || keyPath === 'isDarkMode') {
+      syncNativeTheme(fullConfig.config || {});
+    }
+
     if (keyPath === 'launcherEnabled' || keyPath === 'launcherHotkey') {
       const launcherResult = await syncLauncherSettings(fullConfig.config);
       if (launcherResult && launcherResult.ok === false) {
@@ -723,6 +739,8 @@ function updateConfigWithoutFeatures(newConfig) {
       windowInstance.webContents.send('config-updated', fullConfigForFrontend);
     }
   }
+
+  syncNativeTheme(fullConfigForFrontend || {});
 
   syncLauncherSettings(fullConfigForFrontend).catch((error) => {
     console.error('[Launcher] Failed to sync settings after config update:', error);

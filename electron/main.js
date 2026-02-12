@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, globalShortcut, ipcMain, Notification, screen } = require('electron');
+const { app, BrowserWindow, dialog, globalShortcut, ipcMain, Notification, screen, nativeTheme } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -112,6 +112,37 @@ function readStoredLauncherSettings() {
 
   const normalizedHotkey = launcherHotkeyValue || DEFAULT_LAUNCHER_SETTINGS.launcherHotkey;
   return { launcherEnabled, launcherHotkey: normalizedHotkey };
+}
+
+function readStoredThemeSettings() {
+  const docs = readShimDocuments();
+  return docs?.config?.data?.config || {};
+}
+
+function resolveThemeSource(settings = {}) {
+  const mode = typeof settings.themeMode === 'string'
+    ? settings.themeMode.trim().toLowerCase()
+    : '';
+
+  if (mode === 'dark' || mode === 'light' || mode === 'system') {
+    return mode;
+  }
+
+  if (typeof settings.isDarkMode === 'boolean') {
+    return settings.isDarkMode ? 'dark' : 'light';
+  }
+
+  return 'system';
+}
+
+function applyNativeThemeSource(settings = {}) {
+  if (process.platform !== 'darwin') return 'system';
+
+  const source = resolveThemeSource(settings);
+  if (nativeTheme.themeSource !== source) {
+    nativeTheme.themeSource = source;
+  }
+  return source;
 }
 
 function readStoredPrompts() {
@@ -465,6 +496,19 @@ ipcMain.on('utools:get-cursor-screen-point', (event) => {
   event.returnValue = screen.getCursorScreenPoint();
 });
 
+ipcMain.on('utools:sync-native-theme', (_event, payload = {}) => {
+  if (process.platform !== 'darwin') return;
+
+  applyNativeThemeSource(payload);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    applyMacVibrancy(mainWindow, {
+      vibrancy: 'sidebar',
+      visualEffectState: 'active',
+      animationDuration: 0,
+    });
+  }
+});
+
 ipcMain.on('utools:create-browser-window', (event, payload = {}) => {
   const entryPath = payload.entryPath || '';
   const rawOptions = payload.options || {};
@@ -721,6 +765,7 @@ ipcMain.on('launcher:execute', (_event, action = {}) => {
 
 app.whenReady().then(() => {
   ensureBuildArtifacts();
+  applyNativeThemeSource(readStoredThemeSettings());
   createMainWindow();
 
   const launcherResult = registerLauncherHotkey(readStoredLauncherSettings());
