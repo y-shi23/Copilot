@@ -510,6 +510,11 @@ async function handleExportSkills() {
 
         <div v-if="!skillPath" class="empty-state">
           <el-empty :description="t('skills.pathNotSet')">
+            <template #image>
+              <el-icon :size="50" color="#909399">
+                <FolderOpened />
+              </el-icon>
+            </template>
             <el-button type="primary" :icon="FolderOpened" @click="selectSkillPath">
               {{ t('skills.setPathBtn') }}
             </el-button>
@@ -517,7 +522,13 @@ async function handleExportSkills() {
         </div>
 
         <div v-else-if="filteredSkills.length === 0" class="empty-state">
-          <el-empty :description="t('skills.noSkills')" />
+          <el-empty :description="t('skills.noSkills')">
+            <template #image>
+              <el-icon :size="50" color="#909399">
+                <Collection />
+              </el-icon>
+            </template>
+          </el-empty>
         </div>
 
         <div v-else class="skills-grid-container">

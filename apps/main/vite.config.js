@@ -9,9 +9,16 @@ export default defineConfig({
     vue(),
   ],
   resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url))
-    },
+    alias: [
+      {
+        find: /^@element-plus\/icons-vue$/,
+        replacement: fileURLToPath(new URL('./src/icons/element-plus-lucide-bridge.js', import.meta.url))
+      },
+      {
+        find: '@',
+        replacement: fileURLToPath(new URL('./src', import.meta.url))
+      }
+    ]
   },
   base: './'
 })

@@ -2,7 +2,7 @@
 import { ref, reactive, computed, inject } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox, ElScrollbar, ElAlert } from 'element-plus';
-import { Plus, Delete, Edit, CopyDocument, Tools, Search, Refresh, QuestionFilled, Link, CaretRight, CaretBottom } from '@element-plus/icons-vue';
+import { Plus, Delete, Edit, CopyDocument, Tools, Search, Refresh, QuestionFilled, Link, CaretRight, CaretBottom, Zap } from '@element-plus/icons-vue';
 const { t } = useI18n();
 const currentConfig = inject('config');
 
@@ -549,7 +549,13 @@ async function triggerConnectionTest(server) {
         <el-scrollbar class="main-content-scrollbar">
             <div class="content-wrapper">
                 <div v-if="mcpServersList.length === 0" class="empty-state">
-                    <el-empty :description="t('mcp.noServers')" />
+                    <el-empty :description="t('mcp.noServers')">
+                        <template #image>
+                            <el-icon :size="50" color="#909399">
+                                <Tools />
+                            </el-icon>
+                        </template>
+                    </el-empty>
                 </div>
                 <div v-else>
                     <div class="search-bar-container">
@@ -557,7 +563,13 @@ async function triggerConnectionTest(server) {
                             clearable />
                     </div>
                     <div v-if="filteredMcpServersList.length === 0" class="empty-state">
-                        <el-empty :description="t('mcp.noMatch')" />
+                        <el-empty :description="t('mcp.noMatch')">
+                            <template #image>
+                                <el-icon :size="50" color="#909399">
+                                    <Tools />
+                                </el-icon>
+                            </template>
+                        </el-empty>
                     </div>
                     <div v-else class="mcp-grid-container">
                         <div v-for="server in filteredMcpServersList" :key="server.id" class="mcp-card">
@@ -582,11 +594,7 @@ async function triggerConnectionTest(server) {
                                             @click.stop="handleSwitchChange(server.id, 'isPersistent', !server.isPersistent)"
                                             class="persistent-btn-header">
                                             <el-icon :size="14">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                    stroke-linejoin="round">
-                                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                                                </svg>
+                                                <Zap />
                                             </el-icon>
                                         </el-button>
                                     </el-tooltip>
@@ -922,7 +930,13 @@ async function triggerConnectionTest(server) {
                     </el-tabs>
 
                 </div>
-                <el-empty v-else-if="testResult.success" :description="t('mcp.noToolsProvided')" :image-size="60" />
+                <el-empty v-else-if="testResult.success" :description="t('mcp.noToolsProvided')" :image-size="60">
+                    <template #image>
+                        <el-icon :size="50" color="#909399">
+                            <Tools />
+                        </el-icon>
+                    </template>
+                </el-empty>
             </div>
 
             <template #footer>

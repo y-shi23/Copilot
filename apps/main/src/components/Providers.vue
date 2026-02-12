@@ -630,7 +630,13 @@ const apiKeyCount = computed(() => {
 
               </el-form>
             </div>
-            <el-empty v-else :description="t('providers.selectProviderOrAdd')" class="empty-state-main" />
+            <el-empty v-else :description="t('providers.selectProviderOrAdd')" class="empty-state-main">
+              <template #image>
+                <el-icon :size="50" color="#909399">
+                  <FolderOpened />
+                </el-icon>
+              </template>
+            </el-empty>
           </el-scrollbar>
         </el-main>
       </el-container>
