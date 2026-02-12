@@ -4004,7 +4004,7 @@ html.dark {
   --el-bg-color-userbubble: #30343b;
 
   --el-fill-color: #2d3137;
-  --el-fill-color-light: #32363d;
+  --el-fill-color-light: #212121;
   --el-fill-color-lighter: #2d3137;
   --el-fill-color-dark: #393e46;
   --el-fill-color-darker: #434953;
