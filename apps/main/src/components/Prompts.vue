@@ -908,7 +908,7 @@ async function refreshPromptsConfig() {
       <el-button class="action-btn" @click="prepareReplaceModels" :icon="Switch">
         {{ t('prompts.replaceModels') }}
       </el-button>
-      <el-button class="refresh-fab-button" :icon="Refresh" type="primary" circle @click="refreshPromptsConfig" />
+      <el-button class="refresh-fab-button" :icon="Refresh" circle @click="refreshPromptsConfig" />
     </div>
 
     <el-dialog v-model="showPromptEditDialog" :title="isNewPrompt ? t('prompts.addNewPrompt') : t('prompts.editPrompt')"

@@ -835,7 +835,7 @@ html.dark .toolbar-right :deep(.el-badge__content--primary) {
 .footer-center {
     flex-grow: 1;
     display: flex;
-    justify-content: center;
+    justify-content: flex-end;
 }
 
 .footer-right {
