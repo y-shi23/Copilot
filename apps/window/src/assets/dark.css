@@ -27,13 +27,13 @@ html.dark {
   --el-fill-color-darker: #3a4351;
   --el-fill-color-blank: #1d2027;
 
-  --el-color-primary: #14B8A6;
-  --el-color-primary-light-3: #2DD4BF;
-  --el-color-primary-light-5: #5EEAD4;
-  --el-color-primary-light-7: #0D9488;
-  --el-color-primary-light-8: #0F766E;
-  --el-color-primary-light-9: #115E59;
-  --el-color-primary-dark-2: #0F766E;
+  --el-color-primary: #8DBE74;
+  --el-color-primary-light-3: #A5CE8F;
+  --el-color-primary-light-5: #B8D9A5;
+  --el-color-primary-light-7: #6FA85C;
+  --el-color-primary-light-8: #5C9249;
+  --el-color-primary-light-9: #4A7C39;
+  --el-color-primary-dark-2: #5C9249;
 
   --el-box-shadow: 0 16px 44px rgba(0, 0, 0, 0.3);
   --el-box-shadow-light: 0 10px 24px rgba(0, 0, 0, 0.24);

@@ -732,6 +732,15 @@ html.dark .toolbar-right :deep(.el-badge__content--primary) {
     color: var(--bg-primary);
 }
 
+html.dark .footer-action-btn.el-button--danger {
+    background-color: #B91C1C;
+}
+
+html.dark .footer-action-btn.el-button--danger.is-disabled {
+    background-color: #B91C1C;
+    opacity: 0.6;
+}
+
 .table-container {
     flex-grow: 1;
     min-height: 0;
