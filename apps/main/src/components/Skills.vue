@@ -969,7 +969,6 @@ async function handleExportSkills() {
   background-color: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  border-top: 1px solid var(--border-primary);
 }
 
 .action-btn {

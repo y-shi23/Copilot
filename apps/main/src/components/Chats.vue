@@ -481,42 +481,44 @@ async function executeAutoClean() {
 <template>
     <div class="chats-page-container">
         <div class="chats-content-wrapper">
-            <div class="info-button-container">
-                <el-popover placement="bottom-start" :title="t('chats.info.title')" :width="450" trigger="click">
-                    <template #reference>
-                        <el-button :icon="QuestionFilled" circle />
-                    </template>
-                    <div class="info-popover-content">
-                        <p v-html="t('chats.info.localDesc', { path: localChatPath || t('chats.info.pathNotSet') })">
-                        </p>
-                        <p v-html="t('chats.info.cloudDesc')"></p>
+            <div class="chats-toolbar">
+                <div class="toolbar-left">
+                    <div class="view-selector">
+                        <el-radio-group v-model="activeView" @change="currentPage = 1">
+                            <el-radio-button value="local">{{ t('chats.view.local') }}</el-radio-button>
+                            <el-radio-button value="cloud" :disabled="!isWebdavConfigValid">{{ t('chats.view.cloud')
+                                }}</el-radio-button>
+                        </el-radio-group>
                     </div>
-                </el-popover>
-                <el-tooltip :content="t('chats.clean.button')" placement="bottom">
-                    <el-button :icon="Brush" circle @click="openCleanDialog" />
-                </el-tooltip>
-            </div>
-            <div class="sync-buttons-container">
-                <el-tooltip :content="t('chats.tooltips.uploadChanges', { count: uploadableCount })" placement="bottom">
-                    <el-badge :value="uploadableCount" :hidden="uploadableCount === 0" type="primary">
-                        <el-button :icon="Upload" @click="intelligentUpload" circle
-                            :disabled="!isWebdavConfigValid || !localChatPath" />
-                    </el-badge>
-                </el-tooltip>
-                <el-tooltip :content="t('chats.tooltips.downloadChanges', { count: downloadableCount })"
-                    placement="bottom">
-                    <el-badge :value="downloadableCount" :hidden="downloadableCount === 0" type="success">
-                        <el-button :icon="Download" @click="intelligentDownload" circle
-                            :disabled="!isWebdavConfigValid || !localChatPath" />
-                    </el-badge>
-                </el-tooltip>
-            </div>
-            <div class="view-selector">
-                <el-radio-group v-model="activeView" @change="currentPage = 1">
-                    <el-radio-button value="local">{{ t('chats.view.local') }}</el-radio-button>
-                    <el-radio-button value="cloud" :disabled="!isWebdavConfigValid">{{ t('chats.view.cloud')
-                        }}</el-radio-button>
-                </el-radio-group>
+                </div>
+                <div class="toolbar-right">
+                    <el-popover placement="bottom-end" :title="t('chats.info.title')" :width="450" trigger="click">
+                        <template #reference>
+                            <el-button class="toolbar-icon-btn" :icon="QuestionFilled" circle />
+                        </template>
+                        <div class="info-popover-content">
+                            <p v-html="t('chats.info.localDesc', { path: localChatPath || t('chats.info.pathNotSet') })">
+                            </p>
+                            <p v-html="t('chats.info.cloudDesc')"></p>
+                        </div>
+                    </el-popover>
+                    <el-tooltip :content="t('chats.clean.button')" placement="bottom">
+                        <el-button class="toolbar-icon-btn" :icon="Brush" circle @click="openCleanDialog" />
+                    </el-tooltip>
+                    <el-tooltip :content="t('chats.tooltips.uploadChanges', { count: uploadableCount })" placement="bottom">
+                        <el-badge :value="uploadableCount" :hidden="uploadableCount === 0" type="primary">
+                            <el-button class="toolbar-icon-btn" :icon="Upload" @click="intelligentUpload" circle
+                                :disabled="!isWebdavConfigValid || !localChatPath" />
+                        </el-badge>
+                    </el-tooltip>
+                    <el-tooltip :content="t('chats.tooltips.downloadChanges', { count: downloadableCount })"
+                        placement="bottom">
+                        <el-badge :value="downloadableCount" :hidden="downloadableCount === 0" type="success">
+                            <el-button class="toolbar-icon-btn" :icon="Download" @click="intelligentDownload" circle
+                                :disabled="!isWebdavConfigValid || !localChatPath" />
+                        </el-badge>
+                    </el-tooltip>
+                </div>
             </div>
 
             <div class="table-container">
@@ -541,10 +543,10 @@ async function executeAutoClean() {
                 </div>
 
                 <el-table v-else :data="paginatedFiles" v-loading="isTableLoading"
-                    @selection-change="handleSelectionChange" style="width: 100%" height="100%" border stripe>
+                    @selection-change="handleSelectionChange" class="history-table" style="width: 100%" height="100%">
                     <el-table-column type="selection" width="50" align="center" />
                     <el-table-column prop="basename" :label="t('chats.table.filename')" sortable show-overflow-tooltip
-                        min-width="120">
+                        min-width="200">
                         <template #default="scope">
                             <span class="filename-text">{{ scope.row.basename.endsWith('.json') ?
                                 scope.row.basename.slice(0, -5) : scope.row.basename }}</span>
@@ -557,27 +559,28 @@ async function executeAutoClean() {
                     <el-table-column prop="size" :label="t('chats.table.size')" width="90" sortable align="center">
                         <template #default="scope">{{ formatBytes(scope.row.size) }}</template>
                     </el-table-column>
-                    <el-table-column :label="t('chats.table.actions')" width="300" align="center">
+                    <el-table-column :label="t('chats.table.actions')" width="196" align="center">
                         <template #default="scope">
-                            <div class="action-buttons-container">
-                                <el-button link type="primary" :icon="ChatDotRound" @click="startChat(scope.row)">{{
-                                    t('chats.actions.chat') }}</el-button>
-                                <el-divider direction="vertical" />
+                            <div class="row-action-group">
+                                <el-tooltip :content="t('chats.actions.chat')" placement="top">
+                                    <el-button link class="row-action-btn" type="primary" :icon="ChatDotRound" circle
+                                        @click="startChat(scope.row)" />
+                                </el-tooltip>
                                 <el-tooltip
                                     :content="activeView === 'local' ? t('chats.tooltips.forceUpload') : t('chats.tooltips.forceDownload')"
                                     placement="top">
-                                    <el-button link type="primary" :icon="Switch"
+                                    <el-button link class="row-action-btn" type="primary" :icon="Switch" circle
                                         @click="forceSyncFile(scope.row.basename, activeView === 'local' ? 'upload' : 'download')"
-                                        :loading="singleFileSyncing[scope.row.basename]">
-                                        {{ t('chats.actions.forceSync') }}
-                                    </el-button>
+                                        :loading="singleFileSyncing[scope.row.basename]" />
                                 </el-tooltip>
-                                <el-divider direction="vertical" />
-                                <el-button link type="warning" :icon="Edit" @click="renameFile(scope.row)">{{
-                                    t('chats.actions.rename') }}</el-button>
-                                <el-divider direction="vertical" />
-                                <el-button link type="danger" :icon="DeleteIcon" @click="deleteFiles([scope.row])">{{
-                                    t('chats.actions.delete') }}</el-button>
+                                <el-tooltip :content="t('chats.actions.rename')" placement="top">
+                                    <el-button link class="row-action-btn" type="warning" :icon="Edit" circle
+                                        @click="renameFile(scope.row)" />
+                                </el-tooltip>
+                                <el-tooltip :content="t('chats.actions.delete')" placement="top">
+                                    <el-button link class="row-action-btn" type="danger" :icon="DeleteIcon" circle
+                                        @click="deleteFiles([scope.row])" />
+                                </el-tooltip>
                             </div>
                         </template>
                     </el-table-column>
@@ -658,63 +661,86 @@ async function executeAutoClean() {
 </template>
 
 <style scoped>
-.view-selector {
-    padding: 5px 15px 0px 0px;
-    text-align: center;
-}
-
 .chats-page-container {
     height: 100%;
     width: 100%;
     display: flex;
     flex-direction: column;
-    padding: 21px 21px 0 21px;
+    padding: 18px 20px 0;
     box-sizing: border-box;
     overflow: hidden;
     background-color: var(--bg-primary);
 }
 
-.config-prompt {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    height: 100%;
-    text-align: center;
-    background-color: var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 0 0 1px var(--border-primary);
-}
-
-.config-prompt-title {
-    font-size: 18px;
-    color: var(--text-primary);
-    margin-top: 0;
-    margin-bottom: 8px;
-    font-weight: 600;
-}
-
-:deep(.el-empty__description p) {
-    color: var(--text-secondary);
-    font-size: 14px;
-}
-
 .chats-content-wrapper {
-    position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
     width: 100%;
+    padding: 14px 14px 0;
     background-color: var(--bg-secondary);
     border-radius: var(--radius-lg);
     box-shadow: 0 0 0 1px var(--border-primary), var(--shadow-sm);
     overflow: hidden;
 }
 
+.chats-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 0 2px 8px;
+}
+
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.view-selector {
+    display: flex;
+    align-items: center;
+}
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.toolbar-icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 10px;
+}
+
+.toolbar-right :deep(.el-badge__content) {
+    font-size: 10px;
+    padding: 0 5px;
+    height: 16px;
+    line-height: 16px;
+    min-width: 16px;
+    border-width: 1px;
+    transform: translateY(-45%) translateX(65%);
+}
+
+html.dark .toolbar-right :deep(.el-badge__content--primary) {
+    background-color: var(--el-color-primary);
+    color: var(--bg-primary);
+}
+
 .table-container {
     flex-grow: 1;
+    min-height: 0;
     overflow: hidden;
-    padding: 5px 10px 10px 10px;
+    padding: 0;
+    margin-top: 8px;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    background-color: color-mix(in srgb, var(--bg-primary) 65%, transparent);
 }
 
 .filename-text {
@@ -722,78 +748,63 @@ async function executeAutoClean() {
     color: var(--text-primary);
 }
 
-:deep(.el-table),
-:deep(.el-table__expanded-cell) {
+:deep(.history-table.el-table),
+:deep(.history-table .el-table__expanded-cell) {
     background-color: transparent;
 }
 
-:deep(.el-table .el-table__cell) {
+:deep(.history-table .el-table__inner-wrapper::before) {
+    display: none;
+}
+
+:deep(.history-table .el-table__header-wrapper th.el-table__cell) {
+    background-color: color-mix(in srgb, var(--bg-tertiary) 70%, transparent) !important;
     color: var(--text-secondary);
-}
-
-:deep(.el-table tr) {
-    background-color: transparent;
-    transition: background-color 0.2s;
-}
-
-:deep(.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell) {
-    background-color: var(--bg-primary);
-}
-
-:deep(.el-table--enable-row-hover .el-table__body tr:hover>td.el-table__cell) {
-    background-color: var(--bg-tertiary);
-}
-
-:deep(.el-table__header-wrapper th) {
-    background-color: var(--bg-primary) !important;
-    color: var(--text-secondary);
+    font-size: 12px;
     font-weight: 600;
-}
-
-:deep(.el-table__border-left-patch) {
-    border-left: 1px solid var(--border-primary);
-}
-
-:deep(.el-table__border-right-patch) {
-    border-left: 1px solid var(--border-primary);
-}
-
-:deep(.el-table--border .el-table__inner-wrapper::after),
-:deep(.el-table--border::after),
-:deep(.el-table--border::before),
-:deep(.el-table__inner-wrapper::before) {
-    background-color: var(--border-primary);
-}
-
-:deep(.el-table td.el-table__cell),
-:deep(.el-table th.el-table__cell.is-leaf) {
     border-bottom: 1px solid var(--border-primary);
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+:deep(.history-table td.el-table__cell) {
     color: var(--text-primary);
+    border-bottom: 1px solid color-mix(in srgb, var(--border-primary) 82%, transparent);
+    padding-top: 8px;
+    padding-bottom: 8px;
 }
 
-:deep(.el-table--border .el-table__cell) {
-    border-right: 1px solid var(--border-primary);
+:deep(.history-table .el-table__body tr:hover > td.el-table__cell) {
+    background-color: color-mix(in srgb, var(--bg-tertiary) 60%, transparent);
 }
 
-:deep(.el-table__empty-text) {
+:deep(.history-table .el-table__empty-text) {
     color: var(--text-tertiary);
 }
 
-.action-buttons-container {
-    display: flex;
-    justify-content: center;
+.row-action-group {
+    display: inline-flex;
     align-items: center;
-    gap: 0;
+    justify-content: center;
+    gap: 4px;
+    white-space: nowrap;
 }
 
-.action-buttons-container .el-button {
-    font-weight: 500;
+.row-action-btn {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    padding: 0;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
-.action-buttons-container .el-divider--vertical {
-    height: 1em;
-    border-left: 1px solid var(--border-primary);
-    margin: 0 8px;
+:deep(.row-action-btn:not(.is-disabled):hover) {
+    background-color: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
 }
 
 .footer-bar {
@@ -803,9 +814,9 @@ async function executeAutoClean() {
     width: 100%;
     flex-wrap: wrap;
     gap: 10px;
-    padding: 10px 15px;
-    border-top: 1px solid var(--border-primary);
-    background-color: var(--bg-primary);
+    margin-top: 10px;
+    padding: 12px 2px 14px;
+    background-color: transparent;
     flex-shrink: 0;
 }
 
@@ -856,6 +867,31 @@ async function executeAutoClean() {
     color: var(--text-accent);
 }
 
+.config-prompt {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    height: 100%;
+    text-align: center;
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 0 0 1px var(--border-primary);
+}
+
+.config-prompt-title {
+    font-size: 18px;
+    color: var(--text-primary);
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+:deep(.el-empty__description p) {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
 .config-prompt-small {
     display: flex;
     justify-content: center;
@@ -873,50 +909,32 @@ async function executeAutoClean() {
     color: var(--text-secondary);
 }
 
-.sync-buttons-container {
-    position: absolute;
-    top: 8px;
-    /* 根据视觉效果微调 */
-    right: 20px;
-    z-index: 10;
-    /* 确保在表格之上 */
-    display: flex;
-    gap: 8px;
-}
+@media (max-width: 860px) {
+    .chats-page-container {
+        padding: 12px 12px 0;
+    }
 
-.sync-buttons-container .el-button {
-    width: 32px;
-    height: 32px;
-}
+    .chats-content-wrapper {
+        padding: 10px 10px 0;
+    }
 
-.sync-buttons-container :deep(.el-badge__content) {
-    font-size: 10px;
-    padding: 0 5px;
-    height: 16px;
-    line-height: 16px;
-    min-width: 16px;
-    border-width: 1px;
-    /* 调整位置 */
-    transform: translateY(-50%) translateX(70%);
-}
+    .chats-toolbar {
+        gap: 10px;
+    }
 
-/* 修复深色模式下 primary 徽章的颜色 */
-html.dark .sync-buttons-container :deep(.el-badge__content--primary) {
-    background-color: var(--el-color-primary);
-    color: var(--bg-primary);
-    /* 使用深色背景作为文字颜色 */
-}
+    .toolbar-left,
+    .toolbar-right {
+        width: 100%;
+    }
 
-.info-button-container {
-    position: absolute;
-    top: 8px;
-    left: 20px;
-    z-index: 10;
-}
+    .toolbar-right {
+        justify-content: flex-start;
+    }
 
-.info-button-container .el-button {
-    width: 32px;
-    height: 32px;
+    .footer-center {
+        justify-content: flex-start;
+        width: 100%;
+    }
 }
 
 /* 弹出框内容的样式 */

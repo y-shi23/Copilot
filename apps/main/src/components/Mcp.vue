@@ -1166,7 +1166,6 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
     background-color: transparent;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    border-top: 1px solid var(--border-primary);
 }
 
 .bottom-actions-container .action-btn {

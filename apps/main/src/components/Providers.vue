@@ -839,7 +839,6 @@ const apiKeyCount = computed(() => {
 
 .aside-actions {
   padding: 12px;
-  border-top: 1px solid var(--border-primary);
   display: flex;
 }
 
