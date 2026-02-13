@@ -568,11 +568,14 @@ watch(contextMenuVisible, (val) => {
               <el-form label-position="left" label-width="75px" class="provider-form">
                 <div class="form-item-header">
                   <div class="form-item-description">{{ t('providers.apiKeyDescription') }}</div>
-                  <el-tag v-if="apiKeyCount > 0" size="small" round class="api-key-count-tag">
-                    {{ apiKeyCount }}
-                  </el-tag>
                 </div>
-                <el-form-item :label="t('providers.apiKeyLabel')">
+                <el-form-item>
+                  <template #label>
+                    <span class="label-with-badge">
+                      {{ t('providers.apiKeyLabel') }}
+                      <span v-if="apiKeyCount > 0" class="api-key-count-badge">{{ apiKeyCount }}</span>
+                    </span>
+                  </template>
                   <el-input v-model="selectedProvider.api_key" type="password"
                     :placeholder="t('providers.apiKeyPlaceholder')" show-password
                     @change="(value) => saveSingleProviderSetting('api_key', value)" />
@@ -1114,13 +1117,28 @@ html.dark .model-tag :deep(.el-tag__close:hover) {
   padding: 5px;
 }
 
-.api-key-count-tag {
-  background-color: transparent !important;
-  color: var(--text-primary);
-  height: 18px;
-  line-height: 18px;
-  box-shadow: none;
-  margin-top: -4px !important;
+.label-with-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.api-key-count-badge {
+  position: absolute;
+  top: -8px;
+  right: -12px;
+  background-color: var(--bg-accent);
+  color: #000000;
+  height: 16px;
+  min-width: 16px;
+  line-height: 16px;
+  padding: 0 4px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .form-item-header {
