@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, onMounted, computed, inject, watch } from 'vue'
-import { Plus, Delete, Edit, ArrowUp, ArrowDown, Refresh, CirclePlus, Remove, Search, Folder, FolderOpened, FolderAdd } from '@element-plus/icons-vue';
+import { Plus, Delete, Edit, Refresh, CirclePlus, Remove, Search, Folder, FolderOpened, FolderAdd } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import draggable from 'vuedraggable';
@@ -110,41 +110,8 @@ function saveFolderProviderOrder(folderId) {
   persistGroupOrder(localFolderOrders[folderId], folderId);
 }
 
-// [新增] 获取当前选中服务商所在的“分组”内的所有ID列表（按顺序）
-// 分组指的是：具体的文件夹 或 根目录
-const getCurrentGroupIds = () => {
-  if (!selectedProvider.value) return [];
-  const targetFolderId = selectedProvider.value.folderId;
-  const folders = currentConfig.value.providerFolders || {};
-
-  // 判断当前选中的是在哪个有效分组下
-  // 如果 folderId 存在且文件夹配置中存在该ID，则是在该文件夹下；否则视为根目录
-  const effectiveFolderId = (targetFolderId && folders[targetFolderId]) ? targetFolderId : "";
-
-  return currentConfig.value.providerOrder.filter(key => {
-    const p = currentConfig.value.providers[key];
-    if (!p) return false;
-    const pFolderId = p.folderId;
-    const pEffectiveFolderId = (pFolderId && folders[pFolderId]) ? pFolderId : "";
-    return pEffectiveFolderId === effectiveFolderId;
-  });
-};
-
-const canMoveUp = computed(() => {
-  if (!selectedProvider.value || !provider_key.value) return false;
-  const groupIds = getCurrentGroupIds();
-  return groupIds.indexOf(provider_key.value) > 0;
-});
-
-// [新增] 判断是否可以下移
-const canMoveDown = computed(() => {
-  if (!selectedProvider.value || !provider_key.value) return false;
-  const groupIds = getCurrentGroupIds();
-  return groupIds.indexOf(provider_key.value) < groupIds.length - 1;
-});
-
 // 原子化保存函数
-async function atomicSave(updateFunction) {
+const atomicSave = async (updateFunction) => {
   try {
     const latestConfigData = await window.api.getConfig();
     if (!latestConfigData || !latestConfigData.config) {
@@ -432,57 +399,6 @@ function get_model_function(add, modelId) {
   });
 }
 
-// [修改] 排序函数：现在支持在分组内部排序
-function change_order(flag) {
-  if (!provider_key.value) return;
-  const currentId = provider_key.value;
-
-  // 获取当前分组内的所有 ID 列表
-  const groupIds = getCurrentGroupIds();
-  const indexInGroup = groupIds.indexOf(currentId);
-
-  if (indexInGroup === -1) return;
-
-  let targetId = null; // 参照物 ID（要交换位置的邻居）
-  let insertAfter = false; // true: 插入到 target 后面，false: 插入到 target 前面
-
-  if (flag === "up") {
-    if (indexInGroup > 0) {
-      targetId = groupIds[indexInGroup - 1];
-      insertAfter = false; // 放在上一个的前面，即交换位置
-    }
-  } else if (flag === "down") {
-    if (indexInGroup < groupIds.length - 1) {
-      targetId = groupIds[indexInGroup + 1];
-      insertAfter = true; // 放在下一个的后面
-    }
-  }
-
-  if (!targetId) return;
-
-  atomicSave(config => {
-    const order = config.providerOrder;
-    const currentIndex = order.indexOf(currentId);
-    // targetId 在全局数组中的位置
-    const targetIndex = order.indexOf(targetId);
-
-    if (currentIndex === -1 || targetIndex === -1) return;
-
-    // 1. 先把当前 ID 拿出来
-    const newOrder = order.filter(id => id !== currentId);
-
-    // 2. 找到 target 在新数组中的位置（因为删除了一个元素，索引可能变了）
-    const newTargetIndex = newOrder.indexOf(targetId);
-
-    // 3. 插入到 target 附近
-    const insertIndex = insertAfter ? newTargetIndex + 1 : newTargetIndex;
-    newOrder.splice(insertIndex, 0, currentId);
-
-    config.providerOrder = newOrder;
-  });
-}
-
-// 拖拽排序结束后调用的保存函数
 function saveModelOrder() {
   if (!provider_key.value) return;
   const keyToUpdate = provider_key.value;
@@ -616,11 +532,6 @@ const apiKeyCount = computed(() => {
                     </el-tooltip>
                   </h2>
                   <div class="header-buttons">
-                    <!-- [修改] 禁用状态绑定到 canMoveUp/canMoveDown -->
-                    <el-button :icon="ArrowUp" circle plain size="small" :title="t('providers.moveUpTooltip')"
-                      :disabled="!canMoveUp" @click="change_order('up')" />
-                    <el-button :icon="ArrowDown" circle plain size="small" :title="t('providers.moveDownTooltip')"
-                      :disabled="!canMoveDown" @click="change_order('down')" />
                     <el-button type="danger" :icon="Delete" circle plain size="small" @click="delete_provider"
                       :title="t('providers.deleteProviderTooltip')" />
                   </div>
