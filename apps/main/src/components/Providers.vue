@@ -1,6 +1,11 @@
 <script setup>
 import { ref, reactive, onMounted, computed, inject, watch } from 'vue'
-import { Plus, Delete, Edit, Refresh, CirclePlus, Search } from '@element-plus/icons-vue';
+import Plus from 'lucide-vue-next/dist/esm/icons/plus.js';
+import Delete from 'lucide-vue-next/dist/esm/icons/trash-2.js';
+import Edit from 'lucide-vue-next/dist/esm/icons/pencil.js';
+import Refresh from 'lucide-vue-next/dist/esm/icons/refresh-cw.js';
+import CirclePlus from 'lucide-vue-next/dist/esm/icons/circle-plus.js';
+import Search from 'lucide-vue-next/dist/esm/icons/search.js';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import draggable from 'vuedraggable';

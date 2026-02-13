@@ -2,7 +2,13 @@
 import { ref, onMounted, computed, inject, h } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createClient } from "webdav/web";
-import { Upload, FolderOpened, Folder, Refresh, Delete as DeleteIcon, Download, Plus } from '@element-plus/icons-vue'
+import Upload from 'lucide-vue-next/dist/esm/icons/upload.js'
+import FolderOpened from 'lucide-vue-next/dist/esm/icons/folder-open.js'
+import Folder from 'lucide-vue-next/dist/esm/icons/folder.js'
+import Refresh from 'lucide-vue-next/dist/esm/icons/refresh-cw.js'
+import DeleteIcon from 'lucide-vue-next/dist/esm/icons/trash-2.js'
+import Download from 'lucide-vue-next/dist/esm/icons/download.js'
+import Plus from 'lucide-vue-next/dist/esm/icons/plus.js'
 import { ElMessage, ElMessageBox, ElInput } from 'element-plus'
 
 const { t, locale } = useI18n()

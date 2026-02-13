@@ -1,6 +1,17 @@
 <script setup>
 import { ref, reactive, computed, inject, watch, nextTick, onMounted } from 'vue';
-import { Plus, Delete, Close, ChatLineRound, UploadFilled, Position, QuestionFilled, Switch, Refresh, Edit, Download, Search } from '@element-plus/icons-vue';
+import Plus from 'lucide-vue-next/dist/esm/icons/plus.js';
+import Delete from 'lucide-vue-next/dist/esm/icons/trash-2.js';
+import Close from 'lucide-vue-next/dist/esm/icons/x.js';
+import ChatLineRound from 'lucide-vue-next/dist/esm/icons/message-square-text.js';
+import UploadFilled from 'lucide-vue-next/dist/esm/icons/upload.js';
+import Position from 'lucide-vue-next/dist/esm/icons/map-pin.js';
+import QuestionFilled from 'lucide-vue-next/dist/esm/icons/circle-question-mark.js';
+import Switch from 'lucide-vue-next/dist/esm/icons/repeat.js';
+import Refresh from 'lucide-vue-next/dist/esm/icons/refresh-cw.js';
+import Edit from 'lucide-vue-next/dist/esm/icons/pencil.js';
+import Download from 'lucide-vue-next/dist/esm/icons/download.js';
+import Search from 'lucide-vue-next/dist/esm/icons/search.js';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 

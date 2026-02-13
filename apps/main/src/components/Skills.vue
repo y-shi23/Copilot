@@ -2,11 +2,22 @@
 import { ref, reactive, onMounted, computed, inject, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import {
-  FolderOpened, Refresh, Edit, Delete, Plus,
-  Document, UploadFilled, QuestionFilled, Search,
-  Collection, Folder, FolderAdd, Cpu, Warning, Close, Download
-} from '@element-plus/icons-vue';
+import FolderOpened from 'lucide-vue-next/dist/esm/icons/folder-open.js';
+import Refresh from 'lucide-vue-next/dist/esm/icons/refresh-cw.js';
+import Edit from 'lucide-vue-next/dist/esm/icons/pencil.js';
+import Delete from 'lucide-vue-next/dist/esm/icons/trash-2.js';
+import Plus from 'lucide-vue-next/dist/esm/icons/plus.js';
+import Document from 'lucide-vue-next/dist/esm/icons/file-text.js';
+import UploadFilled from 'lucide-vue-next/dist/esm/icons/upload.js';
+import QuestionFilled from 'lucide-vue-next/dist/esm/icons/circle-question-mark.js';
+import Search from 'lucide-vue-next/dist/esm/icons/search.js';
+import Collection from 'lucide-vue-next/dist/esm/icons/library.js';
+import Folder from 'lucide-vue-next/dist/esm/icons/folder.js';
+import FolderAdd from 'lucide-vue-next/dist/esm/icons/folder-plus.js';
+import Cpu from 'lucide-vue-next/dist/esm/icons/cpu.js';
+import Warning from 'lucide-vue-next/dist/esm/icons/triangle-alert.js';
+import Close from 'lucide-vue-next/dist/esm/icons/x.js';
+import Download from 'lucide-vue-next/dist/esm/icons/download.js';
 
 const { t } = useI18n();
 const currentConfig = inject('config');

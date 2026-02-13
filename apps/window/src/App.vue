@@ -2,27 +2,26 @@
 import { ref, onMounted, onBeforeUnmount, nextTick, watch, h, computed, defineAsyncComponent } from 'vue';
 import { ElContainer, ElMain, ElDialog, ElImageViewer, ElMessage, ElMessageBox, ElInput, ElButton, ElCheckbox, ElButtonGroup, ElTag, ElTooltip, ElAvatar, ElSwitch } from 'element-plus';
 import { createClient } from "webdav/web";
-import { __iconNode as copyIconNode } from 'lucide-react/dist/esm/icons/copy.js';
-import { __iconNode as chevronsUpIconNode } from 'lucide-react/dist/esm/icons/chevrons-up.js';
-import { __iconNode as arrowUpIconNode } from 'lucide-react/dist/esm/icons/arrow-up.js';
-import { __iconNode as arrowDownIconNode } from 'lucide-react/dist/esm/icons/arrow-down.js';
-import { __iconNode as chevronsDownIconNode } from 'lucide-react/dist/esm/icons/chevrons-down.js';
-import { __iconNode as downloadIconNode } from 'lucide-react/dist/esm/icons/download.js';
-import { __iconNode as wrenchIconNode } from 'lucide-react/dist/esm/icons/wrench.js';
-import { __iconNode as zapIconNode } from 'lucide-react/dist/esm/icons/zap.js';
-import { __iconNode as chevronRightIconNode } from 'lucide-react/dist/esm/icons/chevron-right.js';
-import { __iconNode as searchIconNode } from 'lucide-react/dist/esm/icons/search.js';
-import { __iconNode as circleHelpIconNode } from 'lucide-react/dist/esm/icons/circle-question-mark.js';
-import { __iconNode as folderIconNode } from 'lucide-react/dist/esm/icons/folder.js';
-import { __iconNode as cpuIconNode } from 'lucide-react/dist/esm/icons/cpu.js';
-import { __iconNode as triangleAlertIconNode } from 'lucide-react/dist/esm/icons/triangle-alert.js';
+import Copy from 'lucide-vue-next/dist/esm/icons/copy.js';
+import ChevronsUp from 'lucide-vue-next/dist/esm/icons/chevrons-up.js';
+import ArrowUp from 'lucide-vue-next/dist/esm/icons/arrow-up.js';
+import ArrowDown from 'lucide-vue-next/dist/esm/icons/arrow-down.js';
+import ChevronsDown from 'lucide-vue-next/dist/esm/icons/chevrons-down.js';
+import Download from 'lucide-vue-next/dist/esm/icons/download.js';
+import Wrench from 'lucide-vue-next/dist/esm/icons/wrench.js';
+import Zap from 'lucide-vue-next/dist/esm/icons/zap.js';
+import ChevronRight from 'lucide-vue-next/dist/esm/icons/chevron-right.js';
+import Search from 'lucide-vue-next/dist/esm/icons/search.js';
+import CircleHelp from 'lucide-vue-next/dist/esm/icons/circle-question-mark.js';
+import Folder from 'lucide-vue-next/dist/esm/icons/folder.js';
+import Cpu from 'lucide-vue-next/dist/esm/icons/cpu.js';
+import TriangleAlert from 'lucide-vue-next/dist/esm/icons/triangle-alert.js';
 
 import TitleBar from './components/TitleBar.vue';
 import ChatHeader from './components/ChatHeader.vue';
 const ChatMessage = defineAsyncComponent(() => import('./components/ChatMessage.vue'));
 import ChatInput from './components/ChatInput.vue';
 import ModelSelectionDialog from './components/ModelSelectionDialog.vue';
-import LucideIcon from './components/LucideIcon.vue';
 
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
@@ -651,7 +650,7 @@ const addCopyButtonsToCodeBlocks = async () => {
     const codeElement = pre.querySelector('code'); if (!codeElement) return;
     const wrapper = document.createElement('div'); wrapper.className = 'code-block-wrapper'; pre.parentNode.insertBefore(wrapper, pre); wrapper.appendChild(pre);
     const codeText = codeElement.textContent || ''; const lines = codeText.trimEnd().split('\n'); const lineCount = lines.length;
-    const copyButtonSVG = renderLucideSvg(copyIconNode, { size: 14, strokeWidth: 2 });
+    const copyButtonSVG = renderLucideSvg(Copy, { size: 14, strokeWidth: 2 });
     const createButton = (positionClass) => {
       const button = document.createElement('button'); button.className = `code-block-copy-button ${positionClass}`; button.innerHTML = copyButtonSVG; button.title = 'Copy code';
       button.addEventListener('click', async (event) => {
@@ -3605,12 +3604,12 @@ const scrollToMessageByIndex = (index) => {
           <div class="nav-group top">
             <el-tooltip content="回到顶部" placement="left" :show-after="500">
               <div class="nav-mini-btn" @click="scrollToTop">
-                <LucideIcon :icon-node="chevronsUpIconNode" :size="16" />
+                <ChevronsUp :size="16" />
               </div>
             </el-tooltip>
             <el-tooltip content="上一条消息" placement="left" :show-after="500">
               <div class="nav-mini-btn" @click="navigateToPreviousMessage">
-                <LucideIcon :icon-node="arrowUpIconNode" :size="16" />
+                <ArrowUp :size="16" />
               </div>
             </el-tooltip>
           </div>
@@ -3646,7 +3645,7 @@ const scrollToMessageByIndex = (index) => {
           <div class="nav-group bottom">
             <el-tooltip :content="nextButtonTooltip" placement="left" :show-after="500">
               <div class="nav-mini-btn" @click="navigateToNextMessage">
-                <LucideIcon :icon-node="arrowDownIconNode" :size="16" />
+                <ArrowDown :size="16" />
               </div>
             </el-tooltip>
             
@@ -3654,7 +3653,7 @@ const scrollToMessageByIndex = (index) => {
               <div class="nav-mini-btn" 
                    :class="{ 'highlight-bottom': showScrollToBottomButton }" 
                    @click="forceScrollToBottom">
-                <LucideIcon :icon-node="chevronsDownIconNode" :size="16" />
+                <ChevronsDown :size="16" />
               </div>
             </el-tooltip>
           </div>
@@ -3694,10 +3693,10 @@ const scrollToMessageByIndex = (index) => {
     @close="imageViewerVisible = false" :hide-on-click-modal="true" teleported />
   <div v-if="imageViewerVisible" class="custom-viewer-actions">
     <el-button type="primary" circle @click="handleCopyImageFromViewer(imageViewerSrcList[0])" title="复制图片">
-      <LucideIcon :icon-node="copyIconNode" :size="16" />
+      <Copy :size="16" />
     </el-button>
     <el-button type="primary" circle @click="handleDownloadImageFromViewer(imageViewerSrcList[0])" title="下载图片">
-      <LucideIcon :icon-node="downloadIconNode" :size="16" />
+      <Download :size="16" />
     </el-button>
   </div>
 
@@ -3733,7 +3732,7 @@ const scrollToMessageByIndex = (index) => {
                   @change="() => toggleMcpServerSelection(server.id)" @click.stop class="header-checkbox" />
 
                 <el-avatar :src="server.logoUrl" shape="square" :size="20" class="mcp-server-icon">
-                  <LucideIcon :icon-node="wrenchIconNode" :size="12" />
+                  <Wrench :size="12" />
                 </el-avatar>
                 <span class="mcp-server-name">
                   {{ server.name }}
@@ -3747,7 +3746,7 @@ const scrollToMessageByIndex = (index) => {
                   <el-tooltip :content="server.isPersistent ? '持久连接已开启' : '持久连接已关闭'" placement="top">
                     <el-button text circle :class="{ 'is-persistent-active': server.isPersistent }"
                       @click.stop="toggleMcpPersistence(server.id, !server.isPersistent)" class="persistent-btn">
-                      <LucideIcon :icon-node="zapIconNode" :size="16" />
+                      <Zap :size="16" />
                     </el-button>
                   </el-tooltip>
 
@@ -3765,7 +3764,7 @@ const scrollToMessageByIndex = (index) => {
               <!-- 第二行：折叠按钮 | 描述 -->
               <div class="mcp-server-body-row">
                 <div class="mcp-tools-toggle" @click.stop="toggleMcpServerExpansion(server.id)">
-                  <LucideIcon :icon-node="chevronRightIconNode" :size="10" class="mcp-tools-toggle-icon"
+                  <ChevronRight :size="10" class="mcp-tools-toggle-icon"
                     :class="{ 'is-expanded': expandedMcpServers.has(server.id) }" />
                   <span>{{ expandedMcpServers.has(server.id) ? '收起' : '工具' }}</span>
                 </div>
@@ -3797,7 +3796,7 @@ const scrollToMessageByIndex = (index) => {
       <div class="mcp-dialog-footer-search">
         <el-input v-model="mcpSearchQuery" placeholder="搜索工具名称或描述..." clearable>
           <template #prefix>
-            <LucideIcon :icon-node="searchIconNode" :size="14" />
+            <Search :size="14" />
           </template>
         </el-input>
       </div>
@@ -3812,7 +3811,7 @@ const scrollToMessageByIndex = (index) => {
                 持久连接各占1个名额<br>
                 所有临时连接共占1个名额
               </template>
-              <LucideIcon :icon-node="circleHelpIconNode" :size="14"
+              <CircleHelp :size="14"
                 style="vertical-align: middle; margin-left: 4px; cursor: help;" />
             </el-tooltip>
           </span>
@@ -3864,7 +3863,7 @@ const scrollToMessageByIndex = (index) => {
 
               <el-avatar shape="square" :size="20" class="mcp-server-icon"
                 style="background:transparent; color: var(--el-text-color-primary); flex-shrink: 0;">
-                <LucideIcon :icon-node="folderIconNode" :size="16" />
+                <Folder :size="16" />
               </el-avatar>
 
               <span class="mcp-server-name skill-name-fixed">{{ skill.name }}</span>
@@ -3878,7 +3877,7 @@ const scrollToMessageByIndex = (index) => {
                 <el-tooltip :content="skill.context === 'fork' ? 'Sub-Agent 模式已开启' : 'Sub-Agent 模式已关闭'" placement="top">
                   <div class="subagent-toggle-btn-small" :class="{ 'is-active': skill.context === 'fork' }"
                     @click.stop="handleSkillForkToggle(skill)">
-                    <LucideIcon :icon-node="cpuIconNode" :size="14" />
+                    <Cpu :size="14" />
                   </div>
                 </el-tooltip>
               </div>
@@ -3892,7 +3891,7 @@ const scrollToMessageByIndex = (index) => {
       <div class="mcp-dialog-footer-search">
         <el-input v-model="skillSearchQuery" placeholder="搜索技能名称或描述..." clearable>
           <template #prefix>
-            <LucideIcon :icon-node="searchIconNode" :size="14" />
+            <Search :size="14" />
           </template>
         </el-input>
       </div>
@@ -3908,7 +3907,7 @@ const scrollToMessageByIndex = (index) => {
           </span>
           <!-- Warning 提示 -->
           <span class="mcp-limit-hint warning" style="display: inline-flex; align-items: center; opacity: 0.8;">
-            <LucideIcon :icon-node="triangleAlertIconNode" :size="14" style="margin-right: 4px;" />
+            <TriangleAlert :size="14" style="margin-right: 4px;" />
             Skill 依赖内置 MCP 服务，请勿禁用
           </span>
         </div>

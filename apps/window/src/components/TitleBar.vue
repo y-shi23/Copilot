@@ -1,17 +1,16 @@
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 import { ElTooltip, ElIcon, ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
-import { __iconNode as downloadIconNode } from 'lucide-react/dist/esm/icons/download.js';
-import { __iconNode as maximize2IconNode } from 'lucide-react/dist/esm/icons/maximize-2.js';
-import { __iconNode as xIconNode } from 'lucide-react/dist/esm/icons/x.js';
-import { __iconNode as minusIconNode } from 'lucide-react/dist/esm/icons/minus.js';
-import { __iconNode as menuIconNode } from 'lucide-react/dist/esm/icons/menu.js';
-import { __iconNode as checkIconNode } from 'lucide-react/dist/esm/icons/check.js';
-import { __iconNode as lockIconNode } from 'lucide-react/dist/esm/icons/lock.js';
-import { __iconNode as circleIconNode } from 'lucide-react/dist/esm/icons/circle.js';
-import { __iconNode as pinIconNode } from 'lucide-react/dist/esm/icons/pin.js';
-import { __iconNode as pinOffIconNode } from 'lucide-react/dist/esm/icons/pin-off.js';
-import LucideIcon from './LucideIcon.vue';
+import Download from 'lucide-vue-next/dist/esm/icons/download.js';
+import Maximize2 from 'lucide-vue-next/dist/esm/icons/maximize-2.js';
+import X from 'lucide-vue-next/dist/esm/icons/x.js';
+import Minus from 'lucide-vue-next/dist/esm/icons/minus.js';
+import Menu from 'lucide-vue-next/dist/esm/icons/menu.js';
+import Check from 'lucide-vue-next/dist/esm/icons/check.js';
+import Lock from 'lucide-vue-next/dist/esm/icons/lock.js';
+import Circle from 'lucide-vue-next/dist/esm/icons/circle.js';
+import Pin from 'lucide-vue-next/dist/esm/icons/pin.js';
+import PinOff from 'lucide-vue-next/dist/esm/icons/pin-off.js';
 
 const props = defineProps({
   favicon: String,
@@ -84,7 +83,7 @@ onBeforeUnmount(() => {
         <el-tooltip content="点击保存会话" placement="bottom" :show-after="500">
           <div class="conversation-inner">
             <span class="conversation-title">{{ displayConversationName }}</span>
-            <el-icon class="download-icon"><LucideIcon :icon-node="downloadIconNode" :size="13" /></el-icon>
+            <el-icon class="download-icon"><Download :size="13" /></el-icon>
           </div>
         </el-tooltip>
       </div>
@@ -97,15 +96,15 @@ onBeforeUnmount(() => {
       <div v-if="!isNarrow" class="function-group no-drag">
         <el-tooltip :content="autoCloseOnBlur ? '失焦自动关闭: 开' : '失焦自动关闭: 关'" placement="bottom" :show-after="500">
           <div class="func-btn" @click="emit('toggle-pin')" :class="{ 'active': !autoCloseOnBlur }">
-             <LucideIcon v-if="!autoCloseOnBlur" :icon-node="lockIconNode" :size="16" />
-             <LucideIcon v-else :icon-node="circleIconNode" :size="16" />
+             <Lock v-if="!autoCloseOnBlur" :size="16" />
+             <Circle v-else :size="16" />
           </div>
         </el-tooltip>
 
         <el-tooltip :content="isAlwaysOnTop ? '取消置顶' : '置顶窗口'" placement="bottom" :show-after="500">
           <div class="func-btn" @click="emit('toggle-always-on-top')" :class="{ 'active': isAlwaysOnTop }">
-            <LucideIcon v-if="isAlwaysOnTop" :icon-node="pinIconNode" :size="16" />
-            <LucideIcon v-else :icon-node="pinOffIconNode" :size="16" />
+            <Pin v-if="isAlwaysOnTop" :size="16" />
+            <PinOff v-else :size="16" />
           </div>
         </el-tooltip>
       </div>
@@ -114,13 +113,13 @@ onBeforeUnmount(() => {
       <div v-else class="function-group no-drag">
         <el-dropdown trigger="click" placement="bottom-end" popper-class="title-bar-dropdown">
           <div class="func-btn" title="更多选项">
-            <el-icon><LucideIcon :icon-node="menuIconNode" :size="16" /></el-icon>
+            <el-icon><Menu :size="16" /></el-icon>
           </div>
           <template #dropdown>
             <el-dropdown-menu>
               <!-- 1. 保存/重命名会话 -->
               <el-dropdown-item @click="emit('save-session')">
-                <el-icon><LucideIcon :icon-node="downloadIconNode" :size="16" /></el-icon>
+                <el-icon><Download :size="16" /></el-icon>
                 <div class="dropdown-text-col">
                   <span>保存/重命名</span>
                   <span class="dropdown-subtext">{{ displayConversationName }}</span>
@@ -133,7 +132,7 @@ onBeforeUnmount(() => {
                   <div class="dropdown-text-col">
                     <span>失焦自动关闭</span>
                   </div>
-                  <el-icon v-if="autoCloseOnBlur" class="check-icon"><LucideIcon :icon-node="checkIconNode" :size="14" /></el-icon>
+                  <el-icon v-if="autoCloseOnBlur" class="check-icon"><Check :size="14" /></el-icon>
                 </div>
               </el-dropdown-item>
 
@@ -143,7 +142,7 @@ onBeforeUnmount(() => {
                   <div class="dropdown-text-col">
                     <span>窗口置顶</span>
                   </div>
-                  <el-icon v-if="isAlwaysOnTop" class="check-icon"><LucideIcon :icon-node="checkIconNode" :size="14" /></el-icon>
+                  <el-icon v-if="isAlwaysOnTop" class="check-icon"><Check :size="14" /></el-icon>
                 </div>
               </el-dropdown-item>
             </el-dropdown-menu>
@@ -156,26 +155,26 @@ onBeforeUnmount(() => {
       <!-- Windows 窗口控制 -->
       <div v-if="isWin" class="window-controls win-controls no-drag">
         <div class="win-btn minimize" @click="emit('minimize')" title="最小化">
-          <el-icon><LucideIcon :icon-node="minusIconNode" :size="14" /></el-icon>
+          <el-icon><Minus :size="14" /></el-icon>
         </div>
         <div class="win-btn maximize" @click="emit('maximize')" title="最大化">
-          <el-icon><LucideIcon :icon-node="maximize2IconNode" :size="14" /></el-icon>
+          <el-icon><Maximize2 :size="14" /></el-icon>
         </div>
         <div class="win-btn close" @click="emit('close')" title="关闭">
-          <el-icon><LucideIcon :icon-node="xIconNode" :size="14" /></el-icon>
+          <el-icon><X :size="14" /></el-icon>
         </div>
       </div>
 
       <!-- Linux 窗口控制 -->
       <div v-if="isLinux" class="window-controls linux-controls no-drag">
         <div class="linux-btn minimize" @click="emit('minimize')">
-          <el-icon><LucideIcon :icon-node="minusIconNode" :size="14" /></el-icon>
+          <el-icon><Minus :size="14" /></el-icon>
         </div>
         <div class="linux-btn maximize" @click="emit('maximize')">
-          <el-icon><LucideIcon :icon-node="maximize2IconNode" :size="14" /></el-icon>
+          <el-icon><Maximize2 :size="14" /></el-icon>
         </div>
         <div class="linux-btn close" @click="emit('close')">
-          <el-icon><LucideIcon :icon-node="xIconNode" :size="14" /></el-icon>
+          <el-icon><X :size="14" /></el-icon>
         </div>
       </div>
     </div>

@@ -2,7 +2,15 @@
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createClient } from "webdav/web";
-import { Refresh, Delete as DeleteIcon, ChatDotRound, Edit, Upload, Download, Switch, QuestionFilled, Brush } from '@element-plus/icons-vue'
+import Refresh from 'lucide-vue-next/dist/esm/icons/refresh-cw.js'
+import DeleteIcon from 'lucide-vue-next/dist/esm/icons/trash-2.js'
+import ChatDotRound from 'lucide-vue-next/dist/esm/icons/message-circle.js'
+import Edit from 'lucide-vue-next/dist/esm/icons/pencil.js'
+import Upload from 'lucide-vue-next/dist/esm/icons/upload.js'
+import Download from 'lucide-vue-next/dist/esm/icons/download.js'
+import Switch from 'lucide-vue-next/dist/esm/icons/repeat.js'
+import QuestionFilled from 'lucide-vue-next/dist/esm/icons/circle-question-mark.js'
+import Brush from 'lucide-vue-next/dist/esm/icons/paintbrush.js'
 import { ElMessage, ElMessageBox, ElProgress, ElScrollbar } from 'element-plus'
 
 const { t } = useI18n();

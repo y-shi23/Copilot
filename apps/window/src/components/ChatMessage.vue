@@ -2,22 +2,21 @@
 import { computed, ref, nextTick, onBeforeUnmount } from 'vue';
 import { Bubble, Thinking, XMarkdown } from 'vue-element-plus-x';
 import { ElTooltip, ElButton, ElInput, ElCollapse, ElCollapseItem, ElCheckbox, ElTag } from 'element-plus';
-import { __iconNode as copyIconNode } from 'lucide-react/dist/esm/icons/copy.js';
-import { __iconNode as checkIconNode } from 'lucide-react/dist/esm/icons/check.js';
-import { __iconNode as pencilIconNode } from 'lucide-react/dist/esm/icons/pencil.js';
-import { __iconNode as chevronUpIconNode } from 'lucide-react/dist/esm/icons/chevron-up.js';
-import { __iconNode as chevronDownIconNode } from 'lucide-react/dist/esm/icons/chevron-down.js';
-import { __iconNode as refreshCwIconNode } from 'lucide-react/dist/esm/icons/refresh-cw.js';
-import { __iconNode as trash2IconNode } from 'lucide-react/dist/esm/icons/trash-2.js';
-import { __iconNode as xIconNode } from 'lucide-react/dist/esm/icons/x.js';
-import { __iconNode as fileTextIconNode } from 'lucide-react/dist/esm/icons/file-text.js';
-import { __iconNode as wrenchIconNode } from 'lucide-react/dist/esm/icons/wrench.js';
-import { __iconNode as squareIconNode } from 'lucide-react/dist/esm/icons/square.js';
+import Copy from 'lucide-vue-next/dist/esm/icons/copy.js';
+import Check from 'lucide-vue-next/dist/esm/icons/check.js';
+import Pencil from 'lucide-vue-next/dist/esm/icons/pencil.js';
+import ChevronUp from 'lucide-vue-next/dist/esm/icons/chevron-up.js';
+import ChevronDown from 'lucide-vue-next/dist/esm/icons/chevron-down.js';
+import RefreshCw from 'lucide-vue-next/dist/esm/icons/refresh-cw.js';
+import Trash2 from 'lucide-vue-next/dist/esm/icons/trash-2.js';
+import X from 'lucide-vue-next/dist/esm/icons/x.js';
+import FileText from 'lucide-vue-next/dist/esm/icons/file-text.js';
+import Wrench from 'lucide-vue-next/dist/esm/icons/wrench.js';
+import Square from 'lucide-vue-next/dist/esm/icons/square.js';
 import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
 
 import { formatTimestamp, formatMessageText, sanitizeToolArgs } from '../utils/formatters.js';
-import LucideIcon from './LucideIcon.vue';
 
 const props = defineProps({
   message: Object,
@@ -383,10 +382,10 @@ onBeforeUnmount(() => {
             <div class="editing-actions">
               <span class="edit-shortcut-hint">Ctrl+Enter 确认 / Esc 取消</span>
               <el-button @click="finishEdit('save')" size="small" circle type="primary">
-                <LucideIcon :icon-node="checkIconNode" :size="14" />
+                <Check :size="14" />
               </el-button>
               <el-button @click="finishEdit('cancel')" size="small" circle>
-                <LucideIcon :icon-node="xIconNode" :size="14" />
+                <X :size="14" />
               </el-button>
             </div>
           </div>
@@ -399,26 +398,25 @@ onBeforeUnmount(() => {
                   :title="isCopied ? '已复制' : '复制'" :aria-label="isCopied ? '已复制' : '复制'"
                   :disabled="isLoading && isLastMessage" @click="onCopy">
                   <transition name="copy-icon-swap" mode="out-in">
-                    <LucideIcon :key="isCopied ? 'copy-ok' : 'copy'" :icon-node="isCopied ? checkIconNode : copyIconNode"
+                    <component :is="isCopied ? Check : Copy" :key="isCopied ? 'copy-ok' : 'copy'"
                       class="footer-action-icon" />
                   </transition>
                 </button>
                 <button v-if="isEditable" class="footer-action-btn" type="button" title="编辑" aria-label="编辑"
                   @click="emit('edit-message-requested', index)">
-                  <LucideIcon :icon-node="pencilIconNode" class="footer-action-icon" />
+                  <Pencil class="footer-action-icon" />
                 </button>
                 <button v-if="shouldShowCollapseButton" class="footer-action-btn" type="button"
                   :title="isCollapsed ? '展开' : '折叠'" :aria-label="isCollapsed ? '展开' : '折叠'"
                   @click="onToggleCollapse($event)">
-                  <LucideIcon :icon-node="isCollapsed ? chevronDownIconNode : chevronUpIconNode"
-                    class="footer-action-icon" />
+                  <component :is="isCollapsed ? ChevronDown : ChevronUp" class="footer-action-icon" />
                 </button>
                 <button v-if="isLastMessage" class="footer-action-btn" type="button" title="重新生成" aria-label="重新生成"
                   @click="onReAsk">
-                  <LucideIcon :icon-node="refreshCwIconNode" class="footer-action-icon" />
+                  <RefreshCw class="footer-action-icon" />
                 </button>
                 <button class="footer-action-btn" type="button" title="删除" aria-label="删除" @click="onDelete">
-                  <LucideIcon :icon-node="trash2IconNode" class="footer-action-icon" />
+                  <Trash2 class="footer-action-icon" />
                 </button>
               </div>
               <div class="message-files-vertical-list" v-if="formatMessageFile(message.content).length > 0">
@@ -427,7 +425,7 @@ onBeforeUnmount(() => {
                   :popper-style="{ maxWidth: '30vw', wordBreak: 'break-all' }">
                   <el-button class="file-button" type="info" plain size="small">
                     <template #icon>
-                      <LucideIcon :icon-node="fileTextIconNode" :size="14" />
+                      <FileText :size="14" />
                     </template>
                     {{ truncateFilename(file_name, 20) }}
                   </el-button>
@@ -473,10 +471,10 @@ onBeforeUnmount(() => {
             <div class="editing-actions">
               <span class="edit-shortcut-hint">Ctrl+Enter 确认 / Esc 取消</span>
               <el-button @click="finishEdit('save')" size="small" circle type="primary">
-                <LucideIcon :icon-node="checkIconNode" :size="14" />
+                <Check :size="14" />
               </el-button>
               <el-button @click="finishEdit('cancel')" size="small" circle>
-                <LucideIcon :icon-node="xIconNode" :size="14" />
+                <X :size="14" />
               </el-button>
             </div>
           </div>
@@ -487,7 +485,7 @@ onBeforeUnmount(() => {
                 <el-collapse-item :name="toolCall.id">
                   <template #title>
                     <div class="tool-call-title">
-                      <LucideIcon :icon-node="wrenchIconNode" :size="15" class="tool-icon" />
+                      <Wrench :size="15" class="tool-icon" />
                       <span class="tool-name">{{ toolCall.name }}</span>
                       <div class="tool-header-right">
                         <el-tag v-if="toolCall.approvalStatus === 'waiting'" type="warning" size="small" effect="light"
@@ -500,7 +498,7 @@ onBeforeUnmount(() => {
                           effect="plain" round>完成</el-tag>
                         <el-tooltip content="停止执行" placement="top" v-if="toolCall.approvalStatus === 'executing'">
                           <div class="stop-btn-wrapper" @click.stop="$emit('cancel-tool-call', toolCall.id)">
-                            <LucideIcon :icon-node="squareIconNode" :size="14" />
+                            <Square :size="14" />
                           </div>
                         </el-tooltip>
                       </div>
@@ -525,13 +523,13 @@ onBeforeUnmount(() => {
                 <div class="actions-left">
                   <el-button type="primary" size="small" @click="$emit('confirm-tool', toolCall.id, true)">
                     <template #icon>
-                      <LucideIcon :icon-node="checkIconNode" :size="14" />
+                      <Check :size="14" />
                     </template>
                     确认
                   </el-button>
                   <el-button size="small" @click="$emit('reject-tool', toolCall.id, false)">
                     <template #icon>
-                      <LucideIcon :icon-node="xIconNode" :size="14" />
+                      <X :size="14" />
                     </template>
                     取消
                   </el-button>
@@ -551,25 +549,24 @@ onBeforeUnmount(() => {
                 :title="isCopied ? '已复制' : '复制'" :aria-label="isCopied ? '已复制' : '复制'"
                 :disabled="isLoading && isLastMessage" @click="onCopy">
                 <transition name="copy-icon-swap" mode="out-in">
-                  <LucideIcon :key="isCopied ? 'copy-ok' : 'copy'" :icon-node="isCopied ? checkIconNode : copyIconNode"
+                  <component :is="isCopied ? Check : Copy" :key="isCopied ? 'copy-ok' : 'copy'"
                     class="footer-action-icon" />
                 </transition>
               </button>
               <button v-if="isEditable" class="footer-action-btn" type="button" title="编辑" aria-label="编辑"
                 @click="emit('edit-message-requested', index)">
-                <LucideIcon :icon-node="pencilIconNode" class="footer-action-icon" />
+                <Pencil class="footer-action-icon" />
               </button>
               <button v-if="shouldShowCollapseButton" class="footer-action-btn" type="button"
                 :title="isCollapsed ? '展开' : '折叠'" :aria-label="isCollapsed ? '展开' : '折叠'" @click="onToggleCollapse($event)">
-                <LucideIcon :icon-node="isCollapsed ? chevronDownIconNode : chevronUpIconNode"
-                  class="footer-action-icon" />
+                <component :is="isCollapsed ? ChevronDown : ChevronUp" class="footer-action-icon" />
               </button>
               <button v-if="isLastMessage" class="footer-action-btn" type="button" title="重新生成" aria-label="重新生成"
                 @click="onReAsk">
-                <LucideIcon :icon-node="refreshCwIconNode" class="footer-action-icon" />
+                <RefreshCw class="footer-action-icon" />
               </button>
               <button class="footer-action-btn" type="button" title="删除" aria-label="删除" @click="onDelete">
-                <LucideIcon :icon-node="trash2IconNode" class="footer-action-icon" />
+                <Trash2 class="footer-action-icon" />
               </button>
             </div>
           </div>

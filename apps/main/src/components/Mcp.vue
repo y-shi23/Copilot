@@ -2,7 +2,18 @@
 import { ref, reactive, computed, inject } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox, ElScrollbar, ElAlert } from 'element-plus';
-import { Plus, Delete, Edit, CopyDocument, Tools, Search, Refresh, QuestionFilled, Link, CaretRight, CaretBottom, Zap } from '@element-plus/icons-vue';
+import Plus from 'lucide-vue-next/dist/esm/icons/plus.js';
+import Delete from 'lucide-vue-next/dist/esm/icons/trash-2.js';
+import Edit from 'lucide-vue-next/dist/esm/icons/pencil.js';
+import CopyDocument from 'lucide-vue-next/dist/esm/icons/copy.js';
+import Tools from 'lucide-vue-next/dist/esm/icons/wrench.js';
+import Search from 'lucide-vue-next/dist/esm/icons/search.js';
+import Refresh from 'lucide-vue-next/dist/esm/icons/refresh-cw.js';
+import QuestionFilled from 'lucide-vue-next/dist/esm/icons/circle-question-mark.js';
+import Link from 'lucide-vue-next/dist/esm/icons/link.js';
+import CaretRight from 'lucide-vue-next/dist/esm/icons/chevron-right.js';
+import CaretBottom from 'lucide-vue-next/dist/esm/icons/chevron-down.js';
+import Zap from 'lucide-vue-next/dist/esm/icons/zap.js';
 const { t } = useI18n();
 const currentConfig = inject('config');
 

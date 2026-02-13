@@ -8,15 +8,13 @@ import Providers from './components/Providers.vue'
 import Skills from './components/Skills.vue'
 
 import { useI18n } from 'vue-i18n'
-import {
-  Bell,
-  ChatDotRound,
-  MagicStick,
-  Collection,
-  Cloudy,
-  Setting as SettingIcon,
-  Document
-} from '@element-plus/icons-vue'
+import Bell from 'lucide-vue-next/dist/esm/icons/bell.js'
+import ChatDotRound from 'lucide-vue-next/dist/esm/icons/message-circle.js'
+import MagicStick from 'lucide-vue-next/dist/esm/icons/wand-sparkles.js'
+import Collection from 'lucide-vue-next/dist/esm/icons/library.js'
+import Cloudy from 'lucide-vue-next/dist/esm/icons/cloud.js'
+import SettingIcon from 'lucide-vue-next/dist/esm/icons/settings.js'
+import Document from 'lucide-vue-next/dist/esm/icons/file-text.js'
 import { marked } from 'marked';
 import { ElBadge } from 'element-plus'; // 确保引入 ElBadge
 
