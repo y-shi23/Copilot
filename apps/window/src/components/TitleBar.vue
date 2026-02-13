@@ -183,7 +183,6 @@ onBeforeUnmount(() => {
 </template>
 
 <style>
-/* 全局覆盖 Element Plus Dropdown 样式以适配主题 */
 .title-bar-dropdown {
   --el-bg-color-overlay: var(--el-bg-color);
   --el-border-color-light: var(--el-border-color);
@@ -195,13 +194,29 @@ html.dark .title-bar-dropdown {
   border-color: #444 !important;
 }
 
+.title-bar-dropdown .el-dropdown-menu__item {
+  border-radius: 6px !important;
+  margin: 0 !important;
+  padding: 0 12px !important;
+  height: 32px !important;
+  line-height: 32px !important;
+  display: flex !important;
+  align-items: center !important;
+  transition: background-color 0.15s ease !important;
+}
+
+.title-bar-dropdown .el-dropdown-menu__item + .el-dropdown-menu__item {
+  margin-top: 2px !important;
+}
+
 .title-bar-dropdown .el-dropdown-menu__item:hover {
-  background-color: var(--el-fill-color);
-  color: var(--el-color-primary);
+  background-color: #eeeeee !important;
+  color: var(--el-text-color-primary) !important;
 }
 
 html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
-  background-color: #444;
+  background-color: #444 !important;
+  color: var(--el-text-color-primary) !important;
 }
 </style>
 

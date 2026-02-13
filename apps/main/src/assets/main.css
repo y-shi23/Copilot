@@ -122,18 +122,22 @@ a:hover {
 }
 
 .settings-select-popper .el-select-dropdown {
-  border: 1px solid var(--border-primary) !important;
+  border: none !important;
   border-radius: var(--radius-lg) !important;
-  background: var(--bg-secondary) !important;
-  box-shadow: none !important;
+  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent) !important;
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   overflow: hidden !important;
+  padding: 6px !important;
 }
 
 .settings-select-popper .el-select-dropdown__wrap,
+.settings-select-popper .el-select-dropdown__list,
 .settings-select-popper .el-scrollbar__wrap,
-.settings-select-popper .el-scrollbar {
-  border: none !important;
-  box-shadow: none !important;
+.settings-select-popper .el-scrollbar__view {
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .settings-select-popper .el-popper__arrow,
