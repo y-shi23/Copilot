@@ -6,6 +6,8 @@ import Edit from 'lucide-vue-next/dist/esm/icons/pencil.js';
 import Refresh from 'lucide-vue-next/dist/esm/icons/refresh-cw.js';
 import CirclePlus from 'lucide-vue-next/dist/esm/icons/circle-plus.js';
 import Search from 'lucide-vue-next/dist/esm/icons/search.js';
+import ListCheck from 'lucide-vue-next/dist/esm/icons/list-checks.js';
+import Minus from 'lucide-vue-next/dist/esm/icons/minus.js';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import draggable from 'vuedraggable';
@@ -396,12 +398,12 @@ watch(contextMenuVisible, (val) => {
 
                 <el-form-item :label="t('providers.modelsLabel')">
                   <div class="models-actions-row">
-                    <el-button :icon="Refresh" plain @click="activate_get_model_function">{{
-                      t('providers.getModelsFromApiBtn')
-                    }}</el-button>
-                    <el-button :icon="Plus" plain @click="addModel_page = true">{{
-                      t('providers.addManuallyBtn')
-                    }}</el-button>
+                    <el-tooltip :content="t('providers.getModelsFromApiBtn')" placement="top">
+                      <el-button :icon="ListCheck" plain @click="activate_get_model_function" circle />
+                    </el-tooltip>
+                    <el-tooltip :content="t('providers.addManuallyBtn')" placement="top">
+                      <el-button :icon="Plus" plain @click="addModel_page = true" circle />
+                    </el-tooltip>
                   </div>
                 </el-form-item>
                 <div class="models-list-wrapper">
@@ -412,7 +414,7 @@ watch(contextMenuVisible, (val) => {
                     <template #item="{ element: model }">
                       <div class="model-tag">
                         <span class="model-name">{{ model }}</span>
-                        <span class="model-remove-icon" @click.stop="delete_model(model)">−</span>
+                        <Minus class="model-remove-icon" :size="16" @click.stop="delete_model(model)" />
                       </div>
                     </template>
                   </draggable>
@@ -818,14 +820,14 @@ watch(contextMenuVisible, (val) => {
 }
 
 .model-remove-icon {
-  font-size: 16px;
-  font-weight: 300;
   color: var(--text-secondary);
-  line-height: 1;
-  padding: 2px 6px;
+  padding: 4px;
   border-radius: var(--radius-sm, 4px);
   cursor: pointer;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .model-remove-icon:hover {
