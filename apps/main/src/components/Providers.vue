@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, onMounted, computed, inject, watch } from 'vue'
-import { Plus, Trash2 as Delete, Pencil as Edit, RefreshCw as Refresh, CirclePlus, Search, ListCheck, Minus, Eye, EyeOff } from 'lucide-vue-next';
+import { Plus, Trash2 as Delete, Pencil as Edit, RefreshCw as Refresh, Search, ListCheck, Minus, Eye, EyeOff } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import draggable from 'vuedraggable';
@@ -478,9 +478,11 @@ watch(contextMenuVisible, (val) => {
     </el-dialog>
 
     <el-dialog v-model="getModel_page" :title="t('providers.availableModelsDialogTitle')" width="700px" top="10vh"
-      :close-on-click-modal="false" class="available-models-dialog">
-      <el-input v-model="searchQuery" :placeholder="t('providers.searchModelsPlaceholder')" clearable
-        :prefix-icon="Search" class="dialog-search-input" />
+      :close-on-click-modal="false" append-to-body class="available-models-dialog">
+      <div class="dialog-search-bar-container">
+        <el-input v-model="searchQuery" :placeholder="t('providers.searchModelsPlaceholder')" clearable
+          :prefix-icon="Search" />
+      </div>
 
       <el-alert v-if="getModel_form.error" :title="getModel_form.error" type="error" show-icon :closable="false"
         class="dialog-error-alert" />
@@ -489,7 +491,6 @@ watch(contextMenuVisible, (val) => {
         :empty-text="searchQuery ? t('providers.noModelsMatchSearch') : t('providers.noModelsFoundError')" stripe
         border>
         <el-table-column prop="id" :label="t('providers.table.modelId')" sortable />
-        <el-table-column prop="owned_by" :label="t('providers.table.ownedBy')" width="175" sortable />
         <el-table-column :label="t('providers.table.action')" width="100" align="center">
           <template #default="scope">
             <el-tooltip
@@ -497,7 +498,7 @@ watch(contextMenuVisible, (val) => {
               placement="top">
               <el-button
                 :type="selectedProvider && selectedProvider.modelList && selectedProvider.modelList.includes(scope.row.id) ? 'danger' : 'success'"
-                :icon="selectedProvider && selectedProvider.modelList && selectedProvider.modelList.includes(scope.row.id) ? Remove : CirclePlus"
+                :icon="selectedProvider && selectedProvider.modelList && selectedProvider.modelList.includes(scope.row.id) ? Minus : Plus"
                 circle size="small" class="circle-action-btn"
                 @click="get_model_function(!(selectedProvider && selectedProvider.modelList && selectedProvider.modelList.includes(scope.row.id)), scope.row.id)" />
             </el-tooltip>
@@ -924,12 +925,25 @@ watch(contextMenuVisible, (val) => {
   padding: 15px 20px 10px 20px !important;
 }
 
-:deep(.available-models-dialog .dialog-search-input) {
-  margin-bottom: 0 !important;
-}
-
 :deep(.available-models-dialog .dialog-error-alert) {
   margin-bottom: 15px !important;
+}
+
+.dialog-search-bar-container {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--bg-primary);
+  padding: 0px 0px 8px 0px;
+  margin: 0px 0px 10px 0px;
+}
+
+.dialog-search-bar-container :deep(.el-input__wrapper) {
+  box-shadow: 0 0 0 1px var(--border-primary) inset !important;
+}
+
+.dialog-search-bar-container :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--text-accent) inset !important;
 }
 
 :deep(.el-dialog__footer) {
