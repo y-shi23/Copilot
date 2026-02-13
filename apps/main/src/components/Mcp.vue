@@ -1,8 +1,8 @@
 <script setup>
-import { ref, reactive, computed, inject } from 'vue';
+import { ref, reactive, computed, inject, onMounted, nextTick, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox, ElScrollbar, ElAlert } from 'element-plus';
-import { Plus, Trash2 as Delete, Pencil as Edit, Copy as CopyDocument, Wrench as Tools, Search, RefreshCw as Refresh, CircleQuestionMark as QuestionFilled, Link, ChevronRight as CaretRight, ChevronDown as CaretBottom, Zap } from 'lucide-vue-next';
+import { Plus, Trash2 as Delete, Pencil as Edit, Copy as CopyDocument, Wrench as Tools, Search, RefreshCw as Refresh, CircleQuestionMark as QuestionFilled, Link, ChevronRight as CaretRight, ChevronDown as CaretBottom, Zap, ChevronRight } from 'lucide-vue-next';
 const { t } = useI18n();
 const currentConfig = inject('config');
 
@@ -12,6 +12,18 @@ const isNewServer = ref(false);
 const jsonEditorContent = ref('');
 const searchQuery = ref('');
 const advancedCollapse = ref([]);
+
+const tagsOverflowState = ref({});
+const tagsContainerRefs = ref({});
+
+function checkTagsOverflow(serverId) {
+    nextTick(() => {
+        const container = tagsContainerRefs.value[serverId];
+        if (container) {
+            tagsOverflowState.value[serverId] = container.scrollWidth > container.clientWidth;
+        }
+    });
+}
 
 // 测试相关状态
 const activeTestTab = ref('list');
@@ -132,6 +144,22 @@ const filteredMcpServersList = computed(() => {
         (server.type && getDisplayTypeName(server.type).toLowerCase().includes(lowerCaseQuery))
     );
 });
+
+function initAllTagsOverflow() {
+    nextTick(() => {
+        filteredMcpServersList.value.forEach(server => {
+            checkTagsOverflow(server.id);
+        });
+    });
+}
+
+onMounted(() => {
+    window.addEventListener('resize', initAllTagsOverflow);
+});
+
+watch(filteredMcpServersList, () => {
+    initAllTagsOverflow();
+}, { deep: true });
 
 function getDisplayTypeName(type) {
     if (!type) return '';
@@ -608,10 +636,15 @@ async function triggerConnectionTest(server) {
                                 <p class="mcp-description">{{ server.description }}</p>
                             </div>
                             <div class="mcp-card-footer">
-                                <div class="mcp-tags">
-                                    <el-tag v-if="server.type" size="small" type="info">{{
-                                        getDisplayTypeName(server.type) }}</el-tag>
-                                    <el-tag v-for="tag in server.tags" :key="tag" size="small">{{ tag }}</el-tag>
+                                <div class="mcp-tags-wrapper">
+                                    <div class="mcp-tags-scroll" :ref="el => tagsContainerRefs[server.id] = el">
+                                        <el-tag v-if="server.type" size="small" type="info">{{
+                                            getDisplayTypeName(server.type) }}</el-tag>
+                                        <el-tag v-for="tag in server.tags" :key="tag" size="small">{{ tag }}</el-tag>
+                                    </div>
+                                    <div v-if="tagsOverflowState[server.id]" class="mcp-tags-overflow-hint">
+                                        <ChevronRight :size="14" />
+                                    </div>
                                 </div>
                                 <div class="mcp-actions">
                                     <el-tooltip :content="t('mcp.testConnectionTooltip')" placement="top">
@@ -1105,14 +1138,39 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
     gap: 12px;
 }
 
-.mcp-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+.mcp-tags-wrapper {
+    position: relative;
     flex-grow: 1;
     min-width: 0;
-    margin-top: 0px;
-    padding-top: 0px;
+    display: flex;
+    align-items: center;
+}
+
+.mcp-tags-scroll {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-grow: 1;
+    min-width: 0;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.mcp-tags-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.mcp-tags-overflow-hint {
+    flex-shrink: 0;
+    margin-left: 4px;
+    color: var(--text-tertiary);
+    opacity: 0.4;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
 }
 
 .persistent-btn-header {
