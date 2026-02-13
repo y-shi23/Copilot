@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, onMounted, computed, inject, watch } from 'vue'
-import { Plus, Trash2 as Delete, Pencil as Edit, RefreshCw as Refresh, CirclePlus, Search, ListCheck, Minus } from 'lucide-vue-next';
+import { Plus, Trash2 as Delete, Pencil as Edit, RefreshCw as Refresh, CirclePlus, Search, ListCheck, Minus, Eye, EyeOff } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import draggable from 'vuedraggable';
@@ -9,6 +9,7 @@ const { t } = useI18n();
 
 const currentConfig = inject('config');
 const provider_key = ref(null);
+const showApiKey = ref(false);
 
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
@@ -380,9 +381,19 @@ watch(contextMenuVisible, (val) => {
                       <span v-if="apiKeyCount > 0" class="api-key-count-badge">{{ apiKeyCount }}</span>
                     </span>
                   </template>
-                  <el-input v-model="selectedProvider.api_key" type="password"
-                    :placeholder="t('providers.apiKeyPlaceholder')" show-password
-                    @change="(value) => saveSingleProviderSetting('api_key', value)" />
+                  <el-input 
+                    v-model="selectedProvider.api_key" 
+                    :type="showApiKey ? 'text' : 'password'"
+                    :placeholder="t('providers.apiKeyPlaceholder')"
+                    @change="(value) => saveSingleProviderSetting('api_key', value)">
+                    <template #suffix>
+                      <component 
+                        :is="showApiKey ? EyeOff : Eye" 
+                        :size="16" 
+                        @click="showApiKey = !showApiKey"
+                        style="cursor: pointer;" />
+                    </template>
+                  </el-input>
                 </el-form-item>
                 <el-form-item :label="t('providers.apiUrlLabel')">
                   <el-input v-model="selectedProvider.url" :placeholder="t('providers.apiUrlPlaceholder')"
