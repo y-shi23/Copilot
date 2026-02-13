@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted, computed, inject } from 'vue'
+import { ref, reactive, onMounted, computed, inject, watch } from 'vue'
 import { Plus, Delete, Edit, ArrowUp, ArrowDown, Refresh, CirclePlus, Remove, Search, Folder, FolderOpened, FolderAdd } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
@@ -61,6 +61,55 @@ const getProvidersInFolder = (folderId) => {
   });
 };
 
+// ---- 拖拽排序状态 ----
+const localRootOrder = ref([]);
+const localFolderOrders = reactive({});
+
+watch(rootProviders, (val) => {
+  localRootOrder.value = [...val];
+}, { immediate: true });
+
+watch(
+  [sortedFolders, () => currentConfig.value.providerOrder],
+  () => {
+    for (const folder of sortedFolders.value) {
+      localFolderOrders[folder.id] = getProvidersInFolder(folder.id);
+    }
+  },
+  { immediate: true }
+);
+
+function persistGroupOrder(newList, folderId) {
+  const folders = currentConfig.value.providerFolders || {};
+  atomicSave(config => {
+    const newOrder = [];
+    let idx = 0;
+    for (const id of config.providerOrder) {
+      const p = config.providers[id];
+      if (!p) continue;
+      const isTarget = folderId
+        ? p.folderId === folderId
+        : (!p.folderId || !folders[p.folderId]);
+      if (isTarget) {
+        if (idx < newList.length) newOrder.push(newList[idx++]);
+      } else {
+        newOrder.push(id);
+      }
+    }
+    while (idx < newList.length) newOrder.push(newList[idx++]);
+    config.providerOrder = newOrder;
+  });
+}
+
+function saveRootProviderOrder() {
+  persistGroupOrder(localRootOrder.value, null);
+}
+
+function saveFolderProviderOrder(folderId) {
+  if (!localFolderOrders[folderId]) return;
+  persistGroupOrder(localFolderOrders[folderId], folderId);
+}
+
 // [新增] 获取当前选中服务商所在的“分组”内的所有ID列表（按顺序）
 // 分组指的是：具体的文件夹 或 根目录
 const getCurrentGroupIds = () => {
@@ -81,7 +130,6 @@ const getCurrentGroupIds = () => {
   });
 };
 
-// [新增] 判断是否可以上移
 const canMoveUp = computed(() => {
   if (!selectedProvider.value || !provider_key.value) return false;
   const groupIds = getCurrentGroupIds();
@@ -497,15 +545,20 @@ const apiKeyCount = computed(() => {
 
               <!-- 文件夹内的服务商 -->
               <div v-show="!folder.collapsed" class="folder-content">
-                <div v-for="key_id in getProvidersInFolder(folder.id)" :key="key_id" class="provider-item in-folder"
-                  :class="{
-                    'active': provider_key === key_id, 'disabled': currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable
-                  }" @click="provider_key = key_id">
-                  <span class="provider-item-name">{{ currentConfig.providers[key_id]?.name ||
-                    t('providers.unnamedProvider') }}</span>
-                  <el-tag v-if="currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable" type="info"
-                    size="small" effect="dark" round>{{ t('providers.statusOff') }}</el-tag>
-                </div>
+                <draggable v-model="localFolderOrders[folder.id]" :item-key="(el) => el" :animation="250"
+                  ghost-class="provider-drag-ghost" :force-fallback="true" fallback-class="provider-drag-fallback"
+                  :fallback-on-body="true" @end="saveFolderProviderOrder(folder.id)">
+                  <template #item="{ element: key_id }">
+                    <div class="provider-item in-folder" :class="{
+                      'active': provider_key === key_id, 'disabled': currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable
+                    }" @click="provider_key = key_id">
+                      <span class="provider-item-name">{{ currentConfig.providers[key_id]?.name ||
+                        t('providers.unnamedProvider') }}</span>
+                      <el-tag v-if="currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable" type="info"
+                        size="small" effect="dark" round>{{ t('providers.statusOff') }}</el-tag>
+                    </div>
+                  </template>
+                </draggable>
                 <!-- 空文件夹提示 -->
                 <div v-if="getProvidersInFolder(folder.id).length === 0" class="empty-folder-tip">
                   {{ t('providers.folders.empty') }}
@@ -517,14 +570,20 @@ const apiKeyCount = computed(() => {
             <div class="root-providers-divider" v-if="sortedFolders.length > 0 && rootProviders.length > 0"></div>
 
             <!-- 2. 渲染根目录服务商 -->
-            <div v-for="key_id in rootProviders" :key="key_id" class="provider-item" :class="{
-              'active': provider_key === key_id, 'disabled': currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable
-            }" @click="provider_key = key_id">
-              <span class="provider-item-name">{{ currentConfig.providers[key_id]?.name ||
-                t('providers.unnamedProvider') }}</span>
-              <el-tag v-if="currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable" type="info"
-                size="small" effect="dark" round>{{ t('providers.statusOff') }}</el-tag>
-            </div>
+            <draggable v-model="localRootOrder" :item-key="(el) => el" :animation="250"
+              ghost-class="provider-drag-ghost" :force-fallback="true" fallback-class="provider-drag-fallback"
+              :fallback-on-body="true" @end="saveRootProviderOrder">
+              <template #item="{ element: key_id }">
+                <div class="provider-item" :class="{
+                  'active': provider_key === key_id, 'disabled': currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable
+                }" @click="provider_key = key_id">
+                  <span class="provider-item-name">{{ currentConfig.providers[key_id]?.name ||
+                    t('providers.unnamedProvider') }}</span>
+                  <el-tag v-if="currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable" type="info"
+                    size="small" effect="dark" round>{{ t('providers.statusOff') }}</el-tag>
+                </div>
+              </template>
+            </draggable>
             <div
               v-if="(!currentConfig.providerOrder || currentConfig.providerOrder.length === 0) && sortedFolders.length === 0"
               class="no-providers">
@@ -806,10 +865,14 @@ const apiKeyCount = computed(() => {
   padding: 12px 14px;
   margin-bottom: 4px;
   border-radius: var(--radius-md);
-  cursor: pointer;
+  cursor: grab;
   transition: background-color 0.2s, color 0.2s;
   font-size: 14px;
   color: var(--text-primary) !important;
+}
+
+.provider-item:active {
+  cursor: grabbing;
 }
 
 .provider-item-name {
@@ -1008,6 +1071,28 @@ const apiKeyCount = computed(() => {
 html.dark .model-tag :deep(.el-tag__close:hover) {
   background-color: var(--border-primary) !important;
   color: var(--text-primary) !important;
+}
+
+/* Provider list drag & drop */
+.provider-drag-ghost {
+  opacity: 0 !important;
+  transition: none !important;
+}
+
+:global(.provider-drag-fallback) {
+  opacity: 1 !important;
+  background-color: var(--bg-accent-light) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.12),
+              0 2px 6px -1px rgba(0, 0, 0, 0.05) !important;
+  z-index: 9999 !important;
+  transition: box-shadow 0.2s ease !important;
+}
+
+:global(html.dark .provider-drag-fallback) {
+  background-color: var(--bg-accent-light) !important;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5),
+              0 2px 6px -1px rgba(0, 0, 0, 0.25) !important;
 }
 
 .draggable-models-list .model-tag {
