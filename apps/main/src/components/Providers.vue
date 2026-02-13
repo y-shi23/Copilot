@@ -392,10 +392,10 @@ watch(contextMenuVisible, (val) => {
                 <el-form-item :label="t('providers.modelsLabel')">
                   <div class="models-actions-row">
                     <el-tooltip :content="t('providers.getModelsFromApiBtn')" placement="top">
-                      <el-button :icon="ListCheck" plain @click="activate_get_model_function" circle />
+                      <el-button :icon="ListCheck" @click="activate_get_model_function" circle class="model-action-btn" />
                     </el-tooltip>
                     <el-tooltip :content="t('providers.addManuallyBtn')" placement="top">
-                      <el-button :icon="Plus" plain @click="addModel_page = true" circle />
+                      <el-button :icon="Plus" @click="addModel_page = true" circle class="model-action-btn" />
                     </el-tooltip>
                   </div>
                 </el-form-item>
@@ -800,12 +800,7 @@ watch(contextMenuVisible, (val) => {
   height: 36px;
   padding: 0 12px;
   box-sizing: border-box;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.model-tag:hover {
-  background-color: var(--bg-primary);
+  cursor: move;
 }
 
 .model-name {
@@ -978,6 +973,20 @@ watch(contextMenuVisible, (val) => {
 .models-actions-row {
   display: flex;
   gap: 10px;
+}
+
+.model-action-btn {
+  background-color: #EBEBEF;
+  border: none;
+  color: var(--text-primary);
+}
+
+html.dark .model-action-btn {
+  background-color: #A1A1AA;
+}
+
+.model-action-btn:hover {
+  opacity: 0.85;
 }
 
 .models-list-wrapper {
