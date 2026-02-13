@@ -2,20 +2,7 @@
 import { ref, onMounted, onBeforeUnmount, nextTick, watch, h, computed, defineAsyncComponent } from 'vue';
 import { ElContainer, ElMain, ElDialog, ElImageViewer, ElMessage, ElMessageBox, ElInput, ElButton, ElCheckbox, ElButtonGroup, ElTag, ElTooltip, ElAvatar, ElSwitch } from 'element-plus';
 import { createClient } from "webdav/web";
-import Copy from 'lucide-vue-next/dist/esm/icons/copy.js';
-import ChevronsUp from 'lucide-vue-next/dist/esm/icons/chevrons-up.js';
-import ArrowUp from 'lucide-vue-next/dist/esm/icons/arrow-up.js';
-import ArrowDown from 'lucide-vue-next/dist/esm/icons/arrow-down.js';
-import ChevronsDown from 'lucide-vue-next/dist/esm/icons/chevrons-down.js';
-import Download from 'lucide-vue-next/dist/esm/icons/download.js';
-import Wrench from 'lucide-vue-next/dist/esm/icons/wrench.js';
-import Zap from 'lucide-vue-next/dist/esm/icons/zap.js';
-import ChevronRight from 'lucide-vue-next/dist/esm/icons/chevron-right.js';
-import Search from 'lucide-vue-next/dist/esm/icons/search.js';
-import CircleHelp from 'lucide-vue-next/dist/esm/icons/circle-question-mark.js';
-import Folder from 'lucide-vue-next/dist/esm/icons/folder.js';
-import Cpu from 'lucide-vue-next/dist/esm/icons/cpu.js';
-import TriangleAlert from 'lucide-vue-next/dist/esm/icons/triangle-alert.js';
+import { Copy, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Download, Wrench, Zap, ChevronRight, Search, CircleQuestionMark as CircleHelp, Folder, Cpu, TriangleAlert } from 'lucide-vue-next';
 
 import TitleBar from './components/TitleBar.vue';
 import ChatHeader from './components/ChatHeader.vue';

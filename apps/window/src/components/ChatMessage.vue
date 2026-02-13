@@ -2,17 +2,7 @@
 import { computed, ref, nextTick, onBeforeUnmount } from 'vue';
 import { Bubble, Thinking, XMarkdown } from 'vue-element-plus-x';
 import { ElTooltip, ElButton, ElInput, ElCollapse, ElCollapseItem, ElCheckbox, ElTag } from 'element-plus';
-import Copy from 'lucide-vue-next/dist/esm/icons/copy.js';
-import Check from 'lucide-vue-next/dist/esm/icons/check.js';
-import Pencil from 'lucide-vue-next/dist/esm/icons/pencil.js';
-import ChevronUp from 'lucide-vue-next/dist/esm/icons/chevron-up.js';
-import ChevronDown from 'lucide-vue-next/dist/esm/icons/chevron-down.js';
-import RefreshCw from 'lucide-vue-next/dist/esm/icons/refresh-cw.js';
-import Trash2 from 'lucide-vue-next/dist/esm/icons/trash-2.js';
-import X from 'lucide-vue-next/dist/esm/icons/x.js';
-import FileText from 'lucide-vue-next/dist/esm/icons/file-text.js';
-import Wrench from 'lucide-vue-next/dist/esm/icons/wrench.js';
-import Square from 'lucide-vue-next/dist/esm/icons/square.js';
+import { Copy, Check, Pencil, ChevronUp, ChevronDown, RefreshCw, Trash2, X, FileText, Wrench, Square } from 'lucide-vue-next';
 import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
 

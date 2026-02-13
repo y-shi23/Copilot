@@ -1,7 +1,5 @@
 // ./apps/window/src/utils/TextSearchUI.js
-import ChevronUp from 'lucide-vue-next/dist/esm/icons/chevron-up.js';
-import ChevronDown from 'lucide-vue-next/dist/esm/icons/chevron-down.js';
-import X from 'lucide-vue-next/dist/esm/icons/x.js';
+import { ChevronUp, ChevronDown, X } from 'lucide-vue-next';
 import { renderLucideSvg } from './lucideSvg.js';
 
 export default class TextSearchUI {

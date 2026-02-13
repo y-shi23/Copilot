@@ -2,7 +2,7 @@
 import { ref, h, onMounted, onBeforeUnmount, nextTick, watch, computed } from 'vue';
 import { ElFooter, ElRow, ElCol, ElText, ElDivider, ElButton, ElInput, ElMessage, ElTooltip, ElScrollbar, ElIcon } from 'element-plus';
 import { Close, Check, Document, Delete, Microphone, Monitor } from '@element-plus/icons-vue';
-import Library from 'lucide-vue-next/dist/esm/icons/library.js';
+import { Library } from 'lucide-vue-next';
 
 // --- Props and Emits ---
 const prompt = defineModel('prompt');

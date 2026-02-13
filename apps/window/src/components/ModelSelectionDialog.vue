@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { ElDialog, ElTable, ElTableColumn, ElButton, ElInput, ElTooltip } from 'element-plus';
-import Search from 'lucide-vue-next/dist/esm/icons/search.js';
+import { Search } from 'lucide-vue-next';
 
 const props = defineProps({
     modelValue: Boolean, // for v-model

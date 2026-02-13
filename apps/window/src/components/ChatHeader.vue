@@ -1,9 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { ElHeader, ElTooltip } from 'element-plus';
-import ChevronsUpDown from 'lucide-vue-next/dist/esm/icons/chevrons-up-down.js';
-import Pencil from 'lucide-vue-next/dist/esm/icons/pencil.js';
-import Search from 'lucide-vue-next/dist/esm/icons/search.js';
+import { ChevronsUpDown, Pencil, Search } from 'lucide-vue-next';
 
 const props = defineProps({
   modelMap: Object,

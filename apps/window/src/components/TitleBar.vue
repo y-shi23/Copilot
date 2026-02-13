@@ -1,16 +1,7 @@
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 import { ElTooltip, ElIcon, ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
-import Download from 'lucide-vue-next/dist/esm/icons/download.js';
-import Maximize2 from 'lucide-vue-next/dist/esm/icons/maximize-2.js';
-import X from 'lucide-vue-next/dist/esm/icons/x.js';
-import Minus from 'lucide-vue-next/dist/esm/icons/minus.js';
-import Menu from 'lucide-vue-next/dist/esm/icons/menu.js';
-import Check from 'lucide-vue-next/dist/esm/icons/check.js';
-import Lock from 'lucide-vue-next/dist/esm/icons/lock.js';
-import Circle from 'lucide-vue-next/dist/esm/icons/circle.js';
-import Pin from 'lucide-vue-next/dist/esm/icons/pin.js';
-import PinOff from 'lucide-vue-next/dist/esm/icons/pin-off.js';
+import { Download, Maximize2, X, Minus, Menu, Check, Lock, Circle, Pin, PinOff } from 'lucide-vue-next';
 
 const props = defineProps({
   favicon: String,
