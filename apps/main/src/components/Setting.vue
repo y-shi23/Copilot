@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, inject, h } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createClient } from "webdav/web";
-import { Upload, FolderOpened, Refresh, Delete as DeleteIcon, Download, Plus } from '@element-plus/icons-vue'
+import { Upload, FolderOpened, Folder, Refresh, Delete as DeleteIcon, Download, Plus } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox, ElInput } from 'element-plus'
 
 const { t, locale } = useI18n()
@@ -738,13 +738,18 @@ async function selectLocalChatPath() {
               <span class="setting-option-label">{{ t('setting.webdav.localChatPath') }}</span>
               <span class="setting-option-description">{{ t('setting.webdav.localChatPathPlaceholder') }}</span>
             </div>
-            <el-input v-model="currentConfig.webdav.localChatPath"
-              @change="(value) => saveSingleSetting('webdav.localChatPath', value)"
-              :placeholder="t('setting.webdav.localChatPathPlaceholder')" style="width: 320px;">
-              <template #append>
-                <el-button @click="selectLocalChatPath">{{ t('setting.webdav.selectFolder') }}</el-button>
-              </template>
-            </el-input>
+            <div class="path-input-wrapper">
+              <input
+                type="text"
+                class="path-input"
+                v-model="currentConfig.webdav.localChatPath"
+                @change="(e) => saveSingleSetting('webdav.localChatPath', e.target.value)"
+                :placeholder="t('setting.webdav.localChatPathPlaceholder')"
+              />
+              <button class="path-input-btn" @click="selectLocalChatPath" :title="t('setting.webdav.selectFolder')">
+                <el-icon :size="18"><Folder /></el-icon>
+              </button>
+            </div>
           </div>
         </section>
 
@@ -1040,5 +1045,56 @@ async function selectLocalChatPath() {
 
 :deep(.backup-manager-dialog .el-dialog__footer) {
   padding: 5px;
+}
+
+.path-input-wrapper {
+  display: flex;
+  align-items: center;
+  width: 320px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 9999px;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.path-input-wrapper:focus-within {
+  border-color: var(--bg-accent);
+  box-shadow: 0 0 0 2px rgba(51, 156, 255, 0.15);
+}
+
+.path-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.path-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.path-input-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 32px;
+  margin-right: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 9999px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.path-input-btn:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--bg-accent);
 }
 </style>
