@@ -443,7 +443,8 @@
   "providers": {
     "addProviderBtn": "Добавить провайдера",
     "noProviders": "Провайдеры пока отсутствуют.",
-    "statusOff": "Откл.",
+    "statusOff": "OFF",
+    "statusOn": "ON",
     "unnamedProvider": "Безымянный провайдер",
     "rename": "Переименовать",
     "delete": "Удалить",

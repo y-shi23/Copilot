@@ -443,7 +443,8 @@
   "providers": {
     "addProviderBtn": "添加服务商",
     "noProviders": "暂无服务商",
-    "statusOff": "关闭",
+    "statusOff": "OFF",
+    "statusOn": "ON",
     "unnamedProvider": "未命名服务商",
     "rename": "重命名",
     "delete": "删除",

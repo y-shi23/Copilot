@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, onMounted, computed, inject, watch } from 'vue'
-import { Plus, Delete, Edit, Refresh, CirclePlus, Remove, Search } from '@element-plus/icons-vue';
+import { Plus, Delete, Edit, Refresh, CirclePlus, Search } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import draggable from 'vuedraggable';
@@ -331,8 +331,19 @@ watch(contextMenuVisible, (val) => {
                 }" @click="provider_key = key_id" @contextmenu="handleProviderContextMenu($event, key_id)">
                   <span class="provider-item-name">{{ currentConfig.providers[key_id]?.name ||
                     t('providers.unnamedProvider') }}</span>
-                  <el-tag v-if="currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable" type="info"
-                    size="small" effect="dark" round>{{ t('providers.statusOff') }}</el-tag>
+                  <div class="provider-status-wrapper">
+                    <transition name="status-flip" mode="out-in">
+                      <el-tag 
+                        :type="currentConfig.providers[key_id].enable ? 'primary' : 'info'"
+                        size="small" 
+                        effect="dark" 
+                        round
+                        :key="currentConfig.providers[key_id].enable ? 'on' : 'off'"
+                        class="provider-status-tag">
+                        {{ currentConfig.providers[key_id].enable ? t('providers.statusOn') : t('providers.statusOff') }}
+                      </el-tag>
+                    </transition>
+                  </div>
                 </div>
               </template>
             </draggable>
@@ -374,7 +385,7 @@ watch(contextMenuVisible, (val) => {
                     @change="(value) => saveSingleProviderSetting('api_key', value)" />
                 </el-form-item>
                 <el-form-item :label="t('providers.apiUrlLabel')">
-                  <el-input v-model="selectedProvider.url" :placeholder="t('providers.apiUrlPlaceholder')" clearable
+                  <el-input v-model="selectedProvider.url" :placeholder="t('providers.apiUrlPlaceholder')"
                     @change="(value) => saveSingleProviderSetting('url', value)" />
                 </el-form-item>
 
@@ -394,16 +405,14 @@ watch(contextMenuVisible, (val) => {
                     class="models-list-container draggable-models-list" @end="saveModelOrder"
                     ghost-class="sortable-ghost">
                     <template #item="{ element: model }">
-                      <el-tag :key="model" closable @close="delete_model(model)" class="model-tag" type="info"
-                        effect="light">
-                        {{ model }}
-                      </el-tag>
+                      <div class="model-tag">
+                        <span class="model-name">{{ model }}</span>
+                        <span class="model-remove-icon" @click.stop="delete_model(model)">−</span>
+                      </div>
                     </template>
                   </draggable>
-                  <div v-else class="models-list-container">
-                    <div class="no-models-message">
-                      {{ t('providers.noModelsAdded') }}
-                    </div>
+                  <div v-else class="no-models-message">
+                    {{ t('providers.noModelsAdded') }}
                   </div>
                 </div>
 
@@ -593,7 +602,70 @@ watch(contextMenuVisible, (val) => {
 
 .provider-item.disabled .provider-item-name {
   color: var(--text-tertiary);
-  text-decoration: line-through;
+}
+
+.provider-status-wrapper {
+  perspective: 200px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.provider-status-tag {
+  min-width: 40px;
+  width: 40px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 8px;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+.status-flip-enter-active {
+  animation: flipIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.status-flip-leave-active {
+  animation: flipOut 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes flipIn {
+  0% {
+    transform: rotateY(-90deg);
+    opacity: 0;
+  }
+  100% {
+    transform: rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes flipOut {
+  0% {
+    transform: rotateY(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: rotateY(90deg);
+    opacity: 0;
+  }
+}
+
+.provider-status-tag.el-tag--primary {
+  background-color: var(--bg-accent);
+  border-color: var(--bg-accent);
+  color: var(--text-on-accent);
+}
+
+.provider-status-tag.el-tag--info {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-primary);
+  color: var(--text-secondary);
 }
 
 .aside-actions {
@@ -698,13 +770,8 @@ watch(contextMenuVisible, (val) => {
 
 .models-list-container {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  padding: 12px;
-  background-color: var(--bg-primary);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-primary);
-  min-height: 75px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -714,44 +781,51 @@ watch(contextMenuVisible, (val) => {
   text-align: center;
   color: var(--text-secondary);
   font-size: 13px;
-  padding: 12px 0;
+  padding: 20px 0;
+  background-color: var(--bg-primary);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-primary);
 }
 
 .model-tag {
-  background-color: var(--bg-tertiary) !important;
-  color: var(--text-primary) !important;
-  border: 1px solid var(--border-primary) !important;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
   font-weight: 500;
-  border-radius: 999px !important;
-
-  display: inline-flex !important;
-  align-items: center !important;
-  height: 25px !important;
-  line-height: 1 !important;
-}
-
-.model-tag :deep(.el-tag__content) {
-  display: inline-flex;
+  border-radius: var(--radius-md);
+  width: 100%;
+  display: flex;
   align-items: center;
-  height: 100%;
-  padding-bottom: 2px;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
-.model-tag :deep(.el-tag__close) {
-  color: inherit !important;
-  position: relative;
-  top: 0;
-  margin-left: 6px;
+.model-tag:hover {
+  background-color: var(--bg-primary);
 }
 
-.model-tag :deep(.el-tag__close:hover) {
-  background-color: var(--border-primary) !important;
-  color: var(--text-primary) !important;
+.model-name {
+  flex: 1;
 }
 
-html.dark .model-tag :deep(.el-tag__close:hover) {
-  background-color: var(--border-primary) !important;
-  color: var(--text-primary) !important;
+.model-remove-icon {
+  font-size: 16px;
+  font-weight: 300;
+  color: var(--text-secondary);
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm, 4px);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.model-remove-icon:hover {
+  color: var(--color-danger, #ef4444);
+  background-color: var(--bg-tertiary);
 }
 
 /* Provider list drag & drop */
@@ -796,6 +870,14 @@ html.dark .model-tag :deep(.el-tag__close:hover) {
 :deep(.el-switch.is-checked .el-switch__core) {
   background-color: var(--bg-accent);
   border-color: var(--bg-accent);
+}
+
+:deep(.el-switch .el-switch__core) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-switch .el-switch__action) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 :deep(.el-table__header-wrapper th) {
@@ -899,7 +981,6 @@ html.dark .model-tag :deep(.el-tag__close:hover) {
 }
 
 .models-list-wrapper {
-  margin-left: 0px;
   margin-bottom: 18px;
 }
 

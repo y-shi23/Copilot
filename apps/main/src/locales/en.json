@@ -443,7 +443,8 @@
   "providers": {
     "addProviderBtn": "Add Provider",
     "noProviders": "No providers yet.",
-    "statusOff": "Off",
+    "statusOff": "OFF",
+    "statusOn": "ON",
     "unnamedProvider": "Unnamed Provider",
     "rename": "Rename",
     "delete": "Delete",

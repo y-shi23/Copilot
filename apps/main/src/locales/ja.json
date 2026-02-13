@@ -443,7 +443,8 @@
   "providers": {
     "addProviderBtn": "サービスプロバイダーを追加",
     "noProviders": "サービスプロバイダーがありません。",
-    "statusOff": "オフ",
+    "statusOff": "OFF",
+    "statusOn": "ON",
     "unnamedProvider": "無名のサービスプロバイダー",
     "rename": "名前を変更",
     "delete": "削除",
