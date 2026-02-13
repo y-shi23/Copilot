@@ -43,9 +43,14 @@ a:hover {
   padding-right: 14px !important;
 }
 
-:where(.providers-content-wrapper, .chats-page-container) {
+:where(.providers-content-wrapper) {
   padding-left: 6px !important;
   padding-right: 6px !important;
+}
+
+:where(.chats-page-container) {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
 }
 
 :where(.search-input-container, .search-bar-container, .path-bar-container) {

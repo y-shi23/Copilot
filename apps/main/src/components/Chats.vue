@@ -587,22 +587,19 @@ async function executeAutoClean() {
                 </el-table>
             </div>
 
-            <div class="footer-bar">
-                <div class="footer-left">
-                    <el-button class="footer-action-btn" :icon="Refresh" @click="refreshData">{{ t('common.refresh') }}</el-button>
-                    <el-button class="footer-action-btn" type="danger" :icon="DeleteIcon" @click="deleteFiles(selectedFiles)"
-                        :disabled="selectedFiles.length === 0">
-                        {{ t('common.deleteSelected') }} ({{ selectedFiles.length }})
-                    </el-button>
-                </div>
-                <div class="footer-center">
-                    <el-pagination v-if="currentFiles.length > 0" v-model:current-page="currentPage"
-                        v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="currentFiles.length"
-                        layout="total, sizes, prev, pager, next, jumper" background size="small" />
-                </div>
-                <div class="footer-right">
-                </div>
+            <div class="pagination-bar">
+                <el-pagination v-if="currentFiles.length > 0" v-model:current-page="currentPage"
+                    v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="currentFiles.length"
+                    layout="total, sizes, prev, pager, next, jumper" background size="small" />
             </div>
+        </div>
+
+        <div class="bottom-actions-container">
+            <el-button class="action-btn" :icon="Refresh" @click="refreshData">{{ t('common.refresh') }}</el-button>
+            <el-button class="action-btn" type="danger" :icon="DeleteIcon" @click="deleteFiles(selectedFiles)"
+                :disabled="selectedFiles.length === 0">
+                {{ t('common.deleteSelected') }} ({{ selectedFiles.length }})
+            </el-button>
         </div>
     </div>
     <el-dialog v-model="isSyncing" :title="t('chats.alerts.syncInProgress')" :close-on-click-modal="false"
@@ -690,7 +687,7 @@ async function executeAutoClean() {
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
-    padding: 0 2px 8px;
+    padding: 0 0 8px;
 }
 
 .toolbar-left {
@@ -816,39 +813,31 @@ html.dark .footer-action-btn.el-button--danger.is-disabled {
     background-color: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
 }
 
-.footer-bar {
+.pagination-bar {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
+    align-items: center;
+    width: 100%;
+    padding: 10px 0 8px;
+    flex-shrink: 0;
+}
+
+.bottom-actions-container {
+    display: flex;
+    justify-content: flex-start;
     align-items: center;
     width: 100%;
     flex-wrap: wrap;
     gap: 10px;
-    margin-top: 10px;
-    padding: 12px 2px 14px;
+    padding: 12px 0 10px;
     background-color: transparent;
     flex-shrink: 0;
 }
 
-.footer-left,
-.footer-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.footer-action-btn {
-    height: 34px;
+.bottom-actions-container .action-btn {
+    min-width: 0;
     min-height: 34px;
-}
-
-.footer-center {
-    flex-grow: 1;
-    display: flex;
-    justify-content: flex-end;
-}
-
-.footer-right {
-    justify-content: flex-end;
+    font-weight: 500;
 }
 
 :deep(.el-pagination) {
@@ -940,7 +929,7 @@ html.dark .footer-action-btn.el-button--danger.is-disabled {
         justify-content: flex-start;
     }
 
-    .footer-center {
+    .pagination-bar {
         justify-content: flex-start;
         width: 100%;
     }
