@@ -181,3 +181,25 @@ html.dark .circle-action-btn {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+.rounded-action-btn {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 10px !important;
+  background-color: #EBEBEF !important;
+  border: none !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .rounded-action-btn {
+  background-color: #232323 !important;
+}
+
+.rounded-action-btn:hover {
+  opacity: 0.85;
+}
+
+.rounded-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
