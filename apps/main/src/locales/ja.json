@@ -475,20 +475,6 @@
       "ownedBy": "所有者",
       "action": "操作"
     },
-    "folders": {
-      "createSuccess": "フォルダを作成しました",
-      "renameSuccess": "フォルダ名を変更しました",
-      "deleteSuccess": "フォルダを削除しました",
-      "deleteConfirmTitle": "削除の確認",
-      "deleteConfirmMessage": "このフォルダを削除しますか？中のサービスプロバイダーはルートディレクトリに移動されます。",
-      "floder_label": "フォルダ",
-      "root": "ルートディレクトリ",
-      "empty": "(空)",
-      "newFolderTitle": "新規フォルダ",
-      "renameFolderTitle": "フォルダ名の変更",
-      "folderNameLabel": "フォルダ名",
-      "folderNamePlaceholder": "名前を入力してください"
-    },
     "noModelsFoundError": "モデルが見つからないか、APIエラーです。",
     "noModelsMatchSearch": "一致するモデルが見つかりませんでした。",
     "addModelTooltip": "モデルを追加",

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, onMounted, computed, inject, watch } from 'vue'
-import { Plus, Delete, Edit, Refresh, CirclePlus, Remove, Search, Folder, FolderOpened, FolderAdd } from '@element-plus/icons-vue';
+import { Plus, Delete, Edit, Refresh, CirclePlus, Remove, Search } from '@element-plus/icons-vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import draggable from 'vuedraggable';
@@ -13,12 +13,6 @@ const provider_key = ref(null);
 const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextMenuProviderKey = ref(null);
-
-// 文件夹相关状态
-const addFolder_page = ref(false);
-const addFolder_form = reactive({ name: "" });
-const renameFolder_page = ref(false);
-const renameFolder_form = reactive({ id: "", name: "" });
 
 onMounted(() => {
   if (currentConfig.value.providerOrder && currentConfig.value.providerOrder.length > 0) {
@@ -37,81 +31,16 @@ const selectedProvider = computed(() => {
   return null;
 });
 
-// 计算属性：排序后的文件夹列表
-const sortedFolders = computed(() => {
-  if (!currentConfig.value.providerFolders) return [];
-  return Object.entries(currentConfig.value.providerFolders)
-    .map(([id, folder]) => ({ id, ...folder }))
-    .sort((a, b) => a.name.localeCompare(b.name));
-});
+const localProviderOrder = ref([]);
 
-// 计算属性：根目录下的服务商 (没有 folderId 或 folderId 无效)
-const rootProviders = computed(() => {
-  if (!currentConfig.value.providerOrder) return [];
-  const folders = currentConfig.value.providerFolders || {};
-  return currentConfig.value.providerOrder.filter(key => {
-    const p = currentConfig.value.providers[key];
-    // 如果没有 provider 或 folderId 为空，或 folderId 指向的文件夹不存在
-    return p && (!p.folderId || !folders[p.folderId]);
-  });
-});
-
-// 方法：获取指定文件夹下的服务商 (按 providerOrder 排序)
-const getProvidersInFolder = (folderId) => {
-  if (!currentConfig.value.providerOrder) return [];
-  return currentConfig.value.providerOrder.filter(key => {
-    const p = currentConfig.value.providers[key];
-    return p && p.folderId === folderId;
-  });
-};
-
-// ---- 拖拽排序状态 ----
-const localRootOrder = ref([]);
-const localFolderOrders = reactive({});
-
-watch(rootProviders, (val) => {
-  localRootOrder.value = [...val];
+watch(() => currentConfig.value.providerOrder, (val) => {
+  localProviderOrder.value = val ? [...val] : [];
 }, { immediate: true });
 
-watch(
-  [sortedFolders, () => currentConfig.value.providerOrder],
-  () => {
-    for (const folder of sortedFolders.value) {
-      localFolderOrders[folder.id] = getProvidersInFolder(folder.id);
-    }
-  },
-  { immediate: true }
-);
-
-function persistGroupOrder(newList, folderId) {
-  const folders = currentConfig.value.providerFolders || {};
+function saveProviderOrder() {
   atomicSave(config => {
-    const newOrder = [];
-    let idx = 0;
-    for (const id of config.providerOrder) {
-      const p = config.providers[id];
-      if (!p) continue;
-      const isTarget = folderId
-        ? p.folderId === folderId
-        : (!p.folderId || !folders[p.folderId]);
-      if (isTarget) {
-        if (idx < newList.length) newOrder.push(newList[idx++]);
-      } else {
-        newOrder.push(id);
-      }
-    }
-    while (idx < newList.length) newOrder.push(newList[idx++]);
-    config.providerOrder = newOrder;
+    config.providerOrder = [...localProviderOrder.value];
   });
-}
-
-function saveRootProviderOrder() {
-  persistGroupOrder(localRootOrder.value, null);
-}
-
-function saveFolderProviderOrder(folderId) {
-  if (!localFolderOrders[folderId]) return;
-  persistGroupOrder(localFolderOrders[folderId], folderId);
 }
 
 // 原子化保存函数
@@ -133,88 +62,6 @@ const atomicSave = async (updateFunction) => {
     console.error("Atomic save failed:", error);
     ElMessage.error(t('providers.alerts.configSaveFailed'));
   }
-}
-
-// 添加文件夹
-function add_folder_function() {
-  const name = addFolder_form.name.trim();
-  if (!name) return;
-
-  const folderId = `folder_${Date.now()}`;
-
-  atomicSave(config => {
-    if (!config.providerFolders) config.providerFolders = {};
-    config.providerFolders[folderId] = {
-      name: name,
-      collapsed: false
-    };
-  });
-
-  addFolder_form.name = "";
-  addFolder_page.value = false;
-  ElMessage.success(t('providers.folders.createSuccess'));
-}
-
-// 打开重命名弹窗
-function open_rename_folder_dialog(id, currentName) {
-  renameFolder_form.id = id;
-  renameFolder_form.name = currentName;
-  renameFolder_page.value = true;
-}
-
-// 重命名文件夹
-function rename_folder_function() {
-  const newName = renameFolder_form.name.trim();
-  if (!newName) return;
-
-  atomicSave(config => {
-    if (config.providerFolders && config.providerFolders[renameFolder_form.id]) {
-      config.providerFolders[renameFolder_form.id].name = newName;
-    }
-  });
-
-  renameFolder_page.value = false;
-  ElMessage.success(t('providers.folders.renameSuccess'));
-}
-
-// 删除文件夹 (服务商移回根目录)
-function delete_folder(folderId) {
-  ElMessageBox.confirm(
-    t('providers.folders.deleteConfirmMessage'),
-    t('providers.folders.deleteConfirmTitle'),
-    { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
-  ).then(() => {
-    atomicSave(config => {
-      if (config.providerFolders) delete config.providerFolders[folderId];
-      for (const key in config.providers) {
-        if (config.providers[key].folderId === folderId) {
-          config.providers[key].folderId = "";
-        }
-      }
-    });
-    ElMessage.success(t('providers.folders.deleteSuccess'));
-  }).catch(() => { });
-}
-
-// 切换文件夹折叠状态
-function toggle_folder(folderId) {
-  atomicSave(config => {
-    if (config.providerFolders && config.providerFolders[folderId]) {
-      config.providerFolders[folderId].collapsed = !config.providerFolders[folderId].collapsed;
-    }
-  });
-}
-
-// 设置服务商所属文件夹
-function set_provider_folder(folderId) {
-  if (!provider_key.value) return;
-  const keyToUpdate = provider_key.value;
-
-  atomicSave(config => {
-    if (config.providers[keyToUpdate]) {
-      config.providers[keyToUpdate].folderId = folderId;
-    }
-  });
 }
 
 function delete_provider() {
@@ -250,11 +97,10 @@ function add_prvider_function() {
   atomicSave(config => {
     config.providers[timestamp] = {
       name: newName,
-      url: "", api_key: "", modelList: [], enable: true,
-      folderId: "" // 默认为空
+      url: "", api_key: "", modelList: [], enable: true
     };
     config.providerOrder.push(timestamp);
-    provider_key.value = timestamp; // 设置新添加的为当前选中
+    provider_key.value = timestamp;
   });
 
   addprovider_form.name = "";
@@ -476,55 +322,9 @@ watch(contextMenuVisible, (val) => {
       <el-container>
         <el-aside width="240px" class="providers-aside">
           <el-scrollbar class="provider-list-scrollbar">
-            <!-- 1. 渲染文件夹 -->
-            <div v-for="folder in sortedFolders" :key="folder.id" class="folder-group">
-              <div class="folder-header" @click="toggle_folder(folder.id)">
-                <div class="folder-icon-wrapper">
-                  <el-icon :size="16" class="folder-icon">
-                    <Folder v-if="folder.collapsed" />
-                    <FolderOpened v-else />
-                  </el-icon>
-                </div>
-                <span class="folder-name">{{ folder.name }}</span>
-                <!-- 编辑和删除按钮容器，hover时显示 -->
-                <div class="folder-actions" @click.stop>
-                  <el-button link :icon="Edit" size="small" class="folder-action-btn"
-                    @click.stop="open_rename_folder_dialog(folder.id, folder.name)" />
-                  <el-button link type="danger" :icon="Delete" size="small" class="folder-action-btn"
-                    @click.stop="delete_folder(folder.id)" />
-                </div>
-              </div>
-
-              <!-- 文件夹内的服务商 -->
-              <div v-show="!folder.collapsed" class="folder-content">
-                <draggable v-model="localFolderOrders[folder.id]" :item-key="(el) => el" :animation="250"
-                  ghost-class="provider-drag-ghost" :force-fallback="true" fallback-class="provider-drag-fallback"
-                  :fallback-on-body="true" @end="saveFolderProviderOrder(folder.id)">
-                  <template #item="{ element: key_id }">
-                    <div class="provider-item in-folder" :class="{
-                      'active': provider_key === key_id, 'disabled': currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable
-                    }" @click="provider_key = key_id" @contextmenu="handleProviderContextMenu($event, key_id)">
-                      <span class="provider-item-name">{{ currentConfig.providers[key_id]?.name ||
-                        t('providers.unnamedProvider') }}</span>
-                      <el-tag v-if="currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable" type="info"
-                        size="small" effect="dark" round>{{ t('providers.statusOff') }}</el-tag>
-                    </div>
-                  </template>
-                </draggable>
-                <!-- 空文件夹提示 -->
-                <div v-if="getProvidersInFolder(folder.id).length === 0" class="empty-folder-tip">
-                  {{ t('providers.folders.empty') }}
-                </div>
-              </div>
-            </div>
-
-            <!-- 分隔线 -->
-            <div class="root-providers-divider" v-if="sortedFolders.length > 0 && rootProviders.length > 0"></div>
-
-            <!-- 2. 渲染根目录服务商 -->
-            <draggable v-model="localRootOrder" :item-key="(el) => el" :animation="250"
+            <draggable v-model="localProviderOrder" :item-key="(el) => el" :animation="250"
               ghost-class="provider-drag-ghost" :force-fallback="true" fallback-class="provider-drag-fallback"
-              :fallback-on-body="true" @end="saveRootProviderOrder">
+              :fallback-on-body="true" @end="saveProviderOrder">
               <template #item="{ element: key_id }">
                 <div class="provider-item" :class="{
                   'active': provider_key === key_id, 'disabled': currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable
@@ -536,21 +336,14 @@ watch(contextMenuVisible, (val) => {
                 </div>
               </template>
             </draggable>
-            <div
-              v-if="(!currentConfig.providerOrder || currentConfig.providerOrder.length === 0) && sortedFolders.length === 0"
-              class="no-providers">
+            <div v-if="!currentConfig.providerOrder || currentConfig.providerOrder.length === 0" class="no-providers">
               {{ t('providers.noProviders') }}
             </div>
           </el-scrollbar>
           <div class="aside-actions">
-            <el-button-group class="action-group">
-              <el-tooltip content="新建目录" placement="top">
-                <el-button :icon="FolderAdd" @click="addFolder_page = true" />
-              </el-tooltip>
-              <el-button type="primary" :icon="Plus" @click="addProvider_page = true" class="add-provider-btn">
-                {{ t('providers.addProviderBtn') }}
-              </el-button>
-            </el-button-group>
+            <el-button type="primary" :icon="Plus" @click="addProvider_page = true" class="add-provider-btn">
+              {{ t('providers.addProviderBtn') }}
+            </el-button>
           </div>
         </el-aside>
 
@@ -614,27 +407,9 @@ watch(contextMenuVisible, (val) => {
                   </div>
                 </div>
 
-                <!-- 文件夹位置选择器 -->
-                <el-form-item :label="t('providers.folders.floder_label')">
-                  <div class="folder-selector">
-                    <el-radio-group :model-value="selectedProvider.folderId || ''" @change="set_provider_folder"
-                      size="small">
-                      <el-radio-button value="">{{ t('providers.folders.root') }}</el-radio-button>
-                      <el-radio-button v-for="f in sortedFolders" :key="f.id" :value="f.id">{{ f.name
-                      }}</el-radio-button>
-                    </el-radio-group>
-                  </div>
-                </el-form-item>
-
               </el-form>
             </div>
-            <el-empty v-else :description="t('providers.selectProviderOrAdd')" class="empty-state-main">
-              <template #image>
-                <el-icon :size="50" color="#909399">
-                  <FolderOpened />
-                </el-icon>
-              </template>
-            </el-empty>
+            <el-empty v-else :description="t('providers.selectProviderOrAdd')" class="empty-state-main" />
           </el-scrollbar>
         </el-main>
       </el-container>
@@ -714,35 +489,6 @@ watch(contextMenuVisible, (val) => {
         <div class="dialog-footer">
           <el-button @click="getModel_page = false">{{ t('common.close') }}</el-button>
         </div>
-      </template>
-    </el-dialog>
-
-    <el-dialog v-model="addFolder_page" :title="t('providers.folders.newFolderTitle')" width="400px"
-      :close-on-click-modal="false">
-      <el-form :model="addFolder_form" @submit.prevent="add_folder_function">
-        <el-form-item :label="t('providers.folders.folderNameLabel')" required>
-          <el-input v-model="addFolder_form.name" :placeholder="t('providers.folders.folderNamePlaceholder')"
-            @keyup.enter="add_folder_function" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="addFolder_page = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="add_folder_function">{{ t('common.confirm') }}</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 重命名目录弹窗 -->
-    <el-dialog v-model="renameFolder_page" :title="t('providers.folders.renameFolderTitle')" width="400px"
-      :close-on-click-modal="false">
-      <el-form :model="renameFolder_form" @submit.prevent="rename_folder_function">
-        <el-form-item :label="t('providers.folders.folderNameLabel')" required>
-          <el-input v-model="renameFolder_form.name" :placeholder="t('providers.folders.folderNamePlaceholder')"
-            @keyup.enter="rename_folder_function" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="renameFolder_page = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="rename_folder_function">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
 
@@ -855,25 +601,10 @@ watch(contextMenuVisible, (val) => {
   display: flex;
 }
 
-.action-group {
-  display: flex;
+.add-provider-btn {
   width: 100%;
-}
-
-.action-group .el-button {
   height: 34px;
   min-height: 34px;
-}
-
-.action-group .el-button:first-child {
-  flex: 0 0 50px;
-}
-
-.action-group .add-provider-btn {
-  flex: 1;
-  width: auto;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
   background-color: var(--bg-accent);
   color: var(--text-on-accent);
   border: none;
@@ -1170,99 +901,6 @@ html.dark .model-tag :deep(.el-tag__close:hover) {
 .models-list-wrapper {
   margin-left: 0px;
   margin-bottom: 18px;
-}
-
-/* 文件夹相关样式 */
-.folder-group {
-  margin-bottom: 4px;
-}
-
-.folder-header {
-  display: flex;
-  align-items: center;
-  padding: 8px 10px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  border-radius: var(--radius-md);
-  transition: background-color 0.2s;
-}
-
-.folder-header:hover {
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-}
-
-.folder-icon-wrapper {
-  display: flex;
-  align-items: center;
-  margin-right: 6px;
-  color: #FFB02E;
-}
-
-.folder-name {
-  flex-grow: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.folder-actions {
-  display: flex;
-  gap: 0;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.folder-header:hover .folder-actions {
-  opacity: 1;
-}
-
-.folder-action-btn {
-  padding: 2px;
-  height: auto;
-  margin-left: 2px !important;
-}
-
-.folder-content {
-  margin-top: 2px;
-  position: relative;
-}
-
-.provider-item.in-folder {
-  margin-left: 12px;
-  padding: 8px 12px;
-  font-size: 13px;
-  border-left: 2px solid var(--border-primary);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-}
-
-.empty-folder-tip {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  padding: 4px 0 4px 24px;
-  font-style: italic;
-}
-
-.root-providers-divider {
-  height: 1px;
-  background-color: var(--border-primary);
-  margin: 8px 10px;
-}
-
-.folder-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-html.dark .folder-icon-wrapper {
-  color: #E6A23C;
-}
-
-html.dark .provider-item.in-folder {
-  border-left-color: var(--border-primary);
 }
 
 .provider-context-menu {

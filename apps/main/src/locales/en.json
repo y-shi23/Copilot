@@ -475,20 +475,6 @@
       "ownedBy": "Owned By",
       "action": "Action"
     },
-    "folders": {
-      "createSuccess": "Directory created successfully",
-      "renameSuccess": "Directory renamed successfully",
-      "deleteSuccess": "Directory deleted",
-      "deleteConfirmTitle": "Confirm Deletion",
-      "deleteConfirmMessage": "Are you sure you want to delete this directory? Providers inside will move to root.",
-      "floder_label": "Folder",
-      "root": "Root",
-      "empty": "(Empty)",
-      "newFolderTitle": "New Directory",
-      "renameFolderTitle": "Rename Directory",
-      "folderNameLabel": "Directory Name",
-      "folderNamePlaceholder": "Enter name"
-    },
     "noModelsFoundError": "No models found or API error.",
     "noModelsMatchSearch": "No models match search.",
     "addModelTooltip": "Add Model",
