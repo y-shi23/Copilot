@@ -780,7 +780,7 @@ const apiKeyCount = computed(() => {
 }
 
 .providers-aside {
-  background-color: var(--bg-primary);
+  background-color: transparent;
   border-right: 1px solid var(--border-primary);
   display: flex;
   flex-direction: column;
