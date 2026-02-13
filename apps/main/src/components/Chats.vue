@@ -712,6 +712,17 @@ async function executeAutoClean() {
     width: 32px;
     height: 32px;
     border-radius: 10px;
+    background-color: #EBEBEF;
+    border: none;
+    color: var(--text-primary);
+}
+
+html.dark .toolbar-icon-btn {
+    background-color: #A1A1AA;
+}
+
+.toolbar-icon-btn:hover {
+    opacity: 0.85;
 }
 
 .toolbar-right :deep(.el-badge__content) {

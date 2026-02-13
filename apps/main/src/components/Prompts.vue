@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, computed, inject, watch, nextTick, onMounted } from 'vue';
-import { Plus, Trash2 as Delete, X as Close, MessageSquareText as ChatLineRound, Upload as UploadFilled, MapPin as Position, CircleQuestionMark as QuestionFilled, Repeat as Switch, RefreshCw as Refresh, Pencil as Edit, Download, Search } from 'lucide-vue-next';
+import { Plus, Trash2 as Delete, X as Close, MessageSquareText as ChatLineRound, Upload as UploadFilled, MapPin as Position, CircleQuestionMark as QuestionFilled, Repeat as Switch, RefreshCw as Refresh, Pencil as Edit, Download, Search, MessageSquareShare } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 
@@ -841,13 +841,13 @@ async function refreshPromptsConfig() {
             </el-tooltip>
 
             <el-tooltip :content="t('prompts.addExistingPrompt')" placement="top">
-              <el-button class="add-existing-prompt-btn" plain size="small" :icon="Plus" circle
+              <el-button class="circle-action-btn" size="small" :icon="Plus" circle
                 @click="openAssignPromptDialog(activeTabName)"
                 :disabled="activeTabName === '__ALL_PROMPTS__' || !promptsAvailableToAssign(activeTabName) || promptsAvailableToAssign(activeTabName).length === 0" />
             </el-tooltip>
 
-            <el-button type="danger" :icon="Delete" circle plain size="small" @click.stop="deleteTag(activeTabName)"
-              class="delete-tag-btn" :disabled="activeTabName === '__ALL_PROMPTS__'" />
+            <el-button :icon="Delete" circle size="small" @click.stop="deleteTag(activeTabName)"
+              class="circle-action-btn" :disabled="activeTabName === '__ALL_PROMPTS__'" />
           </div>
         </div>
 
@@ -869,7 +869,7 @@ async function refreshPromptsConfig() {
               <div class="prompt-card-header-actions">
                 <el-tooltip v-if="item.showMode === 'window' && item.enable" :content="t('prompts.openWindow')"
                   placement="top">
-                  <el-button :icon="ChatLineRound" circle text @click.stop="openPromptWindow(item.key)"
+                  <el-button :icon="MessageSquareShare" circle text @click.stop="openPromptWindow(item.key)"
                     class="action-btn-compact" />
                 </el-tooltip>
                 <el-switch v-model="item.enable" @change="(value) => handlePromptEnableChange(item.key, value)"
@@ -886,10 +886,10 @@ async function refreshPromptsConfig() {
                 <el-tag v-if="item.showMode === 'fastinput'" size="small">{{ t('prompts.showModeOptions.fastinput') }}</el-tag>
               </div>
               <div class="prompt-actions">
-                <el-button v-if="activeTabName !== '__ALL_PROMPTS__'" type="danger" :icon="Close" circle plain
+                <el-button v-if="activeTabName !== '__ALL_PROMPTS__'" :icon="Close" text circle
                   size="small" @click="removePromptFromTag(activeTabName, item.key)"
                   :title="t('prompts.tooltips.removeFromTag')" class="action-btn-compact" />
-                <el-button v-else type="danger" :icon="Delete" circle plain size="small" @click="deletePrompt(item.key)"
+                <el-button v-else :icon="Delete" text circle size="small" @click="deletePrompt(item.key)"
                   :title="t('prompts.deletePrompt')" class="action-btn-compact" />
               </div>
             </div>
@@ -908,7 +908,7 @@ async function refreshPromptsConfig() {
       <el-button class="action-btn" @click="prepareReplaceModels" :icon="Switch">
         {{ t('prompts.replaceModels') }}
       </el-button>
-      <el-button class="refresh-fab-button" :icon="Refresh" circle @click="refreshPromptsConfig" />
+      <el-button class="refresh-fab-button circle-action-btn" :icon="Refresh" circle @click="refreshPromptsConfig" />
     </div>
 
     <el-dialog v-model="showPromptEditDialog" :title="isNewPrompt ? t('prompts.addNewPrompt') : t('prompts.editPrompt')"

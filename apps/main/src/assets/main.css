@@ -162,3 +162,22 @@ html.dark .settings-select-popper .el-select-dropdown__item:hover {
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--bg-tertiary) 80%, transparent);
 }
+
+.circle-action-btn {
+  background-color: #EBEBEF !important;
+  border: none !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .circle-action-btn {
+  background-color: #1E1E1E !important;
+}
+
+.circle-action-btn:hover {
+  opacity: 0.85;
+}
+
+.circle-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -640,7 +640,7 @@ async function triggerConnectionTest(server) {
                 {{ t('mcp.editJson') }}
             </el-button>
             <el-tooltip :content="t('mcp.refreshConfig')" placement="top">
-                <el-button class="refresh-fab-button" :icon="Refresh" circle @click="refreshMcpConfig" />
+                <el-button class="refresh-fab-button circle-action-btn" :icon="Refresh" circle @click="refreshMcpConfig" />
             </el-tooltip>
         </div>
 

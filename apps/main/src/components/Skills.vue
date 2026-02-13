@@ -592,7 +592,7 @@ async function handleExportSkills() {
         {{ t('skills.setPathBtn') }}
       </el-button>
       <el-tooltip :content="t('skills.tooltips.refresh')" placement="top">
-        <el-button class="refresh-fab-button" :icon="Refresh" circle @click="refreshSkills" />
+        <el-button class="refresh-fab-button circle-action-btn" :icon="Refresh" circle @click="refreshSkills" />
       </el-tooltip>
     </div>
 
