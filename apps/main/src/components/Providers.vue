@@ -831,7 +831,6 @@ watch(contextMenuVisible, (val) => {
   flex-grow: 1;
   margin-right: 8px;
   font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  font-weight: bolder;
 }
 
 .provider-item:hover {
@@ -841,7 +840,6 @@ watch(contextMenuVisible, (val) => {
 .provider-item.active {
   background-color: var(--bg-accent-light);
   color: var(--text-accent);
-  font-weight: 600;
 }
 
 .provider-item.disabled .provider-item-name {

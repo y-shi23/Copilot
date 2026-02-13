@@ -819,7 +819,7 @@ watch(locale, () => {
 
 .nav-label {
   font-size: 13px;
-  font-weight: 520;
+  font-weight: 500;
   letter-spacing: 0.01em;
 }
 
@@ -924,7 +924,7 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
 
 .header-title-text {
   font-size: 19px;
-  font-weight: 620;
+  font-weight: 600;
   color: var(--text-primary);
   letter-spacing: 0.01em;
 }
