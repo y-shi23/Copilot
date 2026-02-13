@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { createClient } from "webdav/web";
-import { RefreshCw as Refresh, Trash2 as DeleteIcon, MessageCircle as ChatDotRound, Pencil as Edit, Upload, Download, Repeat as Switch, CircleQuestionMark as QuestionFilled, Paintbrush as Brush } from 'lucide-vue-next';
+import { RefreshCw as Refresh, Trash2 as DeleteIcon, MessageCircle as ChatDotRound, Pencil as Edit, Upload, Download, Repeat as Switch, Info, BrushCleaning } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox, ElProgress, ElScrollbar } from 'element-plus'
 
 const { t } = useI18n();
@@ -494,7 +494,7 @@ async function executeAutoClean() {
                 <div class="toolbar-right">
                     <el-popover placement="bottom-end" :title="t('chats.info.title')" :width="450" trigger="click">
                         <template #reference>
-                            <el-button class="toolbar-icon-btn" :icon="QuestionFilled" circle />
+                            <el-button class="toolbar-icon-btn" :icon="Info" circle />
                         </template>
                         <div class="info-popover-content">
                             <p v-html="t('chats.info.localDesc', { path: localChatPath || t('chats.info.pathNotSet') })">
@@ -503,7 +503,7 @@ async function executeAutoClean() {
                         </div>
                     </el-popover>
                     <el-tooltip :content="t('chats.clean.button')" placement="bottom">
-                        <el-button class="toolbar-icon-btn" :icon="Brush" circle @click="openCleanDialog" />
+                        <el-button class="toolbar-icon-btn" :icon="BrushCleaning" circle @click="openCleanDialog" />
                     </el-tooltip>
                     <el-tooltip :content="t('chats.tooltips.uploadChanges', { count: uploadableCount })" placement="bottom">
                         <el-badge :value="uploadableCount" :hidden="uploadableCount === 0" type="primary">
@@ -718,7 +718,7 @@ async function executeAutoClean() {
 }
 
 html.dark .toolbar-icon-btn {
-    background-color: #A1A1AA;
+    background-color: #232323;
 }
 
 .toolbar-icon-btn:hover {
