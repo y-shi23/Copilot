@@ -492,32 +492,39 @@ async function executeAutoClean() {
                     </div>
                 </div>
                 <div class="toolbar-right">
-                    <el-popover placement="bottom-end" :title="t('chats.info.title')" :width="450" trigger="click">
-                        <template #reference>
-                            <el-button class="rounded-action-btn" :icon="Info" circle />
-                        </template>
-                        <div class="info-popover-content">
-                            <p v-html="t('chats.info.localDesc', { path: localChatPath || t('chats.info.pathNotSet') })">
-                            </p>
-                            <p v-html="t('chats.info.cloudDesc')"></p>
-                        </div>
-                    </el-popover>
-                    <el-tooltip :content="t('chats.clean.button')" placement="bottom">
-                        <el-button class="rounded-action-btn" :icon="BrushCleaning" circle @click="openCleanDialog" />
-                    </el-tooltip>
-                    <el-tooltip :content="t('chats.tooltips.uploadChanges', { count: uploadableCount })" placement="bottom">
-                        <el-badge :value="uploadableCount" :hidden="uploadableCount === 0" type="primary">
-                            <el-button class="rounded-action-btn" :icon="Upload" @click="intelligentUpload" circle
-                                :disabled="!isWebdavConfigValid || !localChatPath" />
-                        </el-badge>
-                    </el-tooltip>
-                    <el-tooltip :content="t('chats.tooltips.downloadChanges', { count: downloadableCount })"
-                        placement="bottom">
-                        <el-badge :value="downloadableCount" :hidden="downloadableCount === 0" type="success">
-                            <el-button class="rounded-action-btn" :icon="Download" @click="intelligentDownload" circle
-                                :disabled="!isWebdavConfigValid || !localChatPath" />
-                        </el-badge>
-                    </el-tooltip>
+                    <div class="toolbar-btn-wrapper">
+                        <el-popover placement="bottom-end" :title="t('chats.info.title')" :width="450" trigger="click">
+                            <template #reference>
+                                <el-button class="rounded-action-btn" :icon="Info" circle />
+                            </template>
+                            <div class="info-popover-content">
+                                <p v-html="t('chats.info.localDesc', { path: localChatPath || t('chats.info.pathNotSet') })">
+                                </p>
+                                <p v-html="t('chats.info.cloudDesc')"></p>
+                            </div>
+                        </el-popover>
+                    </div>
+                    <div class="toolbar-btn-wrapper">
+                        <el-tooltip :content="t('chats.clean.button')" placement="bottom">
+                            <el-button class="rounded-action-btn" :icon="BrushCleaning" circle @click="openCleanDialog" />
+                        </el-tooltip>
+                    </div>
+                    <div class="toolbar-btn-wrapper">
+                        <el-tooltip :content="t('chats.tooltips.uploadChanges', { count: uploadableCount })" placement="bottom">
+                            <el-badge :value="uploadableCount" :hidden="uploadableCount === 0" type="primary">
+                                <el-button class="rounded-action-btn" :icon="Upload" @click="intelligentUpload" circle
+                                    :disabled="!isWebdavConfigValid || !localChatPath" />
+                            </el-badge>
+                        </el-tooltip>
+                    </div>
+                    <div class="toolbar-btn-wrapper">
+                        <el-tooltip :content="t('chats.tooltips.downloadChanges', { count: downloadableCount })" placement="bottom">
+                            <el-badge :value="downloadableCount" :hidden="downloadableCount === 0" type="success">
+                                <el-button class="rounded-action-btn" :icon="Download" @click="intelligentDownload" circle
+                                    :disabled="!isWebdavConfigValid || !localChatPath" />
+                            </el-badge>
+                        </el-tooltip>
+                    </div>
                 </div>
             </div>
 
@@ -705,7 +712,22 @@ async function executeAutoClean() {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 10px;
+}
+
+.toolbar-right > * {
+    display: flex;
+    align-items: center;
+}
+
+.toolbar-right :deep(.el-popover__reference-wrapper) {
+    display: flex;
+    align-items: center;
+}
+
+.toolbar-right :deep(.el-badge) {
+    display: flex;
+    align-items: center;
 }
 
 .toolbar-right :deep(.el-badge__content) {
