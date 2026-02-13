@@ -445,6 +445,8 @@
     "noProviders": "Провайдеры пока отсутствуют.",
     "statusOff": "Откл.",
     "unnamedProvider": "Безымянный провайдер",
+    "rename": "Переименовать",
+    "delete": "Удалить",
     "editNameTooltip": "Редактировать имя",
     "moveUpTooltip": "Переместить вверх",
     "moveDownTooltip": "Переместить вниз",

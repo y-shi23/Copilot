@@ -10,6 +10,10 @@ const { t } = useI18n();
 const currentConfig = inject('config');
 const provider_key = ref(null);
 
+const contextMenuVisible = ref(false);
+const contextMenuPosition = ref({ x: 0, y: 0 });
+const contextMenuProviderKey = ref(null);
+
 // 文件夹相关状态
 const addFolder_page = ref(false);
 const addFolder_form = reactive({ name: "" });
@@ -432,6 +436,38 @@ const apiKeyCount = computed(() => {
   const keys = selectedProvider.value.api_key.split(/[,，]/).filter(k => k.trim() !== '');
   return keys.length;
 });
+
+function handleProviderContextMenu(event, key_id) {
+  event.preventDefault();
+  contextMenuProviderKey.value = key_id;
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY };
+  contextMenuVisible.value = true;
+}
+
+function hideContextMenu() {
+  contextMenuVisible.value = false;
+}
+
+function handleContextMenuRename() {
+  hideContextMenu();
+  provider_key.value = contextMenuProviderKey.value;
+  openChangeProviderNameDialog();
+}
+
+function handleContextMenuDelete() {
+  hideContextMenu();
+  const keyToDelete = contextMenuProviderKey.value;
+  provider_key.value = keyToDelete;
+  delete_provider();
+}
+
+watch(contextMenuVisible, (val) => {
+  if (val) {
+    document.addEventListener('click', hideContextMenu);
+  } else {
+    document.removeEventListener('click', hideContextMenu);
+  }
+});
 </script>
 
 <template>
@@ -467,7 +503,7 @@ const apiKeyCount = computed(() => {
                   <template #item="{ element: key_id }">
                     <div class="provider-item in-folder" :class="{
                       'active': provider_key === key_id, 'disabled': currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable
-                    }" @click="provider_key = key_id">
+                    }" @click="provider_key = key_id" @contextmenu="handleProviderContextMenu($event, key_id)">
                       <span class="provider-item-name">{{ currentConfig.providers[key_id]?.name ||
                         t('providers.unnamedProvider') }}</span>
                       <el-tag v-if="currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable" type="info"
@@ -492,7 +528,7 @@ const apiKeyCount = computed(() => {
               <template #item="{ element: key_id }">
                 <div class="provider-item" :class="{
                   'active': provider_key === key_id, 'disabled': currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable
-                }" @click="provider_key = key_id">
+                }" @click="provider_key = key_id" @contextmenu="handleProviderContextMenu($event, key_id)">
                   <span class="provider-item-name">{{ currentConfig.providers[key_id]?.name ||
                     t('providers.unnamedProvider') }}</span>
                   <el-tag v-if="currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable" type="info"
@@ -522,20 +558,9 @@ const apiKeyCount = computed(() => {
           <el-scrollbar class="provider-details-scrollbar">
             <div v-if="selectedProvider" class="provider-details">
               <div class="provider-header">
-                <div class="provider-title-actions">
-                  <h2 class="provider-name" @click="openChangeProviderNameDialog">
-                    {{ selectedProvider.name }}
-                    <el-tooltip :content="t('providers.editNameTooltip')" placement="top">
-                      <el-icon class="edit-icon">
-                        <Edit />
-                      </el-icon>
-                    </el-tooltip>
-                  </h2>
-                  <div class="header-buttons">
-                    <el-button type="danger" :icon="Delete" circle plain size="small" @click="delete_provider"
-                      :title="t('providers.deleteProviderTooltip')" />
-                  </div>
-                </div>
+                <h2 class="provider-name">
+                  {{ selectedProvider.name }}
+                </h2>
                 <el-switch v-model="selectedProvider.enable"
                   @change="(value) => saveSingleProviderSetting('enable', value)" size="large" />
               </div>
@@ -717,6 +742,19 @@ const apiKeyCount = computed(() => {
         <el-button type="primary" @click="rename_folder_function">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
+
+    <teleport to="body">
+      <div v-if="contextMenuVisible" class="provider-context-menu" :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }">
+        <div class="context-menu-item" @click="handleContextMenuRename">
+          <el-icon class="context-menu-icon"><Edit /></el-icon>
+          <span>{{ t('providers.rename') }}</span>
+        </div>
+        <div class="context-menu-item context-menu-item-danger" @click="handleContextMenuDelete">
+          <el-icon class="context-menu-icon"><Delete /></el-icon>
+          <span>{{ t('providers.delete') }}</span>
+        </div>
+      </div>
+    </teleport>
   </div>
 </template>
 
@@ -1209,5 +1247,47 @@ html.dark .folder-icon-wrapper {
 
 html.dark .provider-item.in-folder {
   border-left-color: var(--border-primary);
+}
+
+.provider-context-menu {
+  position: fixed;
+  z-index: 9999;
+  border-radius: var(--radius-lg) !important;
+  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent) !important;
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden !important;
+  padding: 6px !important;
+  min-width: 160px;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  font-size: 14px;
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+}
+
+html.dark .context-menu-item:hover {
+  background-color: #3d3d3d !important;
+}
+
+html:not(.dark) .context-menu-item:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.context-menu-item-danger:hover {
+  color: #ef4444;
+}
+
+.context-menu-icon {
+  width: 16px;
+  height: 16px;
 }
 </style>

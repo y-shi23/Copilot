@@ -445,6 +445,8 @@
     "noProviders": "No providers yet.",
     "statusOff": "Off",
     "unnamedProvider": "Unnamed Provider",
+    "rename": "Rename",
+    "delete": "Delete",
     "editNameTooltip": "Edit Name",
     "moveUpTooltip": "Move Up",
     "moveDownTooltip": "Move Down",

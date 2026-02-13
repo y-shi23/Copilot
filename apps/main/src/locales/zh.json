@@ -445,6 +445,8 @@
     "noProviders": "暂无服务商",
     "statusOff": "关闭",
     "unnamedProvider": "未命名服务商",
+    "rename": "重命名",
+    "delete": "删除",
     "editNameTooltip": "编辑名称",
     "moveUpTooltip": "上移",
     "moveDownTooltip": "下移",
