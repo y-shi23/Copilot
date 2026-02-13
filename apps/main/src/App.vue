@@ -840,7 +840,7 @@ watch(locale, () => {
 }
 
 .workspace-header {
-  padding: 10px 12px 14px;
+  padding: 24px 24px 14px;
   flex-shrink: 0;
   background-color: var(--workspace-surface-bg);
 }
@@ -849,7 +849,7 @@ watch(locale, () => {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 8px 0 0;
+  padding: 10px 10px 10px;
   background-color: var(--workspace-surface-bg);
 }
 
@@ -1131,7 +1131,7 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
   }
 
   .workspace-header {
-    padding: 6px 4px 12px;
+    padding: 14px 14px 12px;
   }
 }
 
