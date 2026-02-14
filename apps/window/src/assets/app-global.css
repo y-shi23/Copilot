@@ -208,39 +208,7 @@ html.mac-native-vibrancy body {
 }
 
 .system-prompt-dialog {
-  border-radius: 16px !important;
-}
-
-.system-prompt-dialog .el-dialog__header {
-  display: none;
-}
-
-.system-prompt-dialog .el-dialog__body {
-  padding: 18px 20px !important;
-}
-
-.system-prompt-full-content {
-  font-family:
-    SFMono-Regular,
-    Consolas,
-    Liberation Mono,
-    Menlo,
-    Courier,
-    monospace;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  font-size: 14px;
-  line-height: 1.62;
-  color: var(--el-text-color-primary);
-  width: 100%;
-}
-
-.system-prompt-full-content .el-textarea__inner {
-  box-shadow: none !important;
-  background-color: var(--el-fill-color-light) !important;
-  border-radius: 14px;
-  padding: 12px 14px;
-  max-height: 60vh;
+  border-radius: 18px !important;
 }
 
 .custom-viewer-actions {

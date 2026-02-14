@@ -2,7 +2,7 @@
 // -nocheck
 import { computed } from 'vue';
 import { ElHeader, ElTooltip } from 'element-plus';
-import { ChevronsUpDown, Pencil, Search } from 'lucide-vue-next';
+import { ChevronsUpDown, Sparkles, Search } from 'lucide-vue-next';
 
 const props = defineProps({
   modelMap: Object,
@@ -89,7 +89,7 @@ const logoColor = computed(() => {
 
         <!-- 2. 系统提示词展示/编辑 -->
         <div class="model-pill prompt-pill" @click="emit('show-system-prompt')">
-          <Pencil :size="14" class="prompt-icon" />
+          <Sparkles :size="14" class="prompt-icon" />
           <span v-if="systemPrompt" class="model-text prompt-text">{{ systemPrompt }}</span>
           <span v-else class="model-text prompt-text placeholder">系统提示词</span>
         </div>
