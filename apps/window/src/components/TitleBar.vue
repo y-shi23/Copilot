@@ -61,7 +61,7 @@ onBeforeUnmount(() => {
         <el-tooltip content="点击保存当前窗口大小与位置 / 双击全屏" placement="bottom" :show-after="500">
           <div class="app-info-inner">
             <img :src="favicon" class="app-logo" alt="Logo">
-            <span class="app-title">{{ promptName || 'Anywhere' }}</span>
+            <span class="app-title">{{ promptName || 'Sanft' }}</span>
           </div>
         </el-tooltip>
       </div>

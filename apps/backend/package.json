@@ -1,5 +1,5 @@
 {
-  "name": "anywhere-backend",
+  "name": "sanft-backend",
   "version": "1.0.0",
   "description": "Bundler for Utools plugin preload scripts",
   "main": "index.js",

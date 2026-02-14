@@ -12,9 +12,9 @@
 	},
 	"features": [
 		{
-			"code":"Anywhere Settings",
+			"code":"Sanft Settings",
 			"explain": "设置页面",
-			"cmds":["Anywhere Settings"]
+			"cmds":["Sanft Settings"]
 		},
 		{
 			"code":"Resume Conversation",

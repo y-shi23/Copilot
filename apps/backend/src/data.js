@@ -1,7 +1,7 @@
 const { webFrame, nativeImage, ipcRenderer } = require('electron');
 const crypto = require('crypto');
 const windowMap = new Map();
-const feature_suffix = "anywhere助手^_^"
+const feature_suffix = "sanft助手^_^"
 const MIN_CHAT_WINDOW_WIDTH = 412;
 const MIN_CHAT_WINDOW_HEIGHT = 640;
 const DEV_WINDOW_URL = String(process.env.ANYWHERE_DEV_WINDOW_URL || '').trim();
@@ -99,8 +99,8 @@ const defaultConfig = {
       url: "",
       username: "",
       password: "",
-      path: "/anywhere",
-      data_path: "/anywhere_data",
+      path: "/sanft",
+      data_path: "/sanft_data",
       localChatPath: ""
     },
     voiceList: [
@@ -244,7 +244,7 @@ async function getConfig() {
 
   // --- 2. 旧版本数据自动迁移 ---
   if (configDoc.data && configDoc.data.config && configDoc.data.config.prompts) {
-    console.warn("Anywhere: Old configuration format detected. Starting migration.");
+    console.warn("Sanft: Old configuration format detected. Starting migration.");
     const oldFullConfig = configDoc.data.config;
     const { baseConfigPart, promptsPart, providersPart, mcpServersPart, localConfigPart } = splitConfigForStorage(oldFullConfig);
 
@@ -425,7 +425,7 @@ function checkConfig(config) {
 
   // --- 3. WebDAV 检查 ---
   if (!config.webdav) {
-    config.webdav = { url: "", username: "", password: "", path: "/anywhere", data_path: "/anywhere_data", localChatPath: "" };
+    config.webdav = { url: "", username: "", password: "", path: "/sanft", data_path: "/sanft_data", localChatPath: "" };
     flag = true;
   } else {
     if (config.webdav.dataPath) { // 迁移旧字段
@@ -433,7 +433,7 @@ function checkConfig(config) {
       delete config.webdav.dataPath;
       flag = true;
     }
-    const webdavDefaults = { data_path: "/anywhere_data", localChatPath: "" };
+    const webdavDefaults = { data_path: "/sanft_data", localChatPath: "" };
     for (const [k, v] of Object.entries(webdavDefaults)) {
       if (config.webdav[k] === undefined) { config.webdav[k] = v; flag = true; }
     }
@@ -812,7 +812,7 @@ function updateConfig(newConfig) {
 
   // 移除不再需要的 features
   for (const [code, feature] of featuresMap) {
-    if (code === "Anywhere Settings" || code === "Resume Conversation") continue;
+    if (code === "Sanft Settings" || code === "Resume Conversation") continue;
     const promptKey = feature.explain;
     if (!enabledPromptKeys.has(promptKey) ||
       (currentPrompts[promptKey] && (currentPrompts[promptKey].showMode !== "window") && code.endsWith(feature_suffix))
@@ -965,7 +965,7 @@ async function openWindow(config, msg) {
   const windowOptions = {
     show: false,
     backgroundColor: backgroundColor,
-    title: isMac ? "" : "Anywhere",
+    title: isMac ? "" : "Sanft",
     width: width,
     height: height,
     minWidth: effectiveMinWidth,

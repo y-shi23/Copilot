@@ -256,7 +256,7 @@ if (!window.utools) {
 window.utools.shellOpenExternal = utools.shellOpenExternal;
 
 const commandHandlers = {
-  'Anywhere Settings': async () => {
+  'Sanft Settings': async () => {
     // 使用 await
     const configResult = await getConfig();
     checkConfig(configResult.config);

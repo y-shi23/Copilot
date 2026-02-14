@@ -19,7 +19,7 @@
     }
   },
   "doc": {
-    "title": "Anywhere User Guide",
+    "title": "Sanft User Guide",
     "loading": "Loading documentation...",
     "loadFailed": "Failed to load documentation. Please check your network connection.",
     "checkNetwork": "Please ensure you can access GitHub or its mirrors.",
@@ -574,9 +574,9 @@
       "password": "WebDAV Password",
       "passwordPlaceholder": "WebDAV Password",
       "path": "WebDAV Config Path",
-      "pathPlaceholder": "/anywhere",
+      "pathPlaceholder": "/sanft",
       "dataPath": "WebDAV Data Path",
-      "dataPathPlaceholder": "/anywhere_data",
+      "dataPathPlaceholder": "/sanft_data",
       "backupRestoreTitle": "Config Backup & Restore",
       "backupButton": "Backup to WebDAV",
       "restoreButton": "Manage Backups",

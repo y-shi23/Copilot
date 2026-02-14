@@ -19,7 +19,7 @@
     }
   },
   "doc": {
-    "title": "Руководство пользователя Anywhere",
+    "title": "Руководство пользователя Sanft",
     "loading": "Загрузка документации...",
     "loadFailed": "Не удалось загрузить документацию. Пожалуйста, проверьте подключение к интернету.",
     "checkNetwork": "Убедитесь, что у вас есть доступ к GitHub или его зеркалам.",
@@ -574,9 +574,9 @@
       "password": "Пароль WebDAV",
       "passwordPlaceholder": "Пароль WebDAV",
       "path": "Путь конфигурации WebDAV",
-      "pathPlaceholder": "/anywhere",
+      "pathPlaceholder": "/sanft",
       "dataPath": "Путь к данным WebDAV",
-      "dataPathPlaceholder": "/anywhere_data",
+      "dataPathPlaceholder": "/sanft_data",
       "backupRestoreTitle": "Резервное копирование и восстановление",
       "backupButton": "Копировать в WebDAV",
       "restoreButton": "Управление копиями",

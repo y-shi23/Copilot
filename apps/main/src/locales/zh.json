@@ -19,7 +19,7 @@
     }
   },
   "doc": {
-    "title": "Anywhere 使用指南",
+    "title": "Sanft 使用指南",
     "loading": "文档加载中...",
     "loadFailed": "文档加载失败，请检查网络连接。",
     "checkNetwork": "请确保您能访问 GitHub 或其镜像站点。",
@@ -574,9 +574,9 @@
       "password": "WebDAV 密码",
       "passwordPlaceholder": "WebDAV 密码",
       "path": "WebDAV 配置路径",
-      "pathPlaceholder": "/anywhere",
+      "pathPlaceholder": "/sanft",
       "dataPath": "WebDAV 数据路径",
-      "dataPathPlaceholder": "/anywhere_data",
+      "dataPathPlaceholder": "/sanft_data",
       "backupRestoreTitle": "配置备份与恢复",
       "backupButton": "备份到 WebDAV",
       "restoreButton": "管理备份",

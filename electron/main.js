@@ -396,7 +396,7 @@ function createMainWindow() {
     minHeight: 680,
     backgroundColor: isMac ? '#00000000' : '#f7f7f5',
     autoHideMenuBar: true,
-    title: isMac ? '' : 'Anywhere',
+    title: isMac ? '' : 'Sanft',
     ...(isMac
       ? {
           titleBarStyle: 'hiddenInset',
@@ -445,7 +445,7 @@ function ensureBuildArtifacts() {
       '',
       ...missing.map((item) => `- ${item}`),
     ].join('\n');
-    dialog.showErrorBox('Anywhere Dev Resources Missing', message);
+    dialog.showErrorBox('Sanft Dev Resources Missing', message);
     app.quit();
     return;
   }
@@ -467,7 +467,7 @@ function ensureBuildArtifacts() {
     ...missing.map((item) => `- ${item}`),
   ].join('\n');
 
-  dialog.showErrorBox('Anywhere Build Missing', message);
+  dialog.showErrorBox('Sanft Build Missing', message);
   app.quit();
 }
 
@@ -643,7 +643,7 @@ ipcMain.on('utools:show-open-dialog', (event, options = {}) => {
 });
 
 ipcMain.on('utools:show-notification', (_event, payload = {}) => {
-  const title = payload.title || 'Anywhere';
+  const title = payload.title || 'Sanft';
   const body = payload.body || '';
   if (Notification.isSupported()) {
     new Notification({ title, body }).show();
