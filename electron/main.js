@@ -1,7 +1,16 @@
 "use strict";
 
 // electron-src/main.ts
-var { app, BrowserWindow, dialog, globalShortcut, ipcMain, Notification, screen, nativeTheme } = require("electron");
+var {
+  app,
+  BrowserWindow,
+  dialog,
+  globalShortcut,
+  ipcMain,
+  Notification,
+  screen,
+  nativeTheme
+} = require("electron");
 var fs = require("fs");
 var path = require("path");
 var { pathToFileURL } = require("url");
@@ -123,7 +132,9 @@ function readStoredPrompts() {
   const docs = readShimDocuments();
   const promptsData = docs?.prompts?.data;
   if (!promptsData || typeof promptsData !== "object") return [];
-  return Object.entries(promptsData).filter(([code, prompt]) => code && prompt && typeof prompt === "object" && prompt.enable !== false).map(([code, prompt]) => ({
+  return Object.entries(promptsData).filter(
+    ([code, prompt]) => code && prompt && typeof prompt === "object" && prompt.enable !== false
+  ).map(([code, prompt]) => ({
     code,
     prompt: typeof prompt.prompt === "string" ? prompt.prompt : "",
     type: normalizePromptType(prompt.type),
@@ -619,18 +630,18 @@ ipcMain.on("launcher:set-size", (_event, payload = {}) => {
     LAUNCHER_HEIGHT,
     Math.min(LAUNCHER_MAX_HEIGHT, workArea.height - 12)
   );
-  const nextHeight = Math.max(
-    LAUNCHER_HEIGHT,
-    Math.min(Math.round(rawHeight), maxAllowedHeight)
-  );
+  const nextHeight = Math.max(LAUNCHER_HEIGHT, Math.min(Math.round(rawHeight), maxAllowedHeight));
   const maxY = workArea.y + workArea.height - nextHeight;
   const nextY = Math.max(workArea.y, Math.min(bounds.y, maxY));
-  launcherWindow.setBounds({
-    x: bounds.x,
-    y: nextY,
-    width: bounds.width,
-    height: nextHeight
-  }, false);
+  launcherWindow.setBounds(
+    {
+      x: bounds.x,
+      y: nextY,
+      width: bounds.width,
+      height: nextHeight
+    },
+    false
+  );
 });
 ipcMain.on("launcher:execute", (_event, action = {}) => {
   hideLauncherWindow();
