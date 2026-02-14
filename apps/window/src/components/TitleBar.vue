@@ -10,7 +10,7 @@ import {
   Menu,
   Check,
   Lock,
-  Circle,
+  LockOpen,
   Pin,
   PinOff,
 } from 'lucide-vue-next';
@@ -115,7 +115,7 @@ onBeforeUnmount(() => {
         >
           <div class="func-btn" @click="emit('toggle-pin')" :class="{ active: !autoCloseOnBlur }">
             <Lock v-if="!autoCloseOnBlur" :size="16" />
-            <Circle v-else :size="16" />
+            <LockOpen v-else :size="16" />
           </div>
         </el-tooltip>
 

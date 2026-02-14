@@ -1994,10 +1994,21 @@ html.dark .chat-input-area-vertical {
   color: #ffffff;
 }
 
+html.dark .chat-input-area-vertical .message-send-btn {
+  background-color: #ffffff;
+  color: #000000;
+}
+
 .chat-input-area-vertical .action-buttons-right .message-send-btn:hover,
 .chat-input-area-vertical .action-buttons-right .message-send-btn:focus-visible {
   background-color: #1a1a1a;
   color: #ffffff;
+}
+
+html.dark .chat-input-area-vertical .action-buttons-right .message-send-btn:hover,
+html.dark .chat-input-area-vertical .action-buttons-right .message-send-btn:focus-visible {
+  background-color: #e5e5e5;
+  color: #000000;
 }
 
 @media (max-width: 760px) {
