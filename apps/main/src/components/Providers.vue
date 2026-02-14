@@ -1109,12 +1109,12 @@ watch(contextMenuVisible, (val) => {
                         </div>
                         <div class="model-actions">
                           <el-tooltip :content="t('providers.modelCapabilitySettingsTooltip')" placement="top">
-                            <button type="button" class="model-icon-btn model-settings-btn" @click.stop="openModelCapabilityDialog(model)">
+                            <button type="button" class="circle-action-btn-sm model-settings-btn" @click.stop="openModelCapabilityDialog(model)">
                               <Settings :size="14" />
                             </button>
                           </el-tooltip>
                           <el-tooltip :content="t('providers.removeModelTooltip')" placement="top">
-                            <button type="button" class="model-icon-btn model-remove-btn" @click.stop="delete_model(model)">
+                            <button type="button" class="circle-action-btn-sm model-remove-btn" @click.stop="delete_model(model)">
                               <Minus :size="16" />
                             </button>
                           </el-tooltip>
@@ -1609,32 +1609,6 @@ watch(contextMenuVisible, (val) => {
   display: flex;
   align-items: center;
   gap: 6px;
-}
-
-.model-icon-btn {
-  width: 24px;
-  height: 24px;
-  border: none;
-  border-radius: var(--radius-sm, 4px);
-  background-color: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  padding: 0;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.model-icon-btn:hover {
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-}
-
-.model-icon-btn:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--bg-accent) 55%, transparent);
-  outline-offset: 1px;
 }
 
 .model-settings-btn:hover {

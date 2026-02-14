@@ -182,6 +182,34 @@ html.dark .circle-action-btn {
   cursor: not-allowed;
 }
 
+.circle-action-btn-sm {
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 50% !important;
+  border: none !important;
+  background-color: transparent !important;
+  color: var(--text-secondary) !important;
+  padding: 0 !important;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.circle-action-btn-sm:hover {
+  background-color: #EBEBEF !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .circle-action-btn-sm:hover {
+  background-color: #1E1E1E !important;
+}
+
+.circle-action-btn-sm:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--bg-accent) 55%, transparent);
+  outline-offset: 1px;
+}
+
 .rounded-action-btn {
   width: 32px !important;
   height: 32px !important;
