@@ -1,20 +1,18 @@
-# ✨ AI Anywhere - 你的定制化 AI Agent 🚀
+# ✨ Sanft - 你的定制化 AI Agent 🚀
 
-> **随时随地，便捷召唤 AI！支持 MCP 与 Skill 技能库，将 AI 从简单的“聊天机器人”升级为能够执行复杂任务的“全能AI助手”。**
+> **随时随地，便捷召唤 AI！支持 MCP 与 Skill 技能库，将 AI 从简单的"聊天机器人"升级为能够执行复杂任务的"全能AI助手"。**
 
 <p align="center">
-  <a href="https://www.u-tools.cn/plugins/detail/AI%20Anywhere/">
-    <img src="https://img.shields.io/badge/uTools-Plugin-blue?style=flat-square&logo=utools" alt="uTools Plugin">
-  </a>
+  <img src="https://img.shields.io/badge/Electron-Desktop-blue?style=flat-square&logo=electron" alt="Electron Desktop">
   <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License">
-  <a href="https://github.com/Komorebi-yaodong/Anywhere">
-    <img src="https://img.shields.io/github/stars/Komorebi-yaodong/Anywhere?style=flat-square" alt="Stars">
-  </a>
+  <img src="https://img.shields.io/badge/Vue-3.5-brightgreen?style=flat-square&logo=vue.js" alt="Vue 3">
 </p>
 
-Anywhere 是一款为 **uTools** 打造的深度定制化 AI 助手插件。它不仅仅是一个聚合 API 的聊天窗口，更是一个集成了 **MCP 工具调用**、**Skill 流程编排**、**多模态交互** 以及 **多端数据同步** 的生产力平台。
+Sanft 是一款基于 **Electron** 的深度定制化 AI 助手桌面应用。它不仅仅是一个聚合 API 的聊天窗口，更是一个集成了 **MCP 工具调用**、**Skill 流程编排**、**多模态交互** 以及 **WebDAV 数据同步** 的生产力平台。
 
-无论是日常的划词翻译、变量命名、OCR、文件总结，还是基于 MCP 和 SKILL 的智能爬虫、自动化工作流，它都能成为你最得力的助手。同时，Anywhere 也可作为 AI 服务商的集成平台，或个人提示词的理想存储与管理工具。
+无论是日常的划词翻译、变量命名、OCR、文件总结，还是基于 MCP 和 SKILL 的智能爬虫、自动化工作流，它都能成为你最得力的助手。同时，Sanft 也可作为 AI 服务商的集成平台，或个人提示词的理想存储与管理工具。
+
+> **📌 历史说明**：本项目最初为 uTools 插件开发，现已独立为 Electron 桌面应用，无需依赖 uTools 即可运行。
 
 ---
 
@@ -22,7 +20,7 @@ Anywhere 是一款为 **uTools** 打造的深度定制化 AI 助手插件。它�
 
 ### 🚀 极速交互模式
 
-**快捷输入**：极速启动的悬浮条。适用于划词翻译、变量命名等“阅后即焚，快捷输入”的轻量级任务。支持流式打字机效果，任务结束后自动销毁。
+**快捷输入**：极速启动的悬浮条。适用于划词翻译、变量命名等"阅后即焚，快捷输入"的轻量级任务。支持流式打字机效果，任务结束后自动销毁。
 
 ![快捷输入模式](image/快捷输入模式-深色.gif)
 
@@ -33,13 +31,21 @@ Anywhere 是一款为 **uTools** 打造的深度定制化 AI 助手插件。它�
 ![独立窗口模式](image/独立对话窗口界面.gif)
 ![自定义背景图片](image/背景图片示例.png)
 
+### ⚡ 全局快捷启动器
+
+**全局唤出**：默认 `Ctrl+Shift+Space`（macOS 为 `Command+Shift+Space`）唤出输入框。
+
+* 输入关键词实时匹配你在应用内注册的快捷助手
+* 支持直接输入文本执行，或粘贴图片 / 拖拽文件后执行对应助手
+* 支持在「设置 -> 通用设置」中启用/关闭并自定义快捷键
+
 ---
 
 ## 💡 核心特性
 
 ### 🧠 真正的智能 Agent (MCP 支持)
 
-打破 AI 与物理世界的隔阂。通过引入 **[Model Context Protocol (MCP)](https://modelcontextprotocol.io/)**，Anywhere 让 AI 拥有了“双手”：
+打破 AI 与物理世界的隔阂。通过引入 **[Model Context Protocol (MCP)](https://modelcontextprotocol.io/)**，Sanft 让 AI 拥有了"双手"：
 
 * **内置强力工具**：开箱即用，无需配置即可支持 **Python 代码执行**、**全能文件操作** (读/写/搜索/正则替换)、**终端命令执行** (Bash/PowerShell)、**联网搜索** (DuckDuckGo)。
 * **无限扩展**：兼容社区成千上万的 MCP 服务 (Stdio/HTTP/SSE)。
@@ -49,27 +55,12 @@ Anywhere 是一款为 **uTools** 打造的深度定制化 AI 助手插件。它�
 
 ### 📚 Skill 技能库 (SOP 编排)
 
-如果 MCP 是手，Skill 就是 AI 的“大脑”。
+如果 MCP 是手，Skill 就是 AI 的"大脑"。
 
 * **SOP 标准化**：将复杂的任务（如代码审查规范、周报生成模板）封装成技能包。
-* **子智能体模式 (Sub-Agent)**：对于复杂任务，Anywhere 可以启动一个独立的 Agent 专注执行该技能，主对话流仅接收最终结果。
+* **子智能体模式 (Sub-Agent)**：对于复杂任务，Sanft 可以启动一个独立的 Agent 专注执行该技能，主对话流仅接收最终结果。
 
 ![SKILL下载示例](image/skill下载示例.gif)
-
-### ⚡ 便捷调用与管理
-
-支持通过 uTools 关键字、快捷键、以及选中文本/文件/图片后的超级面板快速调用。
-
-桌面版（Electron）新增了 **全局快捷启动器**：
-
-* 默认 `Ctrl+Shift+Space`（macOS 为 `Command+Shift+Space`）唤出输入框。
-* 输入关键词实时匹配你在应用内注册的快捷助手。
-* 支持直接输入文本执行，或粘贴图片 / 拖拽文件后执行对应助手。
-* 支持在「设置 -> 通用设置」中启用/关闭并自定义快捷键。
-
-|           指令调用           |               快捷调用               |
-| :---------------------------: | :-----------------------------------: |
-| ![指令调用](image/指令调用.png) | ![快捷调用方法](image/快捷调用方法.png) |
 
 ### ☁️ 数据与隐私
 
@@ -99,7 +90,7 @@ Anywhere 是一款为 **uTools** 打造的深度定制化 AI 助手插件。它�
 
 ## 📚 详细文档
 
-我们为不同模块提供了详尽的文档，帮助你挖掘 Anywhere 的潜力：
+我们为不同模块提供了详尽的文档，帮助你挖掘 Sanft 的潜力：
 
 | 模块                   | 说明                                                              | 文档链接                        |
 | :--------------------- | :---------------------------------------------------------------- | :------------------------------ |
@@ -116,37 +107,68 @@ Anywhere 是一款为 **uTools** 打造的深度定制化 AI 助手插件。它�
 
 ## 🛠️ 开发者指南
 
-如果你想参与 Anywhere 的开发，或者想自己编译修改版，请参考以下指南。
+如果你想参与 Sanft 的开发，或者想自己编译修改版，请参考以下指南。
+
+### 技术栈
+
+| 层级 | 技术 |
+| :--- | :--- |
+| **桌面框架** | Electron 30.x |
+| **前端框架** | Vue 3.5 + Vite 7.x |
+| **UI 组件** | Element Plus 2.x |
+| **状态管理** | Vue Reactivity API |
+| **国际化** | vue-i18n |
+| **MCP 适配** | @langchain/mcp-adapters |
+| **打包工具** | electron-builder |
 
 ### 项目结构
 
-本项目现在提供 **独立 Electron 桌面版**，并保留原有 uTools 插件构建产物。主要结构如下：
-
 ```text
-Anywhere/
+Sanft/
 ├── apps/
 │   ├── backend/        # 后端逻辑 (Node.js)，处理文件读写、MCP连接、Preload脚本
+│   │   └── src/
+│   │       ├── preload.js           # 主窗口预加载脚本
+│   │       ├── window_preload.js    # 对话窗口预加载脚本
+│   │       ├── fast_window_preload.js # 快捷输入条预加载脚本
+│   │       ├── utools_shim.js       # uTools API 兼容层
+│   │       ├── mcp.js               # MCP 客户端管理
+│   │       ├── mcp_builtin.js       # 内置 MCP 工具
+│   │       ├── skill.js             # Skill 技能库管理
+│   │       └── runtime/             # 运行时模块
 │   ├── main/           # 主界面前端 (Vue 3 + Element Plus)，用于设置、管理配置
+│   │   └── src/
+│   │       ├── components/          # Vue 组件 (Chats, Prompts, Mcp, Skills, Providers, Setting)
+│   │       ├── locales/             # 国际化文件 (zh, en, ja, ru)
+│   │       └── App.vue              # 主应用入口
 │   ├── window/         # 独立对话窗口前端 (Vue 3 + Element Plus)，核心交互区
+│   │   └── src/
+│   │       └── components/          # 对话组件 (ChatHeader, ChatInput, ChatMessage 等)
 │   └── fast-window/    # 快捷输入条前端 (原生 HTML/JS)，轻量级交互
 ├── electron/           # Electron 主进程与 IPC 桥接
+│   ├── main.js         # 主进程入口，窗口管理、全局快捷键、IPC 通信
+│   └── launcher_preload.js # 全局启动器预加载脚本
+├── build/              # 打包资源 (图标等)
 ├── docs/               # 项目文档
-├── scripts/            # 构建与工具脚本（legacy 脚本已归档）
-├── runtime/            # 统一运行目录（主界面/对话窗口/preload）
-└── ...
+├── scripts/            # 构建与工具脚本
+├── runtime/            # 统一运行目录（构建产物）
+│   ├── main/           # 主界面构建产物
+│   ├── preload.js      # 预加载脚本构建产物
+│   └── plugin.json     # uTools 插件配置（兼容模式）
+└── release/            # 打包输出目录
 ```
 
-### 开发环境搭建与构建
+### 开发环境搭建
 
-请确保你的环境已安装 `Node.js` 和 `pnpm`。
+请确保你的环境已安装 `Node.js` (>= 18.x) 和 `pnpm`。
 
 #### 🚀 一键启动（推荐）
 
 macOS / Linux 用户可使用一键启动脚本：
 
 ```bash
-git clone https://github.com/Komorebi-yaodong/Anywhere.git
-cd Anywhere
+git clone https://github.com/your-username/Sanft.git
+cd Sanft
 chmod +x dev.sh
 ./dev.sh
 ```
@@ -174,9 +196,10 @@ chmod +x dev.sh
 1. **克隆项目**
 
    ```bash
-   git clone https://github.com/Komorebi-yaodong/Anywhere.git
-   cd Anywhere
+   git clone https://github.com/your-username/Sanft.git
+   cd Sanft
    ```
+
 2. **安装全部依赖**
 
    ```bash
@@ -208,14 +231,46 @@ chmod +x dev.sh
    pnpm dist
    ```
 
-### (可选) 继续以 uTools 插件方式调试
+   打包产物将输出到 `release/` 目录，支持：
+   - **Windows**: NSIS 安装包、便携版
+   - **macOS**: DMG、ZIP
+   - **Linux**: AppImage、DEB
 
-如果你仍需使用 uTools 插件模式，可继续使用 `runtime/plugin.json` 导入调试：
+### 开发模式（热重载）
 
-   1. 下载并安装 [uTools 开发者工具](https://www.u-tools.cn/plugins/detail/uTools%20%E5%BC%80%E5%8F%91%E8%80%85%E5%B7%A5%E5%85%B7/)。
-   2. 在开发者工具中选择「新建项目」 -> 「导入项目」。
-   3. 选择构建后的 `runtime/plugin.json` 文件。
-   4. 点击运行即可开始调试。
+开发模式下会启动 Vite 开发服务器，支持前端热重载：
+
+```bash
+./dev.sh
+```
+
+这会同时启动：
+- Main 界面 Vite 服务器 (端口 5173)
+- Window 界面 Vite 服务器 (端口 5174)
+- Backend 预加载脚本监视模式
+- Electron 主进程
+
+### 核心架构说明
+
+#### uTools 兼容层 (`utools_shim.js`)
+
+为了保持与原 uTools 插件的兼容性，项目实现了一个 uTools API 兼容层：
+
+- **数据存储**: 使用本地 JSON 文件替代 uTools 数据库，存储在 `userData/utools-shim/` 目录
+- **窗口管理**: 通过 Electron IPC 实现多窗口创建、管理
+- **系统交互**: 剪贴板、通知、文件对话框等功能
+
+#### MCP 客户端 (`mcp.js`)
+
+支持两种连接模式：
+- **持久连接**: 保持长连接，适合高频使用的服务（最多 5 个）
+- **即用即走**: 临时连接，用完即关闭，适合低频服务
+
+#### Skill 系统 (`skill.js`)
+
+支持两种执行模式：
+- **直接模式**: 返回指令给主对话执行
+- **子智能体模式 (Fork)**: 启动独立 Agent 执行复杂任务
 
 ---
 
@@ -231,10 +286,10 @@ chmod +x dev.sh
 
 ## 🤝 社区与支持
 
-Anywhere 是一个持续进化的开源项目，欢迎加入社区交流心得、分享 Skill 或反馈 Bug。
+Sanft 是一个持续进化的开源项目，欢迎加入社区交流心得、分享 Skill 或反馈 Bug。
 
-* **GitHub Issues**: [提交反馈与建议](https://github.com/Komorebi-yaodong/Anywhere/issues)
-* **作者常用提示词**: [Komorebi 的提示词库](https://komorebi.141277.xyz/post?file=posts%2F5.md)
+* **GitHub Issues**: [提交反馈与建议](https://github.com/your-username/Sanft/issues)
+* **原作者提示词库**: [Komorebi 的提示词库](https://komorebi.141277.xyz/post?file=posts%2F5.md)
 * **QQ 交流群**: `1065512489` (欢迎加群催更、分享提示词、Agent、MCP与SKILL、或者闲聊~)
 
 ---
@@ -242,3 +297,9 @@ Anywhere 是一个持续进化的开源项目，欢迎加入社区交流心得�
 ## 📄 许可证
 
 本项目采用 [MIT License](LICENSE) 开源。
+
+---
+
+## 🙏 致谢
+
+本项目 Fork 自 [Anywhere](https://github.com/Komorebi-yaodong/Anywhere)，感谢原作者 @Komorebi-yaodong 的出色工作！
