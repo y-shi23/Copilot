@@ -1,0 +1,458 @@
+main {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+main > .app-container {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.app-container {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background-color: color-mix(in srgb, #ffffff 30%, transparent);
+  color: var(--el-text-color-primary);
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'SF Pro Text',
+    'SF Pro Display',
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  box-sizing: border-box;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, #ffffff 84%, var(--el-border-color-light));
+  box-shadow: var(--el-box-shadow-light);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  position: relative;
+  z-index: 1;
+}
+
+html.dark .app-container {
+  background-color: color-mix(in srgb, var(--el-bg-color-page) 80%, transparent);
+}
+
+main.native-vibrancy .app-container.native-vibrancy {
+  background-color: rgba(255, 255, 255, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow: 0 14px 32px rgba(32, 32, 32, 0.16);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html.dark main.native-vibrancy .app-container.native-vibrancy {
+  background-color: rgba(18, 19, 21, 0.32);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+main.fallback-vibrancy .app-container.fallback-vibrancy {
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
+}
+
+.app-container :deep(.title-bar),
+.app-container :deep(.model-header),
+.app-container :deep(.input-footer) {
+  background-color: transparent !important;
+}
+
+.app-container :deep(.chat-input-area-vertical) {
+  border-radius: 24px;
+  border-color: var(--el-border-color-light) !important;
+  box-shadow: 0 16px 32px rgba(32, 32, 32, 0.08);
+}
+
+.main-area-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.chat-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  padding: 4px 24px 0;
+  margin: 0;
+  overflow-y: auto;
+  scroll-behavior: auto !important;
+  background-color: transparent !important;
+  scrollbar-gutter: stable;
+  will-change: scroll-position;
+  transform: translateZ(0);
+}
+
+.chat-main > * {
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--el-text-color-disabled, #c0c4cc);
+  border-radius: 4px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--el-text-color-secondary, #909399);
+}
+
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #6b6b6b;
+  background-clip: content-box;
+}
+
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #999;
+  background-clip: content-box;
+}
+
+:deep(.image-error-container) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 15px;
+  border: 1px dashed var(--el-border-color);
+  border-radius: 8px;
+  background-color: var(--el-fill-color-light);
+  color: var(--el-text-color-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+:deep(.image-error-container:hover) {
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
+  background-color: var(--el-color-primary-light-9);
+}
+
+:deep(.image-error-container svg) {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.window-bg-base {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  background-color: var(--el-bg-color);
+  transition: background-color 0.3s ease;
+  pointer-events: none;
+  will-change: background-color;
+}
+
+.window-bg-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  pointer-events: none;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+
+  /* 核心优化：默认透明，且具有过渡效果 */
+  opacity: 0;
+  transition:
+    opacity 0.4s ease-in-out,
+    filter 0.3s ease;
+}
+
+.app-container.has-bg,
+html.dark .app-container.has-bg,
+body .app-container.has-bg {
+  background-color: transparent !important;
+  background: none !important;
+}
+
+.app-container.has-bg :deep(.title-bar),
+.app-container.has-bg :deep(.model-header),
+.app-container.has-bg :deep(.input-footer) {
+  background-color: transparent !important;
+}
+
+.app-container.has-bg :deep(.chat-input-area-vertical) {
+  background-color: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.app-container.has-bg :deep(.chat-input-area-vertical .el-textarea__inner) {
+  background-color: transparent !important;
+}
+
+html.dark .app-container.has-bg :deep(.chat-input-area-vertical) {
+  background-color: rgba(30, 30, 30, 0.45) !important;
+}
+
+html.dark .app-container.has-bg :deep(.title-bar) {
+  /* 强制功能按钮（Pin, Top）和 Mac红绿灯图标变亮 */
+  .func-btn,
+  .traffic-icon {
+    color: rgba(255, 255, 255, 0.9) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+    /* 增加文字阴影提高对比度 */
+  }
+
+  .func-btn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  /* 强制 Windows/Linux 窗口控制按钮变亮 */
+  .win-btn,
+  .linux-btn {
+    color: rgba(255, 255, 255, 0.9) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  }
+
+  .win-btn:hover,
+  .linux-btn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  /* Windows 关闭按钮悬浮仍保持红色 */
+  .win-btn.close:hover {
+    background-color: #e81123 !important;
+    color: white !important;
+  }
+
+  /* Linux 关闭按钮悬浮仍保持红色 */
+  .linux-btn.close:hover {
+    background-color: #e95420 !important;
+    color: white !important;
+  }
+
+  /* 标题和文字颜色增强 */
+  .app-title,
+  .conversation-title,
+  .download-icon {
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  }
+
+  .app-info-inner:hover,
+  .conversation-inner:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+
+  .divider-vertical {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+}
+
+.app-container.has-bg :deep(.el-dialog),
+.app-container.has-bg :deep(.el-message-box) {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  backdrop-filter: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+}
+
+.app-container.has-bg :deep(.el-dialog__header),
+.app-container.has-bg :deep(.el-dialog__body),
+.app-container.has-bg :deep(.el-dialog__footer),
+.app-container.has-bg :deep(.el-message-box__header),
+.app-container.has-bg :deep(.el-message-box__content),
+.app-container.has-bg :deep(.el-message-box__btns) {
+  background-color: transparent !important;
+}
+
+html.dark .app-container.has-bg :deep(.el-dialog),
+html.dark .app-container.has-bg :deep(.el-message-box) {
+  background-color: rgba(40, 40, 40, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 弹窗内输入框 */
+.app-container.has-bg :deep(.el-dialog .el-textarea__inner),
+.app-container.has-bg :deep(.el-dialog .el-input__wrapper) {
+  background-color: rgba(240, 240, 240, 0.45) !important;
+  backdrop-filter: none !important;
+}
+
+html.dark .app-container.has-bg :deep(.el-dialog .el-textarea__inner),
+html.dark .app-container.has-bg :deep(.el-dialog .el-input__wrapper) {
+  background-color: rgba(20, 20, 20, 0.45) !important;
+}
+
+.app-container.has-bg :deep(.option-selector-wrapper),
+.app-container.has-bg :deep(.waveform-display-area) {
+  background-color: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+}
+
+html.dark .app-container.has-bg :deep(.option-selector-wrapper),
+html.dark .app-container.has-bg :deep(.waveform-display-area) {
+  background-color: rgba(30, 30, 30, 0.45) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.app-container.has-bg :deep(.option-selector-wrapper .el-scrollbar__view) {
+  /* 确保滚动内容区域背景透明，继承父级 */
+  background-color: transparent !important;
+}
+
+.app-container.has-bg :deep(.recording-status-text) {
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);
+}
+
+html.dark .app-container.has-bg :deep(.recording-status-text) {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* 模型选择药丸 */
+.app-container.has-bg :deep(.model-pill) {
+  background-color: rgba(255, 255, 255, 0.6);
+  backdrop-filter: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.app-container.has-bg :deep(.model-pill:hover) {
+  background-color: #f8f8f5;
+}
+
+html.dark .app-container.has-bg :deep(.model-pill) {
+  background-color: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+html.dark .app-container.has-bg :deep(.model-pill:hover) {
+  background-color: rgba(0, 0, 0, 0.7);
+}
+
+.app-container.has-bg :deep(.user-bubble .el-bubble-content) {
+  background-color: rgba(245, 244, 237, 0.7) !important;
+  /* 用户指定 */
+  backdrop-filter: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* AI 气泡 */
+.app-container.has-bg :deep(.ai-bubble .el-bubble-content) {
+  background-color: rgba(255, 255, 255, 0.45) !important;
+  /* 用户指定 */
+  backdrop-filter: none !important;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  /* 用户指定 Padding */
+  padding: 10px !important;
+}
+
+/* 深色模式气泡 */
+html.dark .app-container.has-bg :deep(.user-bubble .el-bubble-content) {
+  background-color: rgba(47, 47, 47, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+html.dark .app-container.has-bg :deep(.ai-bubble .el-bubble-content) {
+  background-color: rgba(33, 33, 33, 0.45) !important;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 功能按钮 */
+.app-container.has-bg :deep(.footer-actions .el-button.is-circle) {
+  background-color: rgba(255, 255, 255, 0.6);
+  backdrop-filter: none !important;
+}
+
+.app-container.has-bg :deep(.footer-actions .el-button.is-circle:hover) {
+  background-color: #f8f8f5;
+}
+
+html.dark .app-container.has-bg :deep(.footer-actions .el-button.is-circle) {
+  background-color: rgba(0, 0, 0, 0.5);
+  color: #e0e0e0;
+}
+
+html.dark .app-container.has-bg :deep(.footer-actions .el-button.is-circle:hover) {
+  background-color: rgba(60, 60, 60, 1);
+}
+
+/* 思考模式 */
+.app-container.has-bg :deep(.el-thinking .trigger) {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+  backdrop-filter: none !important;
+}
+
+.app-container.has-bg :deep(.el-thinking .content pre) {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+html.dark .app-container.has-bg :deep(.el-thinking .trigger) {
+  background-color: rgba(44, 46, 51, 0.7) !important;
+}
+
+html.dark .app-container.has-bg :deep(.el-thinking .content pre) {
+  background-color: rgba(0, 0, 0, 0.3) !important;
+}
+
+.app-container.has-bg :deep(.tool-collapse .el-collapse-item__header) {
+  background-color: rgba(255, 255, 255, 0.45) !important;
+  backdrop-filter: none !important;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.app-container.has-bg :deep(.tool-collapse .el-collapse-item__wrap) {
+  background-color: transparent !important;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.app-container.has-bg :deep(.tool-call-details .tool-detail-section pre) {
+  background-color: rgba(255, 255, 255, 0.7) !important;
+}
+
+html.dark .app-container.has-bg :deep(.tool-collapse .el-collapse-item__header) {
+  background-color: rgba(0, 0, 0, 0.7) !important;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .app-container.has-bg :deep(.tool-collapse .el-collapse-item__wrap) {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+html.dark .app-container.has-bg :deep(.tool-call-details .tool-detail-section pre) {
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  border-color: rgba(255, 255, 255, 0.05);
+}
