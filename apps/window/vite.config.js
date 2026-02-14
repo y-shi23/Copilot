@@ -3,9 +3,27 @@ import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 
+function pruneKatexFontFormats() {
+  return {
+    name: 'prune-katex-font-formats',
+    enforce: 'pre',
+    transform(code, id) {
+      if (!id.includes('katex/dist/katex.min.css')) return null;
+      return {
+        code: code.replace(
+          /,url\(fonts\/[^)]+\.woff\)\s*format\("woff"\),url\(fonts\/[^)]+\.ttf\)\s*format\("truetype"\)/g,
+          ''
+        ),
+        map: null,
+      };
+    },
+  };
+}
+
 export default defineConfig({
   plugins: [
     vue(),
+    pruneKatexFontFormats(),
   ],
   resolve: {
     alias: {

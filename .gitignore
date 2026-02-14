@@ -49,11 +49,13 @@ ToDoList.md
 /runtime/preload.js
 /runtime/window_preload.js
 /runtime/fast_window_preload.js
+/runtime/runtime/*
 /release
 
 !/runtime/window/.gitkeep
 !/runtime/fast_window/.gitkeep
 !/runtime/main/.gitkeep
+!/runtime/runtime/.gitkeep
 
 
 

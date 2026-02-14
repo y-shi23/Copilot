@@ -10,9 +10,13 @@ const DEV_FAST_WINDOW_ENTRY = String(process.env.ANYWHERE_DEV_FAST_WINDOW_ENTRY 
 const {
   requestTextOpenAI
 } = require('./input.js');
-const { 
-  getBuiltinServers
-} = require('./mcp_builtin.js');
+const {
+  getBuiltinServersMetadata,
+} = require('./builtin_metadata.js');
+
+const getBuiltinServers = () => getBuiltinServersMetadata({
+  isWin: process.platform === 'win32',
+});
 
 function appendQueryParam(rawUrl, key, value) {
   if (!rawUrl) return rawUrl;

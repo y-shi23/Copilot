@@ -1,4 +1,5 @@
 global.utools = require('./utools_shim.js');
+const path = require('path');
 
 const {
   getConfig,
@@ -20,47 +21,66 @@ const {
 } = require('./data.js');
 
 const {
-  handleFilePath,
-  sendfileDirect,
-  saveFile,
-  selectDirectory,
-  listJsonFiles,
-  readLocalFile,
-  renameLocalFile,
-  deleteLocalFile,
-  writeLocalFile,
-  setFileMtime,
-  isFileTypeSupported,
-  parseFileObject,
-  copyLocalPath,
-} = require('./file.js');
-
-const {
   getRandomItem,
 } = require('./input.js');
 
-const { 
-  invokeBuiltinTool,
-} = require('./mcp_builtin.js');
+const loadRuntimeModule = (moduleFileName) => {
+  return require(path.join(__dirname, 'runtime', moduleFileName));
+};
 
-const {
-  initializeMcpClient,
-  invokeMcpTool,
-  closeMcpClient,
-  connectAndFetchTools,
-  connectAndInvokeTool,
-} = require('./mcp.js');
+let fileRuntimeCache = null;
+const getFileRuntime = () => {
+  if (!fileRuntimeCache) {
+    fileRuntimeCache = loadRuntimeModule('file_runtime.js');
+  }
+  return fileRuntimeCache;
+};
 
-const {
-    listSkills,
-    getSkillDetails,
-    generateSkillToolDefinition,
-    resolveSkillInvocation,
-    saveSkill,
-    deleteSkill,
-    exportSkillToPackage,
-    extractSkillPackage,
-} = require('./skill.js');
+let mcpRuntimeCache = null;
+const getMcpRuntime = () => {
+  if (!mcpRuntimeCache) {
+    mcpRuntimeCache = loadRuntimeModule('mcp_runtime.js');
+  }
+  return mcpRuntimeCache;
+};
+
+let skillRuntimeCache = null;
+const getSkillRuntime = () => {
+  if (!skillRuntimeCache) {
+    skillRuntimeCache = loadRuntimeModule('skill_runtime.js');
+  }
+  return skillRuntimeCache;
+};
+
+const handleFilePath = (...args) => getFileRuntime().handleFilePath(...args);
+const sendfileDirect = (...args) => getFileRuntime().sendfileDirect(...args);
+const saveFile = (...args) => getFileRuntime().saveFile(...args);
+const selectDirectory = (...args) => getFileRuntime().selectDirectory(...args);
+const listJsonFiles = (...args) => getFileRuntime().listJsonFiles(...args);
+const readLocalFile = (...args) => getFileRuntime().readLocalFile(...args);
+const renameLocalFile = (...args) => getFileRuntime().renameLocalFile(...args);
+const deleteLocalFile = (...args) => getFileRuntime().deleteLocalFile(...args);
+const writeLocalFile = (...args) => getFileRuntime().writeLocalFile(...args);
+const setFileMtime = (...args) => getFileRuntime().setFileMtime(...args);
+const isFileTypeSupported = (...args) => getFileRuntime().isFileTypeSupported(...args);
+const parseFileObject = (...args) => getFileRuntime().parseFileObject(...args);
+const copyLocalPath = (...args) => getFileRuntime().copyLocalPath(...args);
+
+const invokeBuiltinTool = (...args) => getMcpRuntime().invokeBuiltinTool(...args);
+const initializeMcpClient = (...args) => getMcpRuntime().initializeMcpClient(...args);
+const invokeMcpTool = (...args) => getMcpRuntime().invokeMcpTool(...args);
+const closeMcpClient = (...args) => getMcpRuntime().closeMcpClient(...args);
+const connectAndFetchTools = (...args) => getMcpRuntime().connectAndFetchTools(...args);
+const connectAndInvokeTool = (...args) => getMcpRuntime().connectAndInvokeTool(...args);
+
+const listSkills = (...args) => getSkillRuntime().listSkills(...args);
+const getSkillDetails = (...args) => getSkillRuntime().getSkillDetails(...args);
+const generateSkillToolDefinition = (...args) => getSkillRuntime().generateSkillToolDefinition(...args);
+const resolveSkillInvocation = (...args) => getSkillRuntime().resolveSkillInvocation(...args);
+const saveSkill = (...args) => getSkillRuntime().saveSkill(...args);
+const deleteSkill = (...args) => getSkillRuntime().deleteSkill(...args);
+const exportSkillToPackage = (...args) => getSkillRuntime().exportSkillToPackage(...args);
+const extractSkillPackage = (...args) => getSkillRuntime().extractSkillPackage(...args);
 
 window.api = {
   getConfig,

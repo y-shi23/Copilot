@@ -1,16 +1,16 @@
 <script setup>
-import { ref, watch, onMounted, provide, onBeforeUnmount, computed, h } from 'vue'
-import Chats from './components/Chats.vue'
-import Prompts from './components/Prompts.vue'
-import Mcp from './components/Mcp.vue'
-import Setting from './components/Setting.vue'
-import Providers from './components/Providers.vue'
-import Skills from './components/Skills.vue'
+import { ref, watch, onMounted, provide, onBeforeUnmount, computed, h, defineAsyncComponent } from 'vue'
 
 import { useI18n } from 'vue-i18n'
 import { Bell, MessageCircle as ChatDotRound, WandSparkles as MagicStick, Library as Collection, Cloud as Cloudy, Settings as SettingIcon, FileText as Document } from 'lucide-vue-next';
-import { marked } from 'marked';
 import { ElBadge } from 'element-plus'; // 确保引入 ElBadge
+
+const Chats = defineAsyncComponent(() => import('./components/Chats.vue'));
+const Prompts = defineAsyncComponent(() => import('./components/Prompts.vue'));
+const Mcp = defineAsyncComponent(() => import('./components/Mcp.vue'));
+const Setting = defineAsyncComponent(() => import('./components/Setting.vue'));
+const Providers = defineAsyncComponent(() => import('./components/Providers.vue'));
+const Skills = defineAsyncComponent(() => import('./components/Skills.vue'));
 
 const { t, locale } = useI18n()
 const tab = ref(0);
@@ -248,6 +248,14 @@ const docList = ref([
 const readStatusKey = 'anywhere_doc_last_read';
 const docReadMap = ref({});
 
+let markedParserPromise = null;
+const getMarkedParser = async () => {
+  if (!markedParserPromise) {
+    markedParserPromise = import('marked').then((module) => module.marked);
+  }
+  return markedParserPromise;
+};
+
 // 初始化读取状态
 const loadReadStatus = () => {
   try {
@@ -354,7 +362,8 @@ const fetchAndParseDoc = async (filename) => {
         return `![${alt}](${imgBaseUrl}${encodeURIComponent(filename)})`;
     });
 
-    currentDocContent.value = marked.parse(text);
+    const markedParser = await getMarkedParser();
+    currentDocContent.value = markedParser.parse(text);
   } catch (error) {
     console.error('Failed to load doc:', error);
     currentDocContent.value = `<h3>${t('doc.loadFailed')}</h3><p>${t('doc.checkNetwork')}</p>`;

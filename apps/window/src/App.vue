@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick, watch, h, computed, defineAsyncComponent } from 'vue';
 import { ElContainer, ElMain, ElDialog, ElImageViewer, ElMessage, ElMessageBox, ElInput, ElButton, ElCheckbox, ElButtonGroup, ElTag, ElTooltip, ElAvatar, ElSwitch } from 'element-plus';
-import { createClient } from "webdav/web";
 import { Copy, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Download, Wrench, Zap, ChevronRight, Search, CircleQuestionMark as CircleHelp, Folder, Cpu, TriangleAlert } from 'lucide-vue-next';
 
 import TitleBar from './components/TitleBar.vue';
@@ -9,9 +8,6 @@ import ChatHeader from './components/ChatHeader.vue';
 const ChatMessage = defineAsyncComponent(() => import('./components/ChatMessage.vue'));
 import ChatInput from './components/ChatInput.vue';
 import ModelSelectionDialog from './components/ModelSelectionDialog.vue';
-
-import DOMPurify from 'dompurify';
-import { marked } from 'marked';
 
 import TextSearchUI from './utils/TextSearchUI.js';
 import { formatTimestamp, sanitizeToolArgs } from './utils/formatters.js';
@@ -42,6 +38,33 @@ showDismissibleMessage.error = (message) => showDismissibleMessage({ message, ty
 showDismissibleMessage.info = (message) => showDismissibleMessage({ message, type: 'info' });
 showDismissibleMessage.warning = (message) => showDismissibleMessage({ message, type: 'warning' });
 
+let createWebdavClientPromise = null;
+const getCreateWebdavClient = async () => {
+  if (!createWebdavClientPromise) {
+    createWebdavClientPromise = import('webdav/web').then((module) => module.createClient);
+  }
+  return createWebdavClientPromise;
+};
+
+const createWebdavClient = async (url, username, password) => {
+  const createClient = await getCreateWebdavClient();
+  return createClient(url, { username, password });
+};
+
+let markdownRuntimePromise = null;
+const getMarkdownRuntime = async () => {
+  if (!markdownRuntimePromise) {
+    markdownRuntimePromise = Promise.all([
+      import('marked'),
+      import('dompurify'),
+    ]).then(([markedModule, domPurifyModule]) => ({
+      marked: markedModule.marked,
+      DOMPurify: domPurifyModule.default || domPurifyModule,
+    }));
+  }
+  return markdownRuntimePromise;
+};
+
 const handleMinimize = () => window.api.windowControl('minimize-window');
 const handleMaximize = () => window.api.windowControl('maximize-window');
 const handleCloseWindow = () => closePage();
@@ -59,8 +82,21 @@ const focusedMessageIndex = ref(null);
 // 核心状态：是否粘滞在底部
 const isSticky = ref(true);
 let chatObserver = null;    // DOM 观察器实例
+let observerFlushFrame = 0;
+let shouldFlushStickyScroll = false;
+let shouldFlushCodeBlockScan = false;
+let codeBlockScanFrame = 0;
+let isCodeBlockScanQueued = false;
 
 let autoSaveInterval = null;
+let autoSaveDebounceTimer = null;
+let autoSaveInFlight = false;
+let autoSaveQueued = false;
+let autoSaveInFlightPromise = null;
+const isSessionDirty = ref(false);
+const hasSessionInitialized = ref(false);
+const AUTO_SAVE_DEBOUNCE_MS = 1800;
+const AUTO_SAVE_FALLBACK_MS = 60000;
 
 let textSearchInstance = null;
 
@@ -655,6 +691,33 @@ const addCopyButtonsToCodeBlocks = async () => {
   });
 };
 
+const scheduleCodeBlockEnhancement = () => {
+  if (isCodeBlockScanQueued) return;
+  isCodeBlockScanQueued = true;
+  codeBlockScanFrame = window.requestAnimationFrame(async () => {
+    codeBlockScanFrame = 0;
+    isCodeBlockScanQueued = false;
+    await addCopyButtonsToCodeBlocks();
+  });
+};
+
+const flushObservedDomUpdates = () => {
+  observerFlushFrame = 0;
+  const chatMainElement = chatContainerRef.value?.$el;
+  if (!chatMainElement) return;
+
+  if (shouldFlushStickyScroll && isSticky.value) {
+    chatMainElement.scrollTop = chatMainElement.scrollHeight;
+  }
+
+  if (shouldFlushCodeBlockScan) {
+    scheduleCodeBlockEnhancement();
+  }
+
+  shouldFlushStickyScroll = false;
+  shouldFlushCodeBlockScan = false;
+};
+
 const handleMarkdownImageClick = (event) => {
   if (event.target.tagName !== 'IMG' || !event.target.closest('.markdown-wrapper')) return;
   const imgElement = event.target;
@@ -918,6 +981,9 @@ const handleEditMessage = (index, newContent) => {
   } else {
     console.error("错误：无法将 chat_show 索引映射到 history 索引。下次API请求可能会使用旧数据。");
   }
+
+  markSessionDirty();
+  scheduleCodeBlockEnhancement();
 };
 
 const handleEditStart = async (index) => {
@@ -1030,7 +1096,7 @@ const closePage = async () => {
   // 条件：配置了本地存储路径 且 当前对话已有名称
   if (currentConfig.value?.webdav?.localChatPath && defaultConversationName.value) {
     try {
-      await autoSaveSession();
+      await flushAutoSave(true);
     } catch (e) {
       console.error("关闭时自动保存失败:", e);
     }
@@ -1045,12 +1111,134 @@ const handlePickFileStart = () => {
   isFilePickerOpen.value = true;
 };
 
+const summarizeTextForSignature = (value) => {
+  const text = String(value || '');
+  return `${text.length}:${text.slice(-48)}`;
+};
+
+const summarizeContentForSignature = (content) => {
+  if (!content) return 'null';
+  if (typeof content === 'string') return `str:${summarizeTextForSignature(content)}`;
+  if (!Array.isArray(content)) {
+    let serialized = '';
+    try {
+      serialized = JSON.stringify(content);
+    } catch (_error) {
+      serialized = String(content);
+    }
+    return `obj:${summarizeTextForSignature(serialized)}`;
+  }
+
+  return content.map((part) => {
+    if (part.type === 'text') {
+      return `text:${summarizeTextForSignature(part.text)}`;
+    }
+    if (part.type === 'image_url') {
+      return `img:${summarizeTextForSignature(part.image_url?.url)}`;
+    }
+    if (part.type === 'file') {
+      return `file:${part.file?.filename || ''}`;
+    }
+    if (part.type === 'input_audio') {
+      return `audio:${part.input_audio?.format || ''}:${(part.input_audio?.data || '').length}`;
+    }
+    return `other:${part.type || 'unknown'}`;
+  }).join('|');
+};
+
+const summarizeToolCallsForSignature = (toolCalls) => {
+  if (!Array.isArray(toolCalls) || toolCalls.length === 0) return '';
+  return toolCalls.map((tool) => {
+    return [
+      tool.id || '',
+      tool.name || '',
+      tool.approvalStatus || '',
+      summarizeTextForSignature(tool.result || ''),
+    ].join(':');
+  }).join('|');
+};
+
+const lastMessageSignature = computed(() => {
+  const lastMessage = chat_show.value[chat_show.value.length - 1];
+  if (!lastMessage) return '';
+
+  return [
+    lastMessage.id || '',
+    lastMessage.role || '',
+    lastMessage.status || '',
+    summarizeTextForSignature(lastMessage.reasoning_content || ''),
+    summarizeToolCallsForSignature(lastMessage.tool_calls),
+    summarizeContentForSignature(lastMessage.content),
+  ].join('~');
+});
+
+const scheduleAutoSave = (options = {}) => {
+  const immediate = options.immediate === true;
+  if (autoSaveDebounceTimer) {
+    clearTimeout(autoSaveDebounceTimer);
+    autoSaveDebounceTimer = null;
+  }
+
+  if (immediate) {
+    void flushAutoSave(options.force === true);
+    return;
+  }
+
+  autoSaveDebounceTimer = setTimeout(() => {
+    autoSaveDebounceTimer = null;
+    void flushAutoSave();
+  }, AUTO_SAVE_DEBOUNCE_MS);
+};
+
+const markSessionDirty = () => {
+  if (!hasSessionInitialized.value) return;
+  isSessionDirty.value = true;
+  scheduleAutoSave();
+};
+
+const flushAutoSave = async (force = false) => {
+  if (autoSaveInFlight) {
+    autoSaveQueued = true;
+    if (force && autoSaveInFlightPromise) {
+      await autoSaveInFlightPromise;
+      if (isSessionDirty.value) {
+        await flushAutoSave(true);
+      }
+    }
+    return;
+  }
+
+  if (!force && !isSessionDirty.value) return;
+
+  autoSaveInFlight = true;
+  autoSaveInFlightPromise = autoSaveSession({ force });
+  try {
+    await autoSaveInFlightPromise;
+  } finally {
+    autoSaveInFlight = false;
+    autoSaveInFlightPromise = null;
+    if (autoSaveQueued) {
+      autoSaveQueued = false;
+      if (isSessionDirty.value) {
+        scheduleAutoSave({ immediate: true });
+      }
+    }
+  }
+};
+
 watch(zoomLevel, (newZoom) => {
   if (window.api && typeof window.api.setZoomFactor === 'function') window.api.setZoomFactor(newZoom);
 });
-watch(chat_show, async () => {
-  await addCopyButtonsToCodeBlocks();
-}, { deep: true, flush: 'post' });
+watch(() => chat_show.value.length, () => {
+  if (!hasSessionInitialized.value) return;
+  markSessionDirty();
+  scheduleCodeBlockEnhancement();
+}, { flush: 'post' });
+watch(lastMessageSignature, () => {
+  if (!hasSessionInitialized.value) return;
+  markSessionDirty();
+  scheduleCodeBlockEnhancement();
+}, { flush: 'post' });
 watch(() => currentConfig.value?.isDarkMode, (isDark) => {
   if (isDark) {
     document.documentElement.classList.add('dark');
@@ -1086,10 +1274,10 @@ onMounted(async () => {
     chatMainElement.addEventListener('click', handleMarkdownImageClick);
 
     chatObserver = new MutationObserver(() => {
-      // 只要处于粘滞状态，任何 DOM 变化（文字生成、元素高度变化）
-      // 都立即将 scrollTop 设为最大值。这在浏览器重绘前发生，因此视觉上是“内容上推”。
-      if (isSticky.value) {
-        chatMainElement.scrollTop = chatMainElement.scrollHeight;
+      shouldFlushStickyScroll = true;
+      shouldFlushCodeBlockScan = true;
+      if (!observerFlushFrame) {
+        observerFlushFrame = window.requestAnimationFrame(flushObservedDomUpdates);
       }
     });
 
@@ -1102,6 +1290,8 @@ onMounted(async () => {
   }
 
   const initializeWindow = async (data = null) => {
+    hasSessionInitialized.value = false;
+    isSessionDirty.value = false;
     try {
       const configData = await window.api.getConfig();
       currentConfig.value = configData.config;
@@ -1276,7 +1466,9 @@ onMounted(async () => {
       else await askAI(true);
     }
 
-    await addCopyButtonsToCodeBlocks();
+    scheduleCodeBlockEnhancement();
+    isSessionDirty.value = false;
+    hasSessionInitialized.value = true;
     setTimeout(() => {
       chatInputRef.value?.focus({ cursor: 'end' });
     }, 100);
@@ -1295,7 +1487,11 @@ onMounted(async () => {
     await initializeWindow(data);
   }
   if (autoSaveInterval) clearInterval(autoSaveInterval);
-  autoSaveInterval = setInterval(autoSaveSession, 15000);
+  autoSaveInterval = setInterval(() => {
+    if (isSessionDirty.value) {
+      void flushAutoSave();
+    }
+  }, AUTO_SAVE_FALLBACK_MS);
   window.addEventListener('error', handleGlobalImageError, true);
   window.addEventListener('keydown', handleGlobalKeyDown);
 
@@ -1311,8 +1507,12 @@ onMounted(async () => {
   }
 });
 
-const autoSaveSession = async () => {
-  if (loading.value || !currentConfig.value?.webdav?.localChatPath) {
+const autoSaveSession = async ({ force = false } = {}) => {
+  if ((!force && loading.value) || !currentConfig.value?.webdav?.localChatPath) {
+    return;
+  }
+
+  if (!force && !isSessionDirty.value) {
     return;
   }
 
@@ -1373,12 +1573,31 @@ const autoSaveSession = async () => {
     const jsonString = JSON.stringify(sessionData, null, 2);
     const filePath = `${currentConfig.value.webdav.localChatPath}/${defaultConversationName.value}.json`;
     await window.api.writeLocalFile(filePath, jsonString);
+    isSessionDirty.value = false;
   } catch (error) {
     console.error('Auto-save failed:', error);
   }
 };
 
 onBeforeUnmount(async () => {
+  if (autoSaveInterval) {
+    clearInterval(autoSaveInterval);
+    autoSaveInterval = null;
+  }
+  if (autoSaveDebounceTimer) {
+    clearTimeout(autoSaveDebounceTimer);
+    autoSaveDebounceTimer = null;
+  }
+  autoSaveInFlightPromise = null;
+  if (observerFlushFrame) {
+    window.cancelAnimationFrame(observerFlushFrame);
+    observerFlushFrame = 0;
+  }
+  if (codeBlockScanFrame) {
+    window.cancelAnimationFrame(codeBlockScanFrame);
+    codeBlockScanFrame = 0;
+  }
+
   window.removeEventListener('wheel', handleWheel);
   window.removeEventListener('focus', handleWindowFocus);
   window.removeEventListener('blur', handleWindowBlur);
@@ -1489,7 +1708,7 @@ const saveSessionToCloud = async () => {
             const sessionData = getSessionDataAsObject();
             const jsonString = JSON.stringify(sessionData, null, 2);
             const { url, username, password, data_path } = currentConfig.value.webdav;
-            const client = createClient(url, { username, password });
+            const client = await createWebdavClient(url, username, password);
             const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
             const remoteFilePath = `${remoteDir}/${filename}`;
             if (!(await client.exists(remoteDir))) await client.createDirectory(remoteDir, { recursive: true });
@@ -1633,7 +1852,8 @@ const saveSessionAsHtml = async () => {
 
   const defaultAiSvg = `<svg width="200" height="200" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#FDA5A5" /><g stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"><rect x="25" y="32" width="50" height="42" rx="8" /><line x1="40" y1="63" x2="60" y2="63" /><line x1="35" y1="32" x2="32" y2="22" /><line x1="65" y1="32" x2="68" y2="22" /></g><g fill="white" stroke="none"><circle cx="40" cy="48" r="3.5" /><circle cx="60" cy="48" r="3.5" /><circle cx="32" cy="20" r="3" /><circle cx="68" cy="20" r="3" /></g></svg>`;
 
-  const generateHtmlContent = () => {
+  const generateHtmlContent = async () => {
+    const { marked, DOMPurify } = await getMarkdownRuntime();
     let bodyContent = '';
     let tocContent = '';
 
@@ -1998,7 +2218,7 @@ const saveSessionAsHtml = async () => {
           const finalFilename = finalBasename + '.html';
           instance.confirmButtonLoading = true;
           try {
-            const htmlContent = generateHtmlContent();
+            const htmlContent = await generateHtmlContent();
             await window.api.saveFile({ title: '保存为 HTML', defaultPath: finalFilename, buttonLabel: '保存', filters: [{ name: 'HTML 文件', extensions: ['html'] }, { name: '所有文件', extensions: ['*'] }], fileContent: htmlContent });
             defaultConversationName.value = finalBasename;
             showDismissibleMessage.success('会话已成功保存为 HTML！');
@@ -2146,7 +2366,7 @@ const handleRenameSession = async () => {
     const { url, username, password, data_path } = currentConfig.value.webdav || {};
     if (url && data_path) {
       try {
-        const client = createClient(url, { username, password });
+        const client = await createWebdavClient(url, username, password);
         const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
         const oldRemotePath = `${remoteDir}/${oldFilename}`;
         const newRemotePath = `${remoteDir}/${newFilename}`;
@@ -2234,6 +2454,8 @@ const handleSaveAction = async () => {
 
 const loadSession = async (jsonData) => {
   loading.value = true;
+  hasSessionInitialized.value = false;
+  isSessionDirty.value = false;
   collapsedMessages.value.clear();
   messageRefs.clear();
   focusedMessageIndex.value = null;
@@ -2372,10 +2594,14 @@ const loadSession = async (jsonData) => {
       applyMcpTools(false);
     }
 
+    isSessionDirty.value = false;
+    hasSessionInitialized.value = true;
+
   } catch (error) {
     console.error("加载会话失败:", error);
     showDismissibleMessage.error(`加载会话失败: ${error.message}`);
     loading.value = false;
+    hasSessionInitialized.value = true;
   }
 };
 
@@ -2648,8 +2874,7 @@ const askAI = async (forceSend = false) => {
           : userContentList;
         history.value.push({ role: "user", content: contentForHistory });
         chat_show.value.push({ id: messageIdCounter.value++, role: "user", content: userContentList, timestamp: userTimestamp });
-
-        autoSaveSession();
+        markSessionDirty();
 
       } else return;
     } else return;
@@ -3173,7 +3398,8 @@ const askAI = async (forceSend = false) => {
     }
     await nextTick();
     chatInputRef.value?.focus({ cursor: 'end' });
-    autoSaveSession();
+    markSessionDirty();
+    scheduleAutoSave({ immediate: true });
   }
 };
 
@@ -3305,6 +3531,7 @@ const clearHistory = () => {
   messageRefs.clear();
   focusedMessageIndex.value = null;
   defaultConversationName.value = "";
+  isSessionDirty.value = false;
   chatInputRef.value?.focus({ cursor: 'end' });
   showDismissibleMessage.success('历史记录已清除');
 };

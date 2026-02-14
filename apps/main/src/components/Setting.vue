@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, inject, h } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { createClient } from "webdav/web";
 import { Upload, FolderOpen as FolderOpened, Folder, RefreshCw as Refresh, Trash2 as DeleteIcon, Download, Plus } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox, ElInput } from 'element-plus'
 
@@ -18,6 +17,19 @@ const isTableLoading = ref(false);
 const selectedFiles = ref([]);
 const currentPage = ref(1);
 const pageSize = ref(10);
+
+let createWebdavClientPromise = null;
+const getCreateWebdavClient = async () => {
+  if (!createWebdavClientPromise) {
+    createWebdavClientPromise = import('webdav/web').then(module => module.createClient);
+  }
+  return createWebdavClientPromise;
+};
+
+const createWebdavClient = async (url, username, password) => {
+  const createClient = await getCreateWebdavClient();
+  return createClient(url, { username, password });
+};
 
 // --- 计算属性用于分页 ---
 const paginatedFiles = computed(() => {
@@ -351,7 +363,7 @@ async function backupToWebdav() {
           ElMessage.info(t('setting.webdav.alerts.backupInProgress'));
 
           try {
-            const client = createClient(url, { username, password });
+            const client = await createWebdavClient(url, username, password);
             const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
             const remoteFilePath = `${remoteDir}/${filename}`;
 
@@ -409,7 +421,7 @@ async function fetchBackupFiles() {
   isTableLoading.value = true;
   const { url, username, password, path } = currentConfig.value.webdav;
   try {
-    const client = createClient(url, { username, password });
+    const client = await createWebdavClient(url, username, password);
     const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
 
     if (!(await client.exists(remoteDir))) {
@@ -465,7 +477,7 @@ async function restoreFromWebdav(file) {
     const currentSkillPath = currentConfig.value.skillPath;
 
     const { url, username, password, path } = currentConfig.value.webdav;
-    const client = createClient(url, { username, password });
+    const client = await createWebdavClient(url, username, password);
     const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
     const remoteFilePath = `${remoteDir}/${file.basename}`;
 
@@ -515,7 +527,7 @@ async function deleteFile(file) {
     );
 
     const { url, username, password, path } = currentConfig.value.webdav;
-    const client = createClient(url, { username, password });
+    const client = await createWebdavClient(url, username, password);
     const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
     const remoteFilePath = `${remoteDir}/${file.basename}`;
 
@@ -544,7 +556,7 @@ async function deleteSelectedFiles() {
     );
 
     const { url, username, password, path } = currentConfig.value.webdav;
-    const client = createClient(url, { username, password });
+    const client = await createWebdavClient(url, username, password);
     const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
 
     const deletePromises = selectedFiles.value.map(file =>

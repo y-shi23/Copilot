@@ -1,7 +1,6 @@
 <script setup>
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { createClient } from "webdav/web";
 import { RefreshCw as Refresh, Trash2 as DeleteIcon, MessageCircle as ChatDotRound, Pencil as Edit, Upload, Download, Repeat as Switch, Info, BrushCleaning } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox, ElProgress, ElScrollbar } from 'element-plus'
 
@@ -27,6 +26,19 @@ const isSyncing = ref(false);
 const syncProgress = ref(0);
 const syncStatusText = ref('');
 const syncAbortController = ref(null);
+
+let createWebdavClientPromise = null;
+const getCreateWebdavClient = async () => {
+    if (!createWebdavClientPromise) {
+        createWebdavClientPromise = import('webdav/web').then(module => module.createClient);
+    }
+    return createWebdavClientPromise;
+};
+
+const createWebdavClient = async (url, username, password) => {
+    const createClient = await getCreateWebdavClient();
+    return createClient(url, { username, password });
+};
 
 // --- 自动清理功能状态 ---
 const showCleanDialog = ref(false);
@@ -121,7 +133,7 @@ async function fetchCloudFiles() {
     isTableLoading.value = true;
     try {
         const { url, username, password, data_path } = webdavConfig.value;
-        const client = createClient(url, { username, password });
+        const client = await createWebdavClient(url, username, password);
         const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
         if (!(await client.exists(remoteDir))) await client.createDirectory(remoteDir, { recursive: true });
         const response = await client.getDirectoryContents(remoteDir, { details: true });
@@ -148,7 +160,7 @@ async function startChat(file) {
             jsonString = await window.api.readLocalFile(file.path);
         } else {
             const { url, username, password, data_path } = webdavConfig.value;
-            const client = createClient(url, { username, password });
+            const client = await createWebdavClient(url, username, password);
             jsonString = await client.getFileContents(`${data_path.endsWith('/') ? data_path.slice(0, -1) : data_path}/${file.basename}`, { format: "text" });
         }
         await window.api.coderedirect(t('chats.alerts.restoreChat'), JSON.stringify({ sessionData: jsonString, filename: file.basename }));
@@ -172,12 +184,20 @@ async function renameFile(file) {
                     { type: 'info' }
                 ).catch(() => false);
                 if (confirm) {
-                    const client = createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password });
+                    const client = await createWebdavClient(
+                        webdavConfig.value.url,
+                        webdavConfig.value.username,
+                        webdavConfig.value.password
+                    );
                     await client.moveFile(`${webdavConfig.value.data_path}/${file.basename}`, `${webdavConfig.value.data_path}/${finalFilename}`);
                 }
             }
         } else { // cloud
-            const client = createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password });
+            const client = await createWebdavClient(
+                webdavConfig.value.url,
+                webdavConfig.value.username,
+                webdavConfig.value.password
+            );
             await client.moveFile(`${webdavConfig.value.data_path}/${file.basename}`, `${webdavConfig.value.data_path}/${finalFilename}`);
             if (localChatFiles.value.some(f => f.basename === file.basename)) {
                 const confirm = await ElMessageBox.confirm(
@@ -229,7 +249,13 @@ async function deleteFiles(filesToDelete) {
         }
 
         isTableLoading.value = true;
-        const client = isWebdavConfigValid.value ? createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password }) : null;
+        const client = isWebdavConfigValid.value
+            ? await createWebdavClient(
+                webdavConfig.value.url,
+                webdavConfig.value.username,
+                webdavConfig.value.password
+            )
+            : null;
 
         for (const file of filesToDelete) {
             if (activeView.value === 'local') {
@@ -370,7 +396,11 @@ async function executeSync(tasks, title) {
 async function forceSyncFile(basename, direction, signal) {
     singleFileSyncing.value[basename] = true;
     try {
-        const client = createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password });
+        const client = await createWebdavClient(
+            webdavConfig.value.url,
+            webdavConfig.value.username,
+            webdavConfig.value.password
+        );
         const remotePath = `${webdavConfig.value.data_path}/${basename}`;
         const localPath = `${localChatPath.value}/${basename}`;
 
@@ -443,7 +473,13 @@ async function executeAutoClean() {
     try {
         // 为了安全起见，批量清理仅删除当前视图的文件，不进行双向同步删除询问
         // 直接复用底层的删除 API
-        const client = isWebdavConfigValid.value ? createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password }) : null;
+        const client = isWebdavConfigValid.value
+            ? await createWebdavClient(
+                webdavConfig.value.url,
+                webdavConfig.value.username,
+                webdavConfig.value.password
+            )
+            : null;
 
         // 并发处理
         const tasks = filesToDelete.map(file => async () => {

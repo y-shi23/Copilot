@@ -394,6 +394,7 @@ function createMainWindow() {
     height: 820,
     minWidth: 1000,
     minHeight: 680,
+    show: false,
     backgroundColor: isMac ? '#00000000' : '#f7f7f5',
     autoHideMenuBar: true,
     title: isMac ? '' : 'Sanft',
@@ -419,6 +420,11 @@ function createMainWindow() {
     mainWindow = null;
   });
 
+  mainWindow.once('ready-to-show', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.show();
+  });
+
   mainWindow.loadURL(resolveMainEntryUrl());
   applyMacVibrancy(mainWindow, {
     vibrancy: 'sidebar',
@@ -435,6 +441,9 @@ function ensureBuildArtifacts() {
       preloadPath,
       path.join(preloadDir, 'window_preload.js'),
       path.join(preloadDir, 'fast_window_preload.js'),
+      path.join(preloadDir, 'runtime', 'file_runtime.js'),
+      path.join(preloadDir, 'runtime', 'mcp_runtime.js'),
+      path.join(preloadDir, 'runtime', 'skill_runtime.js'),
     ];
     const missing = requiredPaths.filter((file) => !fs.existsSync(file));
     if (missing.length === 0) return;
@@ -455,6 +464,9 @@ function ensureBuildArtifacts() {
     resolveAppFile('runtime', 'preload.js'),
     resolveAppFile('runtime', 'window_preload.js'),
     resolveAppFile('runtime', 'fast_window_preload.js'),
+    resolveAppFile('runtime', 'runtime', 'file_runtime.js'),
+    resolveAppFile('runtime', 'runtime', 'mcp_runtime.js'),
+    resolveAppFile('runtime', 'runtime', 'skill_runtime.js'),
   ];
 
   const missing = requiredPaths.filter((file) => !fs.existsSync(file));

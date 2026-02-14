@@ -74,6 +74,7 @@ function syncAssets() {
   for (const preloadName of ['preload.js', 'window_preload.js', 'fast_window_preload.js']) {
     fs.rmSync(path.join(releaseDir, preloadName), { force: true });
   }
+  fs.rmSync(path.join(releaseDir, 'runtime'), { recursive: true, force: true });
   copyDirectoryContents(backendSrc, releaseDir);
 
   for (const dir of [mainDest, windowDest, fastWindowDest]) {

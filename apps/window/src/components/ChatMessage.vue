@@ -27,6 +27,45 @@ const editedContent = ref('');
 const isCopied = ref(false);
 
 let copyFeedbackTimer = null;
+const RENDER_CACHE_LIMIT = 500;
+const renderedMessageCache = new Map();
+
+const stableStringify = (value) => {
+  if (typeof value === 'string') return value;
+  try {
+    return JSON.stringify(value);
+  } catch (_error) {
+    return String(value || '');
+  }
+};
+
+const hashContent = (value) => {
+  const raw = stableStringify(value);
+  let hash = 0;
+  for (let i = 0; i < raw.length; i += 1) {
+    hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
+  }
+  return (hash >>> 0).toString(36);
+};
+
+const getRenderCacheKey = (message, fallbackIndex = 0) => {
+  const idPart = message?.id ?? `idx-${fallbackIndex}`;
+  const rolePart = message?.role || 'user';
+  const contentHash = hashContent(message?.content);
+  const statusPart = message?.status || '';
+  return `${idPart}:${rolePart}:${statusPart}:${contentHash}`;
+};
+
+const getCachedRender = (cacheKey) => renderedMessageCache.get(cacheKey);
+const setCachedRender = (cacheKey, renderedHtml) => {
+  renderedMessageCache.set(cacheKey, renderedHtml);
+  if (renderedMessageCache.size > RENDER_CACHE_LIMIT) {
+    const oldestKey = renderedMessageCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      renderedMessageCache.delete(oldestKey);
+    }
+  }
+};
 
 // 格式化工具参数为易读的 JSON 字符串
 const formatToolArgs = (argsString) => {
@@ -213,6 +252,12 @@ const handleEditKeyDown = (event) => {
 };
 
 const renderedMarkdownContent = computed(() => {
+  const cacheKey = getRenderCacheKey(props.message, props.index);
+  const cachedContent = getCachedRender(cacheKey);
+  if (cachedContent !== undefined) {
+    return cachedContent;
+  }
+
   const content = props.message.role ? props.message.content : props.message;
   const role = props.message.role ? props.message.role : 'user';
   let formattedContent = formatMessageContent(content, role);
@@ -302,8 +347,9 @@ const renderedMarkdownContent = computed(() => {
   // 9. 表格包裹
   finalContent = finalContent.replace(/<table/g, '<div class="table-scroll-wrapper"><table').replace(/<\/table>/g, '</table></div>');
 
-  if (!finalContent && props.message.role === 'assistant') return ' ';
-  return finalContent || ' ';
+  const rendered = (!finalContent && props.message.role === 'assistant') ? ' ' : (finalContent || ' ');
+  setCachedRender(cacheKey, rendered);
+  return rendered;
 });
 
 const shouldShowCollapseButton = computed(() => {
