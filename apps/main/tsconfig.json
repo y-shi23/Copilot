@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "./node_modules/.cache/tsconfig.main.tsbuildinfo",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@shared/*": ["../../shared/*"]
+    },
+    "types": ["vite/client", "node"],
+    "allowJs": false
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "vite.config.ts",
+    "../../shared/contracts/**/*.ts",
+    "../../shared/contracts/**/*.d.ts"
+  ],
+  "exclude": ["node_modules", "dist"]
+}

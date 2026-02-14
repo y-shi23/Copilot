@@ -1,16 +1,28 @@
-<script setup>
+<script setup lang="ts">
+// -nocheck
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
 import { ElTooltip, ElIcon, ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
-import { Download, Maximize2, X, Minus, Menu, Check, Lock, Circle, Pin, PinOff } from 'lucide-vue-next';
+import {
+  Download,
+  Maximize2,
+  X,
+  Minus,
+  Menu,
+  Check,
+  Lock,
+  Circle,
+  Pin,
+  PinOff,
+} from 'lucide-vue-next';
 
 const props = defineProps({
   favicon: String,
-  promptName: String, 
+  promptName: String,
   conversationName: String,
   isAlwaysOnTop: Boolean,
   autoCloseOnBlur: Boolean,
   isDarkMode: Boolean,
-  os: { type: String, default: 'win' }
+  os: { type: String, default: 'win' },
 });
 
 const emit = defineEmits([
@@ -20,7 +32,7 @@ const emit = defineEmits([
   'toggle-always-on-top',
   'minimize',
   'maximize',
-  'close'
+  'close',
 ]);
 
 const displayConversationName = computed(() => {
@@ -50,17 +62,24 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="title-bar" :class="[`os-${os}`, { 'dark-mode': isDarkMode }]">
-    
     <!-- 1. 左侧区域 -->
     <div class="left-container">
       <!-- macOS 原生红绿灯占位，避免与左侧内容重叠 -->
       <div v-if="isMac" class="mac-native-controls-spacer" aria-hidden="true"></div>
 
       <!-- App 信息 (始终显示) -->
-      <div class="app-info no-drag" @click="emit('save-window-size')" @dblclick.stop="emit('maximize')">
-        <el-tooltip content="点击保存当前窗口大小与位置 / 双击全屏" placement="bottom" :show-after="500">
+      <div
+        class="app-info no-drag"
+        @click="emit('save-window-size')"
+        @dblclick.stop="emit('maximize')"
+      >
+        <el-tooltip
+          content="点击保存当前窗口大小与位置 / 双击全屏"
+          placement="bottom"
+          :show-after="500"
+        >
           <div class="app-info-inner">
-            <img :src="favicon" class="app-logo" alt="Logo">
+            <img :src="favicon" class="app-logo" alt="Logo" />
             <span class="app-title">{{ promptName || 'Sanft' }}</span>
           </div>
         </el-tooltip>
@@ -70,7 +89,12 @@ onBeforeUnmount(() => {
       <div class="divider-vertical" v-if="!isNarrow"></div>
 
       <!-- 对话名称 (仅在宽模式显示) -->
-      <div v-if="!isNarrow" class="conversation-info no-drag" @click="emit('save-session')" @dblclick.stop="emit('maximize')">
+      <div
+        v-if="!isNarrow"
+        class="conversation-info no-drag"
+        @click="emit('save-session')"
+        @dblclick.stop="emit('maximize')"
+      >
         <el-tooltip content="点击保存会话" placement="bottom" :show-after="500">
           <div class="conversation-inner">
             <span class="conversation-title">{{ displayConversationName }}</span>
@@ -82,18 +106,29 @@ onBeforeUnmount(() => {
 
     <!-- 2. 右侧区域 -->
     <div class="right-container">
-      
       <!-- A. 宽屏模式：显示功能按钮组 -->
       <div v-if="!isNarrow" class="function-group no-drag">
-        <el-tooltip :content="autoCloseOnBlur ? '失焦自动关闭: 开' : '失焦自动关闭: 关'" placement="bottom" :show-after="500">
-          <div class="func-btn" @click="emit('toggle-pin')" :class="{ 'active': !autoCloseOnBlur }">
-             <Lock v-if="!autoCloseOnBlur" :size="16" />
-             <Circle v-else :size="16" />
+        <el-tooltip
+          :content="autoCloseOnBlur ? '失焦自动关闭: 开' : '失焦自动关闭: 关'"
+          placement="bottom"
+          :show-after="500"
+        >
+          <div class="func-btn" @click="emit('toggle-pin')" :class="{ active: !autoCloseOnBlur }">
+            <Lock v-if="!autoCloseOnBlur" :size="16" />
+            <Circle v-else :size="16" />
           </div>
         </el-tooltip>
 
-        <el-tooltip :content="isAlwaysOnTop ? '取消置顶' : '置顶窗口'" placement="bottom" :show-after="500">
-          <div class="func-btn" @click="emit('toggle-always-on-top')" :class="{ 'active': isAlwaysOnTop }">
+        <el-tooltip
+          :content="isAlwaysOnTop ? '取消置顶' : '置顶窗口'"
+          placement="bottom"
+          :show-after="500"
+        >
+          <div
+            class="func-btn"
+            @click="emit('toggle-always-on-top')"
+            :class="{ active: isAlwaysOnTop }"
+          >
             <Pin v-if="isAlwaysOnTop" :size="16" />
             <PinOff v-else :size="16" />
           </div>
@@ -116,7 +151,7 @@ onBeforeUnmount(() => {
                   <span class="dropdown-subtext">{{ displayConversationName }}</span>
                 </div>
               </el-dropdown-item>
-              
+
               <!-- 2. 失焦关闭开关 -->
               <el-dropdown-item @click="emit('toggle-pin')">
                 <div class="dropdown-check-row">
@@ -263,7 +298,8 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 }
 
 /* App Info & Conversation Title */
-.app-info-inner, .conversation-inner {
+.app-info-inner,
+.conversation-inner {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -274,7 +310,8 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
   height: 26px;
 }
 
-.app-info-inner:hover, .conversation-inner:hover {
+.app-info-inner:hover,
+.conversation-inner:hover {
   background-color: var(--el-fill-color-light);
 }
 
@@ -289,7 +326,7 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
   font-size: 12px;
   white-space: nowrap;
   line-height: 1;
-  padding-top: 2px; 
+  padding-top: 2px;
   max-width: 80px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -303,12 +340,12 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
   font-weight: 500;
   font-size: 12px;
   color: var(--el-text-color-regular);
-  max-width: 90px; 
+  max-width: 90px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   line-height: 1;
-  padding-top: 2px; 
+  padding-top: 2px;
 }
 
 .download-icon {
@@ -417,7 +454,7 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 }
 
 .win-btn.close:hover {
-  background-color: #E81123;
+  background-color: #e81123;
   color: white;
 }
 
@@ -450,7 +487,7 @@ html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
 }
 
 .linux-btn.close:hover {
-  background-color: #E95420;
+  background-color: #e95420;
   color: white;
 }
 </style>

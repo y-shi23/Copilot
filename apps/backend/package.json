@@ -4,8 +4,9 @@
   "description": "Bundler for Utools plugin preload scripts",
   "main": "index.js",
   "scripts": {
-    "build": "esbuild src/preload.js src/window_preload.js src/fast_window_preload.js src/runtime/file_runtime.js src/runtime/mcp_runtime.js src/runtime/skill_runtime.js --bundle --minify --platform=node --outdir=./public --outbase=src --format=cjs --external:electron --legal-comments=none",
-    "watch": "esbuild src/preload.js src/window_preload.js src/fast_window_preload.js src/runtime/file_runtime.js src/runtime/mcp_runtime.js src/runtime/skill_runtime.js --bundle --platform=node --outdir=./public --outbase=src --format=cjs --external:electron --watch"
+    "build": "esbuild src/preload.ts src/window_preload.ts src/fast_window_preload.ts src/runtime/file_runtime.ts src/runtime/mcp_runtime.ts src/runtime/skill_runtime.ts --bundle --minify --platform=node --outdir=./public --outbase=src --format=cjs --external:electron --legal-comments=none",
+    "watch": "esbuild src/preload.ts src/window_preload.ts src/fast_window_preload.ts src/runtime/file_runtime.ts src/runtime/mcp_runtime.ts src/runtime/skill_runtime.ts --bundle --platform=node --outdir=./public --outbase=src --format=cjs --external:electron --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "keywords": [],
   "author": "",
@@ -17,6 +18,8 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "esbuild": "^0.25.2"
+    "esbuild": "^0.25.2",
+    "@types/node": "^22.13.10",
+    "typescript": "^5.8.3"
   }
 }

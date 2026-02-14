@@ -76,7 +76,7 @@ wait_for_file() {
 echo "[dev] starting backend watch + vite dev servers..."
 
 start_bg "backend watch" \
-  "pnpm --dir apps/backend exec esbuild src/preload.js src/window_preload.js src/fast_window_preload.js --bundle --platform=node --outdir=./public --format=cjs --external:electron --watch=forever" \
+  "pnpm --dir apps/backend watch" \
   "${LOG_DIR}/backend-dev.log"
 
 start_bg "main vite" \

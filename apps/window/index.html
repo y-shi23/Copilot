@@ -1,48 +1,31 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>Sanft</title>
+    <script type="module" src="/src/bootstrap-theme.ts"></script>
+  </head>
 
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Sanft</title>
-
-  <script>
-    (function () {
-      if (window.location.search.indexOf('dark=1') !== -1) {
-        document.documentElement.classList.add('dark');
-
-        var darkColor = '#1d1f22';
-        document.documentElement.style.backgroundColor = darkColor;
-        document.body ? (document.body.style.backgroundColor = darkColor) : null;
-
-        var style = document.createElement('style');
-        style.innerHTML = 'html, body { background-color: ' + darkColor + ' !important; }';
-        document.head.appendChild(style);
+  <body>
+    <div id="app" class="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+    <style>
+      html,
+      body {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
       }
-    })();
-  </script>
-</head>
 
-<body>
-  <div id="app" class="app"></div>
-  <script type="module" src="/src/main.js"></script>
-  <style>
-    html,
-    body {
-      height: 100%;
-      width: 100%;
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
-    }
-
-    .app {
-      height: 100%;
-      width: 100%;
-      margin: 0;
-      padding: 0;
-    }
-  </style>
-</body>
-
+      .app {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+  </body>
 </html>

@@ -1,7 +1,47 @@
-<script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick, watch, h, computed, defineAsyncComponent } from 'vue';
-import { ElContainer, ElMain, ElDialog, ElImageViewer, ElMessage, ElMessageBox, ElInput, ElButton, ElCheckbox, ElButtonGroup, ElTag, ElTooltip, ElAvatar, ElSwitch } from 'element-plus';
-import { Copy, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Download, Wrench, Zap, ChevronRight, Search, CircleQuestionMark as CircleHelp, Folder, Cpu, TriangleAlert } from 'lucide-vue-next';
+<script setup lang="ts">
+// -nocheck
+import {
+  ref,
+  onMounted,
+  onBeforeUnmount,
+  nextTick,
+  watch,
+  h,
+  computed,
+  defineAsyncComponent,
+} from 'vue';
+import {
+  ElContainer,
+  ElMain,
+  ElDialog,
+  ElImageViewer,
+  ElMessage,
+  ElMessageBox,
+  ElInput,
+  ElButton,
+  ElCheckbox,
+  ElButtonGroup,
+  ElTag,
+  ElTooltip,
+  ElAvatar,
+  ElSwitch,
+} from 'element-plus';
+import {
+  Copy,
+  ChevronsUp,
+  ArrowUp,
+  ArrowDown,
+  ChevronsDown,
+  Download,
+  Wrench,
+  Zap,
+  ChevronRight,
+  Search,
+  CircleQuestionMark as CircleHelp,
+  Folder,
+  Cpu,
+  TriangleAlert,
+} from 'lucide-vue-next';
 
 import TitleBar from './components/TitleBar.vue';
 import ChatHeader from './components/ChatHeader.vue';
@@ -9,9 +49,9 @@ const ChatMessage = defineAsyncComponent(() => import('./components/ChatMessage.
 import ChatInput from './components/ChatInput.vue';
 import ModelSelectionDialog from './components/ModelSelectionDialog.vue';
 
-import TextSearchUI from './utils/TextSearchUI.js';
-import { formatTimestamp, sanitizeToolArgs } from './utils/formatters.js';
-import { renderLucideSvg } from './utils/lucideSvg.js';
+import TextSearchUI from './utils/TextSearchUI';
+import { formatTimestamp, sanitizeToolArgs } from './utils/formatters';
+import { renderLucideSvg } from './utils/lucideSvg';
 
 const showDismissibleMessage = (options) => {
   const opts = typeof options === 'string' ? { message: options } : options;
@@ -28,7 +68,7 @@ const showDismissibleMessage = (options) => {
       if (messageInstance) {
         messageInstance.close();
       }
-    }
+    },
   };
   messageInstance = ElMessage(finalOpts);
 };
@@ -54,13 +94,12 @@ const createWebdavClient = async (url, username, password) => {
 let markdownRuntimePromise = null;
 const getMarkdownRuntime = async () => {
   if (!markdownRuntimePromise) {
-    markdownRuntimePromise = Promise.all([
-      import('marked'),
-      import('dompurify'),
-    ]).then(([markedModule, domPurifyModule]) => ({
-      marked: markedModule.marked,
-      DOMPurify: domPurifyModule.default || domPurifyModule,
-    }));
+    markdownRuntimePromise = Promise.all([import('marked'), import('dompurify')]).then(
+      ([markedModule, domPurifyModule]) => ({
+        marked: markedModule.marked,
+        DOMPurify: domPurifyModule.default || domPurifyModule,
+      }),
+    );
   }
   return markdownRuntimePromise;
 };
@@ -81,7 +120,7 @@ const focusedMessageIndex = ref(null);
 
 // 核心状态：是否粘滞在底部
 const isSticky = ref(true);
-let chatObserver = null;    // DOM 观察器实例
+let chatObserver = null; // DOM 观察器实例
 let observerFlushFrame = 0;
 let shouldFlushStickyScroll = false;
 let shouldFlushCodeBlockScan = false;
@@ -118,14 +157,14 @@ if (isDarkInit) {
 }
 
 const defaultConfig = window.api.defaultConfig;
-const UserAvart = ref("user.png");
-const AIAvart = ref("ai.svg");
-const favicon = ref("favicon.png");
-const CODE = ref("");
+const UserAvart = ref('user.png');
+const AIAvart = ref('ai.svg');
+const favicon = ref('favicon.png');
+const CODE = ref('');
 
 const isInit = ref(false);
 const isFilePickerOpen = ref(false); // 标记文件选择器是否打开
-const basic_msg = ref({ os: "macos", code: "AI", type: "over", payload: "请简洁地介绍一下你自己" });
+const basic_msg = ref({ os: 'macos', code: 'AI', type: 'over', payload: '请简洁地介绍一下你自己' });
 const initialConfigData = JSON.parse(JSON.stringify(defaultConfig.config));
 if (isDarkInit) {
   initialConfigData.isDarkMode = true;
@@ -134,10 +173,14 @@ const currentConfig = ref(initialConfigData);
 const autoCloseOnBlur = ref(false);
 const modelList = ref([]);
 const modelMap = ref({});
-const model = ref("");
+const model = ref('');
 const isAlwaysOnTop = ref(true);
-const platformName = String(navigator.userAgentData?.platform || navigator.platform || '').toLowerCase();
-const currentOS = ref(platformName.includes('mac') ? 'macos' : (platformName.includes('win') ? 'win' : 'linux'));
+const platformName = String(
+  navigator.userAgentData?.platform || navigator.platform || '',
+).toLowerCase();
+const currentOS = ref(
+  platformName.includes('mac') ? 'macos' : platformName.includes('win') ? 'win' : 'linux',
+);
 const isNativeMacVibrancy = computed(() => currentOS.value === 'macos');
 
 const applyWindowVibrancyBodyClass = () => {
@@ -146,35 +189,39 @@ const applyWindowVibrancyBodyClass = () => {
   document.body?.classList.toggle('mac-native-vibrancy', enableNativeVibrancy);
 };
 
-watch(isNativeMacVibrancy, () => {
-  applyWindowVibrancyBodyClass();
-}, { immediate: true });
+watch(
+  isNativeMacVibrancy,
+  () => {
+    applyWindowVibrancyBodyClass();
+  },
+  { immediate: true },
+);
 
 const currentProviderID = ref(defaultConfig.config.providerOrder[0]);
-const base_url = ref("");
-const api_key = ref("");
+const base_url = ref('');
+const api_key = ref('');
 const history = ref([]);
 const chat_show = ref([]);
 const loading = ref(false);
-const prompt = ref("");
+const prompt = ref('');
 const signalController = ref(null);
 const fileList = ref([]);
 const zoomLevel = ref(1);
 const collapsedMessages = ref(new Set());
-const defaultConversationName = ref("");
+const defaultConversationName = ref('');
 const selectedVoice = ref(null);
 const tempReasoningEffort = ref('default');
 const messageIdCounter = ref(0);
 const sourcePromptConfig = ref(null);
-const cachedBackgroundBlobUrl = ref("");
+const cachedBackgroundBlobUrl = ref('');
 
 const windowBackgroundImage = computed(() => {
   if (cachedBackgroundBlobUrl.value) {
     return cachedBackgroundBlobUrl.value;
   }
-  if (!CODE.value || !currentConfig.value?.prompts) return "";
+  if (!CODE.value || !currentConfig.value?.prompts) return '';
   const promptConfig = currentConfig.value.prompts[CODE.value];
-  return promptConfig?.backgroundImage || "";
+  return promptConfig?.backgroundImage || '';
 });
 
 const windowBackgroundOpacity = computed(() => {
@@ -195,7 +242,7 @@ const loadBackground = async (newUrl) => {
       if (cachedBackgroundBlobUrl.value.startsWith('blob:')) {
         URL.revokeObjectURL(cachedBackgroundBlobUrl.value);
       }
-      cachedBackgroundBlobUrl.value = "";
+      cachedBackgroundBlobUrl.value = '';
     }
     return;
   }
@@ -215,19 +262,23 @@ const loadBackground = async (newUrl) => {
       window.api.cacheBackgroundImage(newUrl);
     }
   } catch (e) {
-    console.error("Failed to load cached background:", e);
+    console.error('Failed to load cached background:', e);
   }
 };
 
-watch(() => {
-  if (!CODE.value || !currentConfig.value?.prompts) return null;
-  return currentConfig.value.prompts[CODE.value]?.backgroundImage;
-}, async (newUrl) => {
-  await loadBackground(newUrl);
-}, { immediate: false });
+watch(
+  () => {
+    if (!CODE.value || !currentConfig.value?.prompts) return null;
+    return currentConfig.value.prompts[CODE.value]?.backgroundImage;
+  },
+  async (newUrl) => {
+    await loadBackground(newUrl);
+  },
+  { immediate: false },
+);
 
 const inputLayout = computed(() => currentConfig.value.inputLayout || 'horizontal');
-const currentSystemPrompt = ref("");
+const currentSystemPrompt = ref('');
 
 const changeModel_page = ref(false);
 const systemPromptDialogVisible = ref(false);
@@ -258,9 +309,9 @@ const handleToggleAutoApprove = (val) => {
     });
     pendingToolApprovals.value.clear();
 
-    chat_show.value.forEach(msg => {
+    chat_show.value.forEach((msg) => {
       if (msg.tool_calls) {
-        msg.tool_calls.forEach(tc => {
+        msg.tool_calls.forEach((tc) => {
           if (tc.approvalStatus === 'waiting') {
             tc.approvalStatus = 'approved';
           }
@@ -293,7 +344,7 @@ const handleMcpToolStatusChange = async (serverId, toolName, enabled) => {
 
   // 更新本地视图状态
   const tools = mcpToolCache.value[serverId];
-  const toolIndex = tools.findIndex(t => t.name === toolName);
+  const toolIndex = tools.findIndex((t) => t.name === toolName);
   if (toolIndex !== -1) {
     tools[toolIndex].enabled = enabled;
 
@@ -304,8 +355,8 @@ const handleMcpToolStatusChange = async (serverId, toolName, enabled) => {
       await window.api.saveMcpToolCache(serverId, toolsToSave);
       // 静默保存成功
     } catch (e) {
-      console.error("Failed to save tool status:", e);
-      showDismissibleMessage.error("保存工具状态失败");
+      console.error('Failed to save tool status:', e);
+      showDismissibleMessage.error('保存工具状态失败');
       // 回滚状态
       tools[toolIndex].enabled = !enabled;
     }
@@ -318,7 +369,7 @@ const getToolCounts = (serverId) => {
 
   const total = tools.length;
   // 默认 enabled 为 undefined 时也视为启用
-  const enabled = tools.filter(t => t.enabled !== false).length;
+  const enabled = tools.filter((t) => t.enabled !== false).length;
 
   return { enabled, total };
 };
@@ -327,13 +378,13 @@ const isMcpActive = computed(() => sessionMcpServerIds.value.length > 0);
 
 const mcpConnectionCount = computed(() => {
   if (!currentConfig.value || !currentConfig.value.mcpServers) return 0;
-  const persistentCount = tempSessionMcpServerIds.value.filter(id => {
+  const persistentCount = tempSessionMcpServerIds.value.filter((id) => {
     const server = currentConfig.value.mcpServers[id];
     return server && server.isPersistent && server.type?.toLowerCase() !== 'builtin';
   }).length;
 
   // 2. 计算是否占用了共享的临时连接 Worker (排除 builtin)
-  const hasOnDemand = tempSessionMcpServerIds.value.some(id => {
+  const hasOnDemand = tempSessionMcpServerIds.value.some((id) => {
     const server = currentConfig.value.mcpServers[id];
     return server && !server.isPersistent && server.type?.toLowerCase() !== 'builtin';
   });
@@ -351,19 +402,22 @@ const availableMcpServers = computed(() => {
 const filteredMcpServers = computed(() => {
   let servers = availableMcpServers.value;
   if (mcpFilter.value === 'selected') {
-    servers = servers.filter(server => tempSessionMcpServerIds.value.includes(server.id));
+    servers = servers.filter((server) => tempSessionMcpServerIds.value.includes(server.id));
   } else if (mcpFilter.value === 'unselected') {
-    servers = servers.filter(server => !tempSessionMcpServerIds.value.includes(server.id));
+    servers = servers.filter((server) => !tempSessionMcpServerIds.value.includes(server.id));
   }
   if (mcpSearchQuery.value) {
     const query = mcpSearchQuery.value.toLowerCase();
-    servers = servers.filter(server =>
-      (server.name && server.name.toLowerCase().includes(query)) ||
-      (server.description && server.description.toLowerCase().includes(query)) ||
-      (server.tags && Array.isArray(server.tags) && server.tags.some(tag => tag.toLowerCase().includes(query))) ||
-      // 新增：支持按原始类型(如 'builtin')和显示名称(如 '内置')搜索
-      (server.type && server.type.toLowerCase().includes(query)) ||
-      (server.type && getDisplayTypeName(server.type).toLowerCase().includes(query))
+    servers = servers.filter(
+      (server) =>
+        (server.name && server.name.toLowerCase().includes(query)) ||
+        (server.description && server.description.toLowerCase().includes(query)) ||
+        (server.tags &&
+          Array.isArray(server.tags) &&
+          server.tags.some((tag) => tag.toLowerCase().includes(query))) ||
+        // 新增：支持按原始类型(如 'builtin')和显示名称(如 '内置')搜索
+        (server.type && server.type.toLowerCase().includes(query)) ||
+        (server.type && getDisplayTypeName(server.type).toLowerCase().includes(query)),
     );
   }
   return servers;
@@ -381,24 +435,25 @@ const filteredSkillsList = computed(() => {
 
   // 1. 状态筛选
   if (skillFilter.value === 'selected') {
-    list = list.filter(s => tempSessionSkillIds.value.includes(s.name));
+    list = list.filter((s) => tempSessionSkillIds.value.includes(s.name));
   } else if (skillFilter.value === 'unselected') {
-    list = list.filter(s => !tempSessionSkillIds.value.includes(s.name));
+    list = list.filter((s) => !tempSessionSkillIds.value.includes(s.name));
   }
 
   // 2. 搜索筛选
   if (skillSearchQuery.value) {
     const query = skillSearchQuery.value.toLowerCase();
-    list = list.filter(s =>
-      s.name.toLowerCase().includes(query) ||
-      (s.description && s.description.toLowerCase().includes(query))
+    list = list.filter(
+      (s) =>
+        s.name.toLowerCase().includes(query) ||
+        (s.description && s.description.toLowerCase().includes(query)),
     );
   }
   return list;
 });
 
 const selectAllSkills = () => {
-  const visibleNames = filteredSkillsList.value.map(s => s.name);
+  const visibleNames = filteredSkillsList.value.map((s) => s.name);
   const newSet = new Set([...tempSessionSkillIds.value, ...visibleNames]);
   tempSessionSkillIds.value = Array.from(newSet);
 };
@@ -413,7 +468,10 @@ const toggleSkillDialog = async () => {
     skillFilter.value = 'all';
     skillSearchQuery.value = '';
 
-    if (currentConfig.value?.skillPath || (window.api?.getConfig && (await window.api.getConfig())?.config?.skillPath)) {
+    if (
+      currentConfig.value?.skillPath ||
+      (window.api?.getConfig && (await window.api.getConfig())?.config?.skillPath)
+    ) {
       // 重新获取 config 以防路径变更
       const cfg = (await window.api.getConfig()).config;
       const path = cfg.skillPath;
@@ -422,10 +480,12 @@ const toggleSkillDialog = async () => {
         try {
           const skills = await window.api.listSkills(path);
           // 过滤并排序
-          allSkillsList.value = skills.filter(s => !s.disabled).sort((a, b) => a.name.localeCompare(b.name));
+          allSkillsList.value = skills
+            .filter((s) => !s.disabled)
+            .sort((a, b) => a.name.localeCompare(b.name));
         } catch (e) {
-          console.error("Fetch skills failed:", e);
-          ElMessage.error("刷新技能列表失败");
+          console.error('Fetch skills failed:', e);
+          ElMessage.error('刷新技能列表失败');
         }
       }
     }
@@ -434,13 +494,18 @@ const toggleSkillDialog = async () => {
 };
 
 const fetchSkillsList = async () => {
-  if (currentConfig.value?.skillPath || (window.api?.getConfig && (await window.api.getConfig())?.config?.skillPath)) {
+  if (
+    currentConfig.value?.skillPath ||
+    (window.api?.getConfig && (await window.api.getConfig())?.config?.skillPath)
+  ) {
     const path = currentConfig.value?.skillPath || (await window.api.getConfig()).config.skillPath;
     try {
       const skills = await window.api.listSkills(path);
-      allSkillsList.value = skills.filter(s => !s.disabled).sort((a, b) => a.name.localeCompare(b.name));
+      allSkillsList.value = skills
+        .filter((s) => !s.disabled)
+        .sort((a, b) => a.name.localeCompare(b.name));
     } catch (e) {
-      console.error("Fetch skills failed:", e);
+      console.error('Fetch skills failed:', e);
     }
   }
 };
@@ -453,37 +518,37 @@ const handleQuickSkillToggle = async (skillName) => {
     if (!tempSessionSkillIds.value.includes(skillName)) {
       tempSessionSkillIds.value.push(skillName);
     }
-    
+
     // 检查是否需要自动启用内置 MCP
     if (currentConfig.value.mcpServers) {
-        const builtinIds = Object.entries(currentConfig.value.mcpServers)
-          .filter(([, server]) => server.type === 'builtin')
-          .map(([id]) => id);
-        
-        let changed = false;
-        builtinIds.forEach(id => {
-            if (!sessionMcpServerIds.value.includes(id)) {
-                sessionMcpServerIds.value.push(id);
-                changed = true;
-            }
-            // 同步 temp 列表
-            if (!tempSessionMcpServerIds.value.includes(id)) {
-                tempSessionMcpServerIds.value.push(id);
-            }
-        });
-        
-        if (changed) {
-            showDismissibleMessage.success(`已启用 Skill "${skillName}" (并自动关联内置 MCP)`);
-            await applyMcpTools(false); // 重新加载 MCP
-            return; 
+      const builtinIds = Object.entries(currentConfig.value.mcpServers)
+        .filter(([, server]) => server.type === 'builtin')
+        .map(([id]) => id);
+
+      let changed = false;
+      builtinIds.forEach((id) => {
+        if (!sessionMcpServerIds.value.includes(id)) {
+          sessionMcpServerIds.value.push(id);
+          changed = true;
         }
+        // 同步 temp 列表
+        if (!tempSessionMcpServerIds.value.includes(id)) {
+          tempSessionMcpServerIds.value.push(id);
+        }
+      });
+
+      if (changed) {
+        showDismissibleMessage.success(`已启用 Skill "${skillName}" (并自动关联内置 MCP)`);
+        await applyMcpTools(false); // 重新加载 MCP
+        return;
+      }
     }
     showDismissibleMessage.success(`已启用 Skill "${skillName}"`);
   } else {
     sessionSkillIds.value.splice(index, 1);
     // 同步删除 temp
     const tempIndex = tempSessionSkillIds.value.indexOf(skillName);
-    if(tempIndex !== -1) tempSessionSkillIds.value.splice(tempIndex, 1);
+    if (tempIndex !== -1) tempSessionSkillIds.value.splice(tempIndex, 1);
     showDismissibleMessage.info(`已禁用 Skill "${skillName}"`);
   }
 };
@@ -523,7 +588,7 @@ const handleSkillSelectionConfirm = async () => {
       .map(([id]) => id);
 
     let changed = false;
-    builtinIds.forEach(id => {
+    builtinIds.forEach((id) => {
       if (!sessionMcpServerIds.value.includes(id)) {
         sessionMcpServerIds.value.push(id);
         changed = true;
@@ -558,7 +623,7 @@ const scrollToBottom = async (behavior = 'auto') => {
     isSticky.value = true;
     el.scrollTo({
       top: el.scrollHeight,
-      behavior: behavior
+      behavior: behavior,
     });
   }
 };
@@ -581,7 +646,9 @@ const forceScrollToBottom = () => {
   // 点击按钮时，为了视觉反馈，可以使用平滑滚动
   scrollToBottom('smooth');
 
-  setTimeout(() => { isForcingScroll.value = false; }, 500);
+  setTimeout(() => {
+    isForcingScroll.value = false;
+  }, 500);
 };
 
 const findFocusedMessageIndex = () => {
@@ -649,13 +716,17 @@ const navigateToPreviousMessage = () => {
     const newIndex = currentIndex - 1;
     focusedMessageIndex.value = newIndex;
     const previousComponent = getMessageComponentByIndex(newIndex);
-    if (previousComponent) previousComponent.$el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (previousComponent)
+      previousComponent.$el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 };
 
 const navigateToNextMessage = () => {
   findFocusedMessageIndex();
-  if (focusedMessageIndex.value !== null && focusedMessageIndex.value < chat_show.value.length - 1) {
+  if (
+    focusedMessageIndex.value !== null &&
+    focusedMessageIndex.value < chat_show.value.length - 1
+  ) {
     focusedMessageIndex.value++;
     const targetComponent = getMessageComponentByIndex(focusedMessageIndex.value);
     if (targetComponent) targetComponent.$el.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -668,21 +739,32 @@ const isCollapsed = (index) => collapsedMessages.value.has(index);
 
 const addCopyButtonsToCodeBlocks = async () => {
   await nextTick();
-  document.querySelectorAll('.markdown-body pre.hljs').forEach(pre => {
+  document.querySelectorAll('.markdown-body pre.hljs').forEach((pre) => {
     if (pre.querySelector('.code-block-copy-button')) return;
-    const codeElement = pre.querySelector('code'); if (!codeElement) return;
-    const wrapper = document.createElement('div'); wrapper.className = 'code-block-wrapper'; pre.parentNode.insertBefore(wrapper, pre); wrapper.appendChild(pre);
-    const codeText = codeElement.textContent || ''; const lines = codeText.trimEnd().split('\n'); const lineCount = lines.length;
+    const codeElement = pre.querySelector('code');
+    if (!codeElement) return;
+    const wrapper = document.createElement('div');
+    wrapper.className = 'code-block-wrapper';
+    pre.parentNode.insertBefore(wrapper, pre);
+    wrapper.appendChild(pre);
+    const codeText = codeElement.textContent || '';
+    const lines = codeText.trimEnd().split('\n');
+    const lineCount = lines.length;
     const copyButtonSVG = renderLucideSvg(Copy, { size: 14, strokeWidth: 2 });
     const createButton = (positionClass) => {
-      const button = document.createElement('button'); button.className = `code-block-copy-button ${positionClass}`; button.innerHTML = copyButtonSVG; button.title = 'Copy code';
+      const button = document.createElement('button');
+      button.className = `code-block-copy-button ${positionClass}`;
+      button.innerHTML = copyButtonSVG;
+      button.title = 'Copy code';
       button.addEventListener('click', async (event) => {
         event.stopPropagation();
         try {
           await navigator.clipboard.writeText(codeText.trimEnd());
           showDismissibleMessage.success('Code copied to clipboard!');
+        } catch (err) {
+          console.error('Failed to copy code:', err);
+          showDismissibleMessage.error('Failed to copy code.');
         }
-        catch (err) { console.error('Failed to copy code:', err); showDismissibleMessage.error('Failed to copy code.'); }
       });
       wrapper.appendChild(button);
     };
@@ -732,7 +814,7 @@ const handleWheel = (event) => {
   if (event.ctrlKey) {
     event.preventDefault();
     const zoomStep = 0.05;
-    let newZoom = (event.deltaY < 0) ? zoomLevel.value + zoomStep : zoomLevel.value - zoomStep;
+    let newZoom = event.deltaY < 0 ? zoomLevel.value + zoomStep : zoomLevel.value - zoomStep;
     zoomLevel.value = Math.max(0.5, Math.min(2.0, newZoom));
     if (currentConfig.value) currentConfig.value.zoom = zoomLevel.value;
   }
@@ -748,10 +830,10 @@ const handleOpenModelDialog = async () => {
 
       const newModelList = [];
       const newModelMap = {};
-      currentConfig.value.providerOrder.forEach(id => {
+      currentConfig.value.providerOrder.forEach((id) => {
         const provider = currentConfig.value.providers[id];
         if (provider?.enable) {
-          provider.modelList.forEach(m => {
+          provider.modelList.forEach((m) => {
             const key = `${id}|${m}`;
             newModelList.push({ key, value: key, label: `${provider.name}|${m}` });
             newModelMap[key] = `${provider.name}|${m}`;
@@ -768,13 +850,13 @@ const handleOpenModelDialog = async () => {
       }
     }
   } catch (e) {
-    console.warn("自动刷新模型列表失败，将使用缓存数据", e);
+    console.warn('自动刷新模型列表失败，将使用缓存数据', e);
   }
   changeModel_page.value = true;
 };
 const handleChangeModel = (chosenModel) => {
   model.value = chosenModel;
-  currentProviderID.value = chosenModel.split("|")[0];
+  currentProviderID.value = chosenModel.split('|')[0];
   const provider = currentConfig.value.providers[currentProviderID.value];
   base_url.value = provider.url;
   api_key.value = provider.api_key;
@@ -829,11 +911,13 @@ const onAvatarClick = async (role, event) => {
   const originalScrollTop = chatContainer.scrollTop;
   const originalElementTop = messageElement.offsetTop;
   const originalVisualPosition = originalElementTop - originalScrollTop;
-  const roleMessageIndices = chat_show.value.map((msg, index) => (msg.role === role ? index : -1)).filter(index => index !== -1);
+  const roleMessageIndices = chat_show.value
+    .map((msg, index) => (msg.role === role ? index : -1))
+    .filter((index) => index !== -1);
   if (roleMessageIndices.length === 0) return;
-  const anyExpanded = roleMessageIndices.some(index => !collapsedMessages.value.has(index));
-  if (anyExpanded) roleMessageIndices.forEach(index => collapsedMessages.value.add(index));
-  else roleMessageIndices.forEach(index => collapsedMessages.value.delete(index));
+  const anyExpanded = roleMessageIndices.some((index) => !collapsedMessages.value.has(index));
+  if (anyExpanded) roleMessageIndices.forEach((index) => collapsedMessages.value.add(index));
+  else roleMessageIndices.forEach((index) => collapsedMessages.value.delete(index));
   await nextTick();
   const newElementTop = messageElement.offsetTop;
   chatContainer.style.scrollBehavior = 'auto';
@@ -873,7 +957,11 @@ const handleWindowFocus = () => {
     if (systemPromptDialogVisible.value) {
       return;
     }
-    if (document.activeElement && document.activeElement.tagName.toLowerCase() === 'textarea' && document.activeElement.closest('.editing-wrapper')) {
+    if (
+      document.activeElement &&
+      document.activeElement.tagName.toLowerCase() === 'textarea' &&
+      document.activeElement.closest('.editing-wrapper')
+    ) {
       return;
     }
     if (document.activeElement && document.activeElement.closest('.text-search-container')) {
@@ -882,7 +970,10 @@ const handleWindowFocus = () => {
     const textarea = chatInputRef.value?.senderRef?.$refs.textarea;
     if (!textarea) return;
     if (document.activeElement !== textarea) {
-      if (lastSelectionStart.value !== null && lastSelectionEnd.value !== null) chatInputRef.value?.focus({ position: { start: lastSelectionStart.value, end: lastSelectionEnd.value } });
+      if (lastSelectionStart.value !== null && lastSelectionEnd.value !== null)
+        chatInputRef.value?.focus({
+          position: { start: lastSelectionStart.value, end: lastSelectionEnd.value },
+        });
       else chatInputRef.value?.focus({ cursor: 'end' });
     }
   }, 50);
@@ -914,11 +1005,10 @@ const handleCopyImageFromViewer = (url) => {
         reader.readAsDataURL(blob);
       });
 
-      await new Promise(resolve => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 50));
 
       await window.api.copyImage(base64Data);
       showDismissibleMessage.success('图片已复制到剪贴板');
-
     } catch (error) {
       console.error('复制图片失败:', error);
       showDismissibleMessage.error(`复制失败: ${error.message}`);
@@ -933,7 +1023,12 @@ const handleDownloadImageFromViewer = async (url) => {
     const blob = await response.blob();
     const arrayBuffer = await blob.arrayBuffer();
     const defaultFilename = `image_${Date.now()}.${blob.type.split('/')[1] || 'png'}`;
-    await window.api.saveFile({ title: '保存图片', defaultPath: defaultFilename, buttonLabel: '保存', fileContent: new Uint8Array(arrayBuffer) });
+    await window.api.saveFile({
+      title: '保存图片',
+      defaultPath: defaultFilename,
+      buttonLabel: '保存',
+      fileContent: new Uint8Array(arrayBuffer),
+    });
     showDismissibleMessage.success('图片保存成功！');
   } catch (error) {
     if (!error.message.includes('User cancelled') && !error.message.includes('用户取消')) {
@@ -963,7 +1058,9 @@ const handleEditMessage = (index, newContent) => {
     if (typeof message.content === 'string' || message.content === null) {
       message.content = newContent;
     } else if (Array.isArray(message.content)) {
-      const textPart = message.content.find(p => p.type === 'text' && !(p.text && p.text.toLowerCase().startsWith('file name:')));
+      const textPart = message.content.find(
+        (p) => p.type === 'text' && !(p.text && p.text.toLowerCase().startsWith('file name:')),
+      );
       if (textPart) {
         textPart.text = newContent;
       } else {
@@ -979,7 +1076,7 @@ const handleEditMessage = (index, newContent) => {
   if (history_idx !== -1 && history.value[history_idx]) {
     updateContent(history.value[history_idx]);
   } else {
-    console.error("错误：无法将 chat_show 索引映射到 history 索引。下次API请求可能会使用旧数据。");
+    console.error('错误：无法将 chat_show 索引映射到 history 索引。下次API请求可能会使用旧数据。');
   }
 
   markSessionDirty();
@@ -1007,14 +1104,17 @@ const handleEditStart = async (index) => {
 const handleEditEnd = async ({ id, action, content }) => {
   if (action !== 'save') return;
 
-  const currentIndex = chat_show.value.findIndex(m => m.id === id);
+  const currentIndex = chat_show.value.findIndex((m) => m.id === id);
 
   if (currentIndex === -1) return;
 
   handleEditMessage(currentIndex, content);
   showDismissibleMessage.success('消息已更新');
 
-  if (currentIndex === chat_show.value.length - 1 && chat_show.value[currentIndex].role === 'user') {
+  if (
+    currentIndex === chat_show.value.length - 1 &&
+    chat_show.value[currentIndex].role === 'user'
+  ) {
     await nextTick();
     await reaskAI();
   }
@@ -1031,14 +1131,14 @@ const saveSystemPrompt = async () => {
   const newPromptContent = systemPromptContent.value;
   currentSystemPrompt.value = newPromptContent;
 
-  const systemMessageIndex = history.value.findIndex(m => m.role === 'system');
+  const systemMessageIndex = history.value.findIndex((m) => m.role === 'system');
   if (systemMessageIndex !== -1) {
     history.value[systemMessageIndex].content = newPromptContent;
     if (chat_show.value[systemMessageIndex]) {
       chat_show.value[systemMessageIndex].content = newPromptContent;
     }
   } else {
-    const newMsg = { role: "system", content: newPromptContent };
+    const newMsg = { role: 'system', content: newPromptContent };
     history.value.unshift(newMsg);
     chat_show.value.unshift({ ...newMsg, id: messageIdCounter.value++ });
   }
@@ -1058,22 +1158,21 @@ const saveSystemPrompt = async () => {
         prompt: newPromptContent,
         enable: true,
         model: model.value || baseConfig.model,
-        enable: true,
         stream: true,
         isTemperature: false,
         temperature: 0.7,
         ifTextNecessary: false,
         isDirectSend_file: true,
         isDirectSend_normal: true,
-        voice: "",
+        voice: '',
         isAlwaysOnTop: latestConfigData.config.isAlwaysOnTop_global,
         autoCloseOnBlur: latestConfigData.config.autoCloseOnBlur_global,
         window_width: 540,
         window_height: 700,
         position_x: 0,
         position_y: 0,
-        reasoning_effort: "default",
-        zoom: 1
+        reasoning_effort: 'default',
+        zoom: 1,
       };
       latestConfigData.config.prompts[CODE.value] = newPrompt;
       await window.api.updateConfig(latestConfigData);
@@ -1082,7 +1181,7 @@ const saveSystemPrompt = async () => {
       showDismissibleMessage.success(`已为您创建并保存新的快捷助手: "${CODE.value}"`);
     }
   } catch (error) {
-    console.error("保存系统提示词失败:", error);
+    console.error('保存系统提示词失败:', error);
     showDismissibleMessage.error(`保存失败: ${error.message}`);
   }
 
@@ -1098,7 +1197,7 @@ const closePage = async () => {
     try {
       await flushAutoSave(true);
     } catch (e) {
-      console.error("关闭时自动保存失败:", e);
+      console.error('关闭时自动保存失败:', e);
     }
   }
 
@@ -1129,33 +1228,37 @@ const summarizeContentForSignature = (content) => {
     return `obj:${summarizeTextForSignature(serialized)}`;
   }
 
-  return content.map((part) => {
-    if (part.type === 'text') {
-      return `text:${summarizeTextForSignature(part.text)}`;
-    }
-    if (part.type === 'image_url') {
-      return `img:${summarizeTextForSignature(part.image_url?.url)}`;
-    }
-    if (part.type === 'file') {
-      return `file:${part.file?.filename || ''}`;
-    }
-    if (part.type === 'input_audio') {
-      return `audio:${part.input_audio?.format || ''}:${(part.input_audio?.data || '').length}`;
-    }
-    return `other:${part.type || 'unknown'}`;
-  }).join('|');
+  return content
+    .map((part) => {
+      if (part.type === 'text') {
+        return `text:${summarizeTextForSignature(part.text)}`;
+      }
+      if (part.type === 'image_url') {
+        return `img:${summarizeTextForSignature(part.image_url?.url)}`;
+      }
+      if (part.type === 'file') {
+        return `file:${part.file?.filename || ''}`;
+      }
+      if (part.type === 'input_audio') {
+        return `audio:${part.input_audio?.format || ''}:${(part.input_audio?.data || '').length}`;
+      }
+      return `other:${part.type || 'unknown'}`;
+    })
+    .join('|');
 };
 
 const summarizeToolCallsForSignature = (toolCalls) => {
   if (!Array.isArray(toolCalls) || toolCalls.length === 0) return '';
-  return toolCalls.map((tool) => {
-    return [
-      tool.id || '',
-      tool.name || '',
-      tool.approvalStatus || '',
-      summarizeTextForSignature(tool.result || ''),
-    ].join(':');
-  }).join('|');
+  return toolCalls
+    .map((tool) => {
+      return [
+        tool.id || '',
+        tool.name || '',
+        tool.approvalStatus || '',
+        summarizeTextForSignature(tool.result || ''),
+      ].join(':');
+    })
+    .join('|');
 };
 
 const lastMessageSignature = computed(() => {
@@ -1227,29 +1330,42 @@ const flushAutoSave = async (force = false) => {
 };
 
 watch(zoomLevel, (newZoom) => {
-  if (window.api && typeof window.api.setZoomFactor === 'function') window.api.setZoomFactor(newZoom);
+  if (window.api && typeof window.api.setZoomFactor === 'function')
+    window.api.setZoomFactor(newZoom);
 });
-watch(() => chat_show.value.length, () => {
-  if (!hasSessionInitialized.value) return;
-  markSessionDirty();
-  scheduleCodeBlockEnhancement();
-}, { flush: 'post' });
-watch(lastMessageSignature, () => {
-  if (!hasSessionInitialized.value) return;
-  markSessionDirty();
-  scheduleCodeBlockEnhancement();
-}, { flush: 'post' });
-watch(() => currentConfig.value?.isDarkMode, (isDark) => {
-  if (isDark) {
-    document.documentElement.classList.add('dark');
-  } else {
-    document.documentElement.classList.remove('dark');
-  }
+watch(
+  () => chat_show.value.length,
+  () => {
+    if (!hasSessionInitialized.value) return;
+    markSessionDirty();
+    scheduleCodeBlockEnhancement();
+  },
+  { flush: 'post' },
+);
+watch(
+  lastMessageSignature,
+  () => {
+    if (!hasSessionInitialized.value) return;
+    markSessionDirty();
+    scheduleCodeBlockEnhancement();
+  },
+  { flush: 'post' },
+);
+watch(
+  () => currentConfig.value?.isDarkMode,
+  (isDark) => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
 
-  if (textSearchInstance) {
-    textSearchInstance.setTheme(isDark ? 'dark' : 'light');
-  }
-}, { immediate: true });
+    if (textSearchInstance) {
+      textSearchInstance.setTheme(isDark ? 'dark' : 'light');
+    }
+  },
+  { immediate: true },
+);
 
 onMounted(async () => {
   if (isInit.value) return;
@@ -1263,7 +1379,7 @@ onMounted(async () => {
 
   textSearchInstance = new TextSearchUI({
     scope: '.chat-main',
-    theme: currentConfig.value?.isDarkMode ? 'dark' : 'light'
+    theme: currentConfig.value?.isDarkMode ? 'dark' : 'light',
   });
 
   window.addEventListener('wheel', handleWheel, { passive: false });
@@ -1285,7 +1401,7 @@ onMounted(async () => {
     chatObserver.observe(chatMainElement, {
       childList: true,
       subtree: true,
-      characterData: true
+      characterData: true,
     });
   }
 
@@ -1304,18 +1420,19 @@ onMounted(async () => {
       const userInfo = await window.api.getUser();
       UserAvart.value = userInfo.avatar;
     } catch (err) {
-      UserAvart.value = "user.png";
+      UserAvart.value = 'user.png';
     }
 
     if (data?.os) {
       currentOS.value = data.os;
     }
 
-    modelList.value = []; modelMap.value = {};
-    currentConfig.value.providerOrder.forEach(id => {
+    modelList.value = [];
+    modelMap.value = {};
+    currentConfig.value.providerOrder.forEach((id) => {
       const provider = currentConfig.value.providers[id];
       if (provider?.enable) {
-        provider.modelList.forEach(m => {
+        provider.modelList.forEach((m) => {
           const key = `${id}|${m}`;
           modelList.value.push({ key, value: key, label: `${provider.name}|${m}` });
           modelMap.value[key] = `${provider.name}|${m}`;
@@ -1323,8 +1440,9 @@ onMounted(async () => {
       }
     });
 
-    const code = data?.code || "AI";
-    const currentPromptConfig = currentConfig.value.prompts[code] || defaultConfig.config.prompts.AI;
+    const code = data?.code || 'AI';
+    const currentPromptConfig =
+      currentConfig.value.prompts[code] || defaultConfig.config.prompts.AI;
     if (currentPromptConfig.backgroundImage) {
       loadBackground(currentPromptConfig.backgroundImage);
     }
@@ -1345,8 +1463,8 @@ onMounted(async () => {
       AIAvart.value = currentPromptConfig.icon;
       favicon.value = currentPromptConfig.icon;
     } else {
-      AIAvart.value = "ai.svg";
-      favicon.value = currentConfig.value.isDarkMode ? "favicon-b.png" : "favicon.png";
+      AIAvart.value = 'ai.svg';
+      favicon.value = currentConfig.value.isDarkMode ? 'favicon-b.png' : 'favicon.png';
     }
 
     autoCloseOnBlur.value = currentPromptConfig.autoCloseOnBlur ?? false;
@@ -1355,21 +1473,23 @@ onMounted(async () => {
     selectedVoice.value = currentPromptConfig.voice || null;
 
     if (model.value) {
-      currentProviderID.value = model.value.split("|")[0];
+      currentProviderID.value = model.value.split('|')[0];
       base_url.value = currentConfig.value.providers[currentProviderID.value]?.url;
       api_key.value = currentConfig.value.providers[currentProviderID.value]?.api_key;
     }
 
     if (currentPromptConfig.prompt) {
       currentSystemPrompt.value = currentPromptConfig.prompt;
-      history.value = [{ role: "system", content: currentPromptConfig.prompt }];
-      chat_show.value = [{
-        role: "system",
-        content: currentPromptConfig.prompt,
-        id: messageIdCounter.value++
-      }];
+      history.value = [{ role: 'system', content: currentPromptConfig.prompt }];
+      chat_show.value = [
+        {
+          role: 'system',
+          content: currentPromptConfig.prompt,
+          id: messageIdCounter.value++,
+        },
+      ];
     } else {
-      currentSystemPrompt.value = "";
+      currentSystemPrompt.value = '';
       history.value = [];
       chat_show.value = [];
     }
@@ -1388,46 +1508,77 @@ onMounted(async () => {
       basic_msg.value = { code: data.code, type: data.type, payload: data.payload };
       if (data.filename) defaultConversationName.value = data.filename.replace(/\.json$/i, '');
 
-      if (data.type === "over" && data.payload) {
+      if (data.type === 'over' && data.payload) {
         let sessionLoaded = false;
         try {
           let old_session = JSON.parse(data.payload);
-          if (old_session && old_session.anywhere_history === true) { sessionLoaded = true; await loadSession(old_session); autoCloseOnBlur.value = false; }
-        } catch (error) { }
+          if (old_session && old_session.anywhere_history === true) {
+            sessionLoaded = true;
+            await loadSession(old_session);
+            autoCloseOnBlur.value = false;
+          }
+        } catch (error) {}
         if (!sessionLoaded) {
-          if (CODE.value.trim().toLowerCase().includes(data.payload.trim().toLowerCase())) { /* do nothing */ }
-          else {
+          if (CODE.value.trim().toLowerCase().includes(data.payload.trim().toLowerCase())) {
+            /* do nothing */
+          } else {
             if (currentPromptConfig.isDirectSend_normal) {
-              history.value.push({ role: "user", content: data.payload });
-              chat_show.value.push({ id: messageIdCounter.value++, role: "user", content: [{ type: "text", text: data.payload }] });
+              history.value.push({ role: 'user', content: data.payload });
+              chat_show.value.push({
+                id: messageIdCounter.value++,
+                role: 'user',
+                content: [{ type: 'text', text: data.payload }],
+              });
               shouldDirectSend = true;
-            } else { prompt.value = data.payload; }
+            } else {
+              prompt.value = data.payload;
+            }
           }
         }
-      } else if (data.type === "img" && data.payload) {
+      } else if (data.type === 'img' && data.payload) {
         if (currentPromptConfig.isDirectSend_normal) {
-          history.value.push({ role: "user", content: [{ type: "image_url", image_url: { url: String(data.payload) } }] });
-          chat_show.value.push({ id: messageIdCounter.value++, role: "user", content: [{ type: "image_url", image_url: { url: String(data.payload) } }] });
+          history.value.push({
+            role: 'user',
+            content: [{ type: 'image_url', image_url: { url: String(data.payload) } }],
+          });
+          chat_show.value.push({
+            id: messageIdCounter.value++,
+            role: 'user',
+            content: [{ type: 'image_url', image_url: { url: String(data.payload) } }],
+          });
           shouldDirectSend = true;
         } else {
-          fileList.value.push({ uid: 1, name: "截图.png", size: 0, type: "image/png", url: String(data.payload) });
+          fileList.value.push({
+            uid: 1,
+            name: '截图.png',
+            size: 0,
+            type: 'image/png',
+            url: String(data.payload),
+          });
         }
-      } else if (data.type === "files" && data.payload) {
+      } else if (data.type === 'files' && data.payload) {
         try {
           let sessionLoaded = false;
           if (data.payload.length === 1 && data.payload[0].path.toLowerCase().endsWith('.json')) {
             const fileObject = await window.api.handleFilePath(data.payload[0].path);
-            if (fileObject) { sessionLoaded = await checkAndLoadSessionFromFile(fileObject); }
+            if (fileObject) {
+              sessionLoaded = await checkAndLoadSessionFromFile(fileObject);
+            }
           }
           if (!sessionLoaded) {
-            const fileProcessingPromises = data.payload.map((fileInfo) => processFilePath(fileInfo.path));
+            const fileProcessingPromises = data.payload.map((fileInfo) =>
+              processFilePath(fileInfo.path),
+            );
             await Promise.all(fileProcessingPromises);
             if (currentPromptConfig.isDirectSend_file) {
               shouldDirectSend = true;
               isFileDirectSend = true;
             }
           }
-        } catch (error) { console.error("Error during initial file processing:", error); showDismissibleMessage.error("文件处理失败: " + error.message); }
+        } catch (error) {
+          console.error('Error during initial file processing:', error);
+          showDismissibleMessage.error('文件处理失败: ' + error.message);
+        }
       }
     }
     if (autoCloseOnBlur.value) {
@@ -1449,8 +1600,8 @@ onMounted(async () => {
 
     if (mcpServersToLoad.length > 0) {
       // 过滤出有效的 ID
-      const validIds = mcpServersToLoad.filter(id =>
-        currentConfig.value.mcpServers && currentConfig.value.mcpServers[id]
+      const validIds = mcpServersToLoad.filter(
+        (id) => currentConfig.value.mcpServers && currentConfig.value.mcpServers[id],
       );
 
       sessionMcpServerIds.value = [...validIds];
@@ -1480,8 +1631,8 @@ onMounted(async () => {
     });
   } else {
     const data = {
-      os: "win",
-      code: "Moss",
+      os: 'win',
+      code: 'Moss',
       config: await window.api.getConfig().config,
     };
     await initializeWindow(data);
@@ -1526,26 +1677,32 @@ const autoSaveSession = async ({ force = false } = {}) => {
 
   // 自动命名逻辑：
   if (!defaultConversationName.value && chat_show.value.length > 0) {
-    const firstUserMsg = chat_show.value.find(msg => msg.role === 'user');
+    const firstUserMsg = chat_show.value.find((msg) => msg.role === 'user');
     if (firstUserMsg) {
       let namePrefix = '';
       const content = firstUserMsg.content;
 
       // 提取并清洗用户输入内容，作为文件名前缀
       if (Array.isArray(content)) {
-        const hasImage = content.some(p => p.type === 'image_url');
-        const hasFile = content.some(p => p.type === 'file');
-        const textPart = content.find(p => p.type === 'text');
+        const hasImage = content.some((p) => p.type === 'image_url');
+        const hasFile = content.some((p) => p.type === 'file');
+        const textPart = content.find((p) => p.type === 'text');
 
         if (hasImage) {
           namePrefix = '图片';
         } else if (hasFile) {
           namePrefix = '文件';
         } else if (textPart?.text) {
-          namePrefix = textPart.text.slice(0, 20).replace(/[\\/:*?"<>|\n\r]/g, '').trim();
+          namePrefix = textPart.text
+            .slice(0, 20)
+            .replace(/[\\/:*?"<>|\n\r]/g, '')
+            .trim();
         }
       } else if (typeof content === 'string') {
-        namePrefix = content.slice(0, 20).replace(/[\\/:*?"<>|\n\r]/g, '').trim();
+        namePrefix = content
+          .slice(0, 20)
+          .replace(/[\\/:*?"<>|\n\r]/g, '')
+          .trim();
       }
 
       if (namePrefix) {
@@ -1648,22 +1805,29 @@ const saveWindowSize = async () => {
       showDismissibleMessage.error(`保存失败: ${result.message}`);
     }
   } catch (error) {
-    console.error("Error saving window settings:", error);
+    console.error('Error saving window settings:', error);
     showDismissibleMessage.error('保存窗口设置时出错');
   }
-}
+};
 
 const getSessionDataAsObject = () => {
   const currentPromptConfig = currentConfig.value.prompts[CODE.value] || {};
   return {
-    anywhere_history: true, CODE: CODE.value, basic_msg: basic_msg.value, isInit: isInit.value,
-    autoCloseOnBlur: autoCloseOnBlur.value, model: model.value,
-    currentPromptConfig: currentPromptConfig, history: history.value, chat_show: chat_show.value, selectedVoice: selectedVoice.value,
+    anywhere_history: true,
+    CODE: CODE.value,
+    basic_msg: basic_msg.value,
+    isInit: isInit.value,
+    autoCloseOnBlur: autoCloseOnBlur.value,
+    model: model.value,
+    currentPromptConfig: currentPromptConfig,
+    history: history.value,
+    chat_show: chat_show.value,
+    selectedVoice: selectedVoice.value,
     activeMcpServerIds: sessionMcpServerIds.value || [],
     activeSkillIds: sessionSkillIds.value || [],
-    isAutoApproveTools: isAutoApproveTools.value
+    isAutoApproveTools: isAutoApproveTools.value,
   };
-}
+};
 const saveSessionToCloud = async () => {
   const now = new Date();
   const year = String(now.getFullYear()).slice(-2);
@@ -1671,36 +1835,60 @@ const saveSessionToCloud = async () => {
   const day = String(now.getDate()).toString().padStart(2, '0');
   const hours = String(now.getHours()).toString().padStart(2, '0');
   const minutes = String(now.getMinutes()).toString().padStart(2, '0');
-  const defaultBasename = defaultConversationName.value || `${CODE.value || 'AI'}-${year}${month}${day}-${hours}${minutes}`;
+  const defaultBasename =
+    defaultConversationName.value ||
+    `${CODE.value || 'AI'}-${year}${month}${day}-${hours}${minutes}`;
   const inputValue = ref(defaultBasename);
   try {
     await ElMessageBox({
       title: '保存到云端',
-      message: () => h('div', null, [
-        h('p', { style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);' }, '请输入要保存到云端的会话名称。'),
-        h(ElInput, {
-          modelValue: inputValue.value,
-          'onUpdate:modelValue': (val) => { inputValue.value = val; },
-          placeholder: '文件名',
-          ref: (elInputInstance) => {
-            if (elInputInstance) {
-              setTimeout(() => elInputInstance.focus(), 100);
-            }
-          },
-          onKeydown: (event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              document.querySelector('.filename-prompt-dialog .el-message-box__btns .el-button--primary')?.click();
-            }
-          }
-        },
-          { append: () => h('div', { class: 'input-suffix-display' }, '.json') })]),
-      showCancelButton: true, confirmButtonText: '确认', cancelButtonText: '取消', customClass: 'filename-prompt-dialog',
+      message: () =>
+        h('div', null, [
+          h(
+            'p',
+            { style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);' },
+            '请输入要保存到云端的会话名称。',
+          ),
+          h(
+            ElInput,
+            {
+              modelValue: inputValue.value,
+              'onUpdate:modelValue': (val) => {
+                inputValue.value = val;
+              },
+              placeholder: '文件名',
+              ref: (elInputInstance) => {
+                if (elInputInstance) {
+                  setTimeout(() => elInputInstance.focus(), 100);
+                }
+              },
+              onKeydown: (event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  document
+                    .querySelector(
+                      '.filename-prompt-dialog .el-message-box__btns .el-button--primary',
+                    )
+                    ?.click();
+                }
+              },
+            },
+            { append: () => h('div', { class: 'input-suffix-display' }, '.json') },
+          ),
+        ]),
+      showCancelButton: true,
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      customClass: 'filename-prompt-dialog',
       beforeClose: async (action, instance, done) => {
         if (action === 'confirm') {
           let finalBasename = inputValue.value.trim();
-          if (!finalBasename) { showDismissibleMessage.error('文件名不能为空'); return; }
-          if (finalBasename.toLowerCase().endsWith('.json')) finalBasename = finalBasename.slice(0, -5);
+          if (!finalBasename) {
+            showDismissibleMessage.error('文件名不能为空');
+            return;
+          }
+          if (finalBasename.toLowerCase().endsWith('.json'))
+            finalBasename = finalBasename.slice(0, -5);
           const filename = finalBasename + '.json';
           instance.confirmButtonLoading = true;
           showDismissibleMessage.info('正在保存到云端...');
@@ -1711,19 +1899,26 @@ const saveSessionToCloud = async () => {
             const client = await createWebdavClient(url, username, password);
             const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
             const remoteFilePath = `${remoteDir}/${filename}`;
-            if (!(await client.exists(remoteDir))) await client.createDirectory(remoteDir, { recursive: true });
+            if (!(await client.exists(remoteDir)))
+              await client.createDirectory(remoteDir, { recursive: true });
             await client.putFileContents(remoteFilePath, jsonString, { overwrite: true });
             defaultConversationName.value = finalBasename;
             showDismissibleMessage.success('会话已成功保存到云端！');
             done();
           } catch (error) {
-            console.error("WebDAV save failed:", error);
+            console.error('WebDAV save failed:', error);
             showDismissibleMessage.error(`保存到云端失败: ${error.message}`);
-          } finally { instance.confirmButtonLoading = false; }
-        } else { done(); }
-      }
+          } finally {
+            instance.confirmButtonLoading = false;
+          }
+        } else {
+          done();
+        }
+      },
     });
-  } catch (error) { if (error !== 'cancel' && error !== 'close') console.error("MessageBox error:", error); }
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') console.error('MessageBox error:', error);
+  }
 };
 
 const saveSessionAsMarkdown = async () => {
@@ -1733,12 +1928,23 @@ const saveSessionAsMarkdown = async () => {
   const fileTimestamp = `${String(now.getFullYear()).slice(-2)}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
   const defaultBasename = defaultConversationName.value || `${CODE.value || 'AI'}-${fileTimestamp}`;
 
-  const formatContent = (content) => !Array.isArray(content) ? String(content).trim() : content.map(p => p.type === 'text' ? p.text.trim() : '').join(' ');
-  const formatFiles = (content) => Array.isArray(content) ? content.filter(p => p.type !== 'text').map(p => p.type === 'file' ? p.file.filename : 'Image') : [];
+  const formatContent = (content) =>
+    !Array.isArray(content)
+      ? String(content).trim()
+      : content.map((p) => (p.type === 'text' ? p.text.trim() : '')).join(' ');
+  const formatFiles = (content) =>
+    Array.isArray(content)
+      ? content
+          .filter((p) => p.type !== 'text')
+          .map((p) => (p.type === 'file' ? p.file.filename : 'Image'))
+      : [];
 
   const addBlockquote = (text) => {
     if (!text) return '';
-    return text.split('\n').map(line => `> ${line}`).join('\n');
+    return text
+      .split('\n')
+      .map((line) => `> ${line}`)
+      .join('\n');
   };
 
   const truncate = (str, len = 50) => {
@@ -1769,13 +1975,16 @@ const saveSessionAsMarkdown = async () => {
 
       if (files.length > 0) {
         markdownContent += `> **附件列表:**\n`;
-        files.forEach(f => { markdownContent += `> - \`${f}\`\n`; });
+        files.forEach((f) => {
+          markdownContent += `> - \`${f}\`\n`;
+        });
         markdownContent += `\n`;
       }
     } else if (message.role === 'assistant') {
       let assistantHeader = `### 🤖 ${message.aiName || 'AI'}`;
       if (message.voiceName) assistantHeader += ` (${message.voiceName})`;
-      if (message.completedTimestamp) assistantHeader += ` - *${formatTimestamp(message.completedTimestamp)}*`;
+      if (message.completedTimestamp)
+        assistantHeader += ` - *${formatTimestamp(message.completedTimestamp)}*`;
       markdownContent += `${assistantHeader}\n\n`;
 
       if (message.reasoning_content) {
@@ -1784,7 +1993,7 @@ const saveSessionAsMarkdown = async () => {
 
       if (message.tool_calls && message.tool_calls.length > 0) {
         markdownContent += `> **工具调用:**\n`;
-        message.tool_calls.forEach(tool => {
+        message.tool_calls.forEach((tool) => {
           markdownContent += `> - 🛠️ \`${tool.name}\`: ${truncate(tool.result)}\n`;
         });
         markdownContent += `\n`;
@@ -1801,46 +2010,86 @@ const saveSessionAsMarkdown = async () => {
   try {
     await ElMessageBox({
       title: '保存为 Markdown',
-      message: () => h('div', null, [
-        h('p', { style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);' }, '请输入会话名称。'),
-        h(ElInput, {
-          modelValue: inputValue.value,
-          'onUpdate:modelValue': (val) => { inputValue.value = val; },
-          placeholder: '文件名',
-          ref: (elInputInstance) => {
-            if (elInputInstance) {
-              setTimeout(() => elInputInstance.focus(), 100);
-            }
-          },
-          onKeydown: (event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              document.querySelector('.filename-prompt-dialog .el-message-box__btns .el-button--primary')?.click();
-            }
-          }
-        },
-          { append: () => h('div', { class: 'input-suffix-display' }, '.md') })]),
-      showCancelButton: true, confirmButtonText: '保存', cancelButtonText: '取消', customClass: 'filename-prompt-dialog',
+      message: () =>
+        h('div', null, [
+          h(
+            'p',
+            { style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);' },
+            '请输入会话名称。',
+          ),
+          h(
+            ElInput,
+            {
+              modelValue: inputValue.value,
+              'onUpdate:modelValue': (val) => {
+                inputValue.value = val;
+              },
+              placeholder: '文件名',
+              ref: (elInputInstance) => {
+                if (elInputInstance) {
+                  setTimeout(() => elInputInstance.focus(), 100);
+                }
+              },
+              onKeydown: (event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  document
+                    .querySelector(
+                      '.filename-prompt-dialog .el-message-box__btns .el-button--primary',
+                    )
+                    ?.click();
+                }
+              },
+            },
+            { append: () => h('div', { class: 'input-suffix-display' }, '.md') },
+          ),
+        ]),
+      showCancelButton: true,
+      confirmButtonText: '保存',
+      cancelButtonText: '取消',
+      customClass: 'filename-prompt-dialog',
       beforeClose: async (action, instance, done) => {
         if (action === 'confirm') {
           let finalBasename = inputValue.value.trim();
-          if (!finalBasename) { showDismissibleMessage.error('文件名不能为空'); return; }
-          if (finalBasename.toLowerCase().endsWith('.md')) finalBasename = finalBasename.slice(0, -3);
+          if (!finalBasename) {
+            showDismissibleMessage.error('文件名不能为空');
+            return;
+          }
+          if (finalBasename.toLowerCase().endsWith('.md'))
+            finalBasename = finalBasename.slice(0, -3);
           const finalFilename = finalBasename + '.md';
           instance.confirmButtonLoading = true;
           try {
-            await window.api.saveFile({ title: '保存为 Markdown', defaultPath: finalFilename, buttonLabel: '保存', filters: [{ name: 'Markdown 文件', extensions: ['md'] }, { name: '所有文件', extensions: ['*'] }], fileContent: markdownContent });
+            await window.api.saveFile({
+              title: '保存为 Markdown',
+              defaultPath: finalFilename,
+              buttonLabel: '保存',
+              filters: [
+                { name: 'Markdown 文件', extensions: ['md'] },
+                { name: '所有文件', extensions: ['*'] },
+              ],
+              fileContent: markdownContent,
+            });
             defaultConversationName.value = finalBasename;
             showDismissibleMessage.success('会话已成功保存为 Markdown！');
             done();
           } catch (error) {
-            if (!error.message.includes('canceled by the user')) { console.error('保存 Markdown 失败:', error); showDismissibleMessage.error(`保存失败: ${error.message}`); }
+            if (!error.message.includes('canceled by the user')) {
+              console.error('保存 Markdown 失败:', error);
+              showDismissibleMessage.error(`保存失败: ${error.message}`);
+            }
             done();
-          } finally { instance.confirmButtonLoading = false; }
-        } else { done(); }
-      }
+          } finally {
+            instance.confirmButtonLoading = false;
+          }
+        } else {
+          done();
+        }
+      },
     });
-  } catch (error) { if (error !== 'cancel' && error !== 'close') console.error('MessageBox error:', error); }
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') console.error('MessageBox error:', error);
+  }
 };
 
 const saveSessionAsHtml = async () => {
@@ -1864,13 +2113,20 @@ const saveSessionAsHtml = async () => {
     };
 
     const formatMessageText = (content) => {
-      if (!content) return "";
+      if (!content) return '';
       if (typeof content === 'string') return content;
       if (!Array.isArray(content)) return String(content);
 
-      let textString = "";
-      content.forEach(part => {
-        if (part.type === 'text' && part.text && !(part.text.toLowerCase().startsWith('file name:') && part.text.toLowerCase().endsWith('file end'))) {
+      let textString = '';
+      content.forEach((part) => {
+        if (
+          part.type === 'text' &&
+          part.text &&
+          !(
+            part.text.toLowerCase().startsWith('file name:') &&
+            part.text.toLowerCase().endsWith('file end')
+          )
+        ) {
           textString += part.text;
         }
       });
@@ -1878,23 +2134,25 @@ const saveSessionAsHtml = async () => {
     };
 
     const processContentToHtml = (content) => {
-      if (!content) return "";
-      let markdownString = "";
+      if (!content) return '';
+      let markdownString = '';
       if (typeof content === 'string') {
         markdownString = content;
       } else if (Array.isArray(content)) {
-        markdownString = content.map(part => {
-          if (part.type === 'text') {
-            return part.text || '';
-          } else if (part.type === 'image_url' && part.image_url?.url) {
-            return `![Image](${part.image_url.url})`;
-          } else if (part.type === 'input_audio' && part.input_audio?.data) {
-            return `<audio controls src="data:audio/${part.input_audio.format};base64,${part.input_audio.data}"></audio>`;
-          } else if (part.type === 'file' && part.file?.filename) {
-            return `*📎 附件: ${part.file.filename}*`;
-          }
-          return '';
-        }).join(' ');
+        markdownString = content
+          .map((part) => {
+            if (part.type === 'text') {
+              return part.text || '';
+            } else if (part.type === 'image_url' && part.image_url?.url) {
+              return `![Image](${part.image_url.url})`;
+            } else if (part.type === 'input_audio' && part.input_audio?.data) {
+              return `<audio controls src="data:audio/${part.input_audio.format};base64,${part.input_audio.data}"></audio>`;
+            } else if (part.type === 'file' && part.file?.filename) {
+              return `*📎 附件: ${part.file.filename}*`;
+            }
+            return '';
+          })
+          .join(' ');
       } else {
         markdownString = String(content);
       }
@@ -1946,7 +2204,7 @@ const saveSessionAsHtml = async () => {
         }
       }
 
-      let author = isUser ? '用户' : (message.aiName || 'AI');
+      let author = isUser ? '用户' : message.aiName || 'AI';
       let time = message.timestamp || message.completedTimestamp;
       let alignClass = isUser ? 'align-right' : 'align-left';
 
@@ -1956,16 +2214,19 @@ const saveSessionAsHtml = async () => {
         contentHtml = DOMPurify.sanitize(processedHtml, {
           ADD_TAGS: ['video', 'audio', 'source', 'blockquote'],
           USE_PROFILES: { html: true, svg: true },
-          ADD_ATTR: ['style']
+          ADD_ATTR: ['style'],
         });
       }
 
       let toolsHtml = '';
       if (message.tool_calls && message.tool_calls.length > 0) {
         toolsHtml = '<div class="tool-calls-wrapper">';
-        message.tool_calls.forEach(tool => {
+        message.tool_calls.forEach((tool) => {
           const truncatedResult = truncate(tool.result, 100);
-          const safeResult = truncatedResult.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+          const safeResult = truncatedResult
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
           toolsHtml += `
                 <div class="tool-call-box">
                     <span class="tool-icon">🛠️</span>
@@ -1998,7 +2259,9 @@ const saveSessionAsHtml = async () => {
                </div>`;
         }
 
-        const bodyHtml = contentHtml ? `<div class="message-body ${isUser ? 'user-body' : 'ai-body'}">${contentHtml}</div>` : '';
+        const bodyHtml = contentHtml
+          ? `<div class="message-body ${isUser ? 'user-body' : 'ai-body'}">${contentHtml}</div>`
+          : '';
 
         bodyContent += `
             <div id="${msgId}" class="message-wrapper ${alignClass}">
@@ -2195,42 +2458,87 @@ const saveSessionAsHtml = async () => {
   try {
     await ElMessageBox({
       title: '保存为 HTML',
-      message: () => h('div', null, [
-        h('p', { style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);' }, '请输入会话名称。'),
-        h(ElInput, {
-          modelValue: inputValue.value,
-          'onUpdate:modelValue': (val) => { inputValue.value = val; },
-          placeholder: '文件名',
-          ref: (elInputInstance) => {
-            if (elInputInstance) {
-              setTimeout(() => elInputInstance.focus(), 100);
-            }
-          },
-          onKeydown: (event) => { if (event.key === 'Enter') { event.preventDefault(); document.querySelector('.filename-prompt-dialog .el-message-box__btns .el-button--primary')?.click(); } }
-        },
-          { append: () => h('div', { class: 'input-suffix-display' }, '.html') })]),
-      showCancelButton: true, confirmButtonText: '保存', cancelButtonText: '取消', customClass: 'filename-prompt-dialog',
+      message: () =>
+        h('div', null, [
+          h(
+            'p',
+            { style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);' },
+            '请输入会话名称。',
+          ),
+          h(
+            ElInput,
+            {
+              modelValue: inputValue.value,
+              'onUpdate:modelValue': (val) => {
+                inputValue.value = val;
+              },
+              placeholder: '文件名',
+              ref: (elInputInstance) => {
+                if (elInputInstance) {
+                  setTimeout(() => elInputInstance.focus(), 100);
+                }
+              },
+              onKeydown: (event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  document
+                    .querySelector(
+                      '.filename-prompt-dialog .el-message-box__btns .el-button--primary',
+                    )
+                    ?.click();
+                }
+              },
+            },
+            { append: () => h('div', { class: 'input-suffix-display' }, '.html') },
+          ),
+        ]),
+      showCancelButton: true,
+      confirmButtonText: '保存',
+      cancelButtonText: '取消',
+      customClass: 'filename-prompt-dialog',
       beforeClose: async (action, instance, done) => {
         if (action === 'confirm') {
           let finalBasename = inputValue.value.trim();
-          if (!finalBasename) { showDismissibleMessage.error('文件名不能为空'); return; }
-          if (finalBasename.toLowerCase().endsWith('.html')) finalBasename = finalBasename.slice(0, -5);
+          if (!finalBasename) {
+            showDismissibleMessage.error('文件名不能为空');
+            return;
+          }
+          if (finalBasename.toLowerCase().endsWith('.html'))
+            finalBasename = finalBasename.slice(0, -5);
           const finalFilename = finalBasename + '.html';
           instance.confirmButtonLoading = true;
           try {
             const htmlContent = await generateHtmlContent();
-            await window.api.saveFile({ title: '保存为 HTML', defaultPath: finalFilename, buttonLabel: '保存', filters: [{ name: 'HTML 文件', extensions: ['html'] }, { name: '所有文件', extensions: ['*'] }], fileContent: htmlContent });
+            await window.api.saveFile({
+              title: '保存为 HTML',
+              defaultPath: finalFilename,
+              buttonLabel: '保存',
+              filters: [
+                { name: 'HTML 文件', extensions: ['html'] },
+                { name: '所有文件', extensions: ['*'] },
+              ],
+              fileContent: htmlContent,
+            });
             defaultConversationName.value = finalBasename;
             showDismissibleMessage.success('会话已成功保存为 HTML！');
             done();
           } catch (error) {
-            if (!error.message.includes('User cancelled') && !error.message.includes('用户取消')) { console.error('保存 HTML 失败:', error); showDismissibleMessage.error(`保存失败: ${error.message}`); }
+            if (!error.message.includes('User cancelled') && !error.message.includes('用户取消')) {
+              console.error('保存 HTML 失败:', error);
+              showDismissibleMessage.error(`保存失败: ${error.message}`);
+            }
             done();
-          } finally { instance.confirmButtonLoading = false; }
-        } else { done(); }
-      }
+          } finally {
+            instance.confirmButtonLoading = false;
+          }
+        } else {
+          done();
+        }
+      },
     });
-  } catch (error) { if (error !== 'cancel' && error !== 'close') console.error('MessageBox error:', error); }
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') console.error('MessageBox error:', error);
+  }
 };
 
 const saveSessionAsJson = async () => {
@@ -2243,36 +2551,58 @@ const saveSessionAsJson = async () => {
   try {
     await ElMessageBox({
       title: '保存为 JSON',
-      message: () => h('div', null, [
-        h('p', { style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);' }, '请输入会话名称。'),
-        h(ElInput, {
-          modelValue: inputValue.value,
-          'onUpdate:modelValue': (val) => { inputValue.value = val; },
-          placeholder: '文件名',
-          ref: (elInputInstance) => {
-            if (elInputInstance) {
-              setTimeout(() => elInputInstance.focus(), 100);
-            }
-          },
-          onKeydown: (event) => {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              document.querySelector('.filename-prompt-dialog .el-message-box__btns .el-button--primary')?.click();
-            }
-          }
-        },
-          { append: () => h('div', { class: 'input-suffix-display' }, '.json') })]),
-      showCancelButton: true, confirmButtonText: '保存', cancelButtonText: '取消', customClass: 'filename-prompt-dialog',
+      message: () =>
+        h('div', null, [
+          h(
+            'p',
+            { style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);' },
+            '请输入会话名称。',
+          ),
+          h(
+            ElInput,
+            {
+              modelValue: inputValue.value,
+              'onUpdate:modelValue': (val) => {
+                inputValue.value = val;
+              },
+              placeholder: '文件名',
+              ref: (elInputInstance) => {
+                if (elInputInstance) {
+                  setTimeout(() => elInputInstance.focus(), 100);
+                }
+              },
+              onKeydown: (event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  document
+                    .querySelector(
+                      '.filename-prompt-dialog .el-message-box__btns .el-button--primary',
+                    )
+                    ?.click();
+                }
+              },
+            },
+            { append: () => h('div', { class: 'input-suffix-display' }, '.json') },
+          ),
+        ]),
+      showCancelButton: true,
+      confirmButtonText: '保存',
+      cancelButtonText: '取消',
+      customClass: 'filename-prompt-dialog',
       beforeClose: async (action, instance, done) => {
         if (action === 'confirm') {
           let finalBasename = inputValue.value.trim();
-          if (!finalBasename) { showDismissibleMessage.error('文件名不能为空'); return; }
-          if (finalBasename.toLowerCase().endsWith('.json')) finalBasename = finalBasename.slice(0, -5);
+          if (!finalBasename) {
+            showDismissibleMessage.error('文件名不能为空');
+            return;
+          }
+          if (finalBasename.toLowerCase().endsWith('.json'))
+            finalBasename = finalBasename.slice(0, -5);
           const finalFilename = finalBasename + '.json';
           instance.confirmButtonLoading = true;
           try {
             const localChatPath = currentConfig.value.webdav?.localChatPath;
-            
+
             // 优化逻辑：如果有本地路径，直接写入；否则弹出保存框
             if (localChatPath) {
               const separator = currentOS.value === 'win' ? '\\' : '/';
@@ -2285,8 +2615,11 @@ const saveSessionAsJson = async () => {
                 title: '保存聊天会话',
                 defaultPath: finalFilename,
                 buttonLabel: '保存',
-                filters: [{ name: 'JSON 文件', extensions: ['json'] }, { name: '所有文件', extensions: ['*'] }],
-                fileContent: jsonString
+                filters: [
+                  { name: 'JSON 文件', extensions: ['json'] },
+                  { name: '所有文件', extensions: ['*'] },
+                ],
+                fileContent: jsonString,
               });
             }
 
@@ -2294,16 +2627,25 @@ const saveSessionAsJson = async () => {
             showDismissibleMessage.success('会话已成功保存！');
             done();
           } catch (error) {
-            if (!error.message.includes('canceled by the user') && !error.message.includes('用户取消')) {
+            if (
+              !error.message.includes('canceled by the user') &&
+              !error.message.includes('用户取消')
+            ) {
               console.error('保存会话失败:', error);
               showDismissibleMessage.error(`保存失败: ${error.message}`);
             }
             done();
-          } finally { instance.confirmButtonLoading = false; }
-        } else { done(); }
-      }
+          } finally {
+            instance.confirmButtonLoading = false;
+          }
+        } else {
+          done();
+        }
+      },
     });
-  } catch (error) { if (error !== 'cancel' && error !== 'close') console.error('MessageBox error:', error); }
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') console.error('MessageBox error:', error);
+  }
 };
 
 // 重命名当前会话逻辑
@@ -2326,23 +2668,19 @@ const handleRenameSession = async () => {
   const oldFilePath = `${localPath}/${oldFilename}`;
 
   try {
-    const { value: userInput } = await ElMessageBox.prompt(
-      '请输入新的会话名称',
-      '重命名对话',
-      {
-        inputValue: oldBaseName,
-        confirmButtonText: '确认',
-        cancelButtonText: '取消',
-        inputValidator: (val) => {
-          if (!val || !val.trim()) return '名称不能为空';
-          if (/[\\/:*?"<>|]/.test(val)) return '文件名包含非法字符';
-          return true;
-        },
-        customClass: 'filename-prompt-dialog', // 复用已有的弹窗样式
-      }
-    );
+    const { value: userInput } = await ElMessageBox.prompt('请输入新的会话名称', '重命名对话', {
+      inputValue: oldBaseName,
+      confirmButtonText: '确认',
+      cancelButtonText: '取消',
+      inputValidator: (val) => {
+        if (!val || !val.trim()) return '名称不能为空';
+        if (/[\\/:*?"<>|]/.test(val)) return '文件名包含非法字符';
+        return true;
+      },
+      customClass: 'filename-prompt-dialog', // 复用已有的弹窗样式
+    });
 
-    let newBaseName = (userInput || "").trim();
+    let newBaseName = (userInput || '').trim();
     if (newBaseName.toLowerCase().endsWith('.json')) newBaseName = newBaseName.slice(0, -5);
 
     if (newBaseName === oldBaseName) return;
@@ -2352,7 +2690,7 @@ const handleRenameSession = async () => {
 
     // 检查本地是否存在同名文件
     const files = await window.api.listJsonFiles(localPath);
-    if (files.some(f => f.basename === newFilename)) {
+    if (files.some((f) => f.basename === newFilename)) {
       showDismissibleMessage.error(`文件名 "${newFilename}" 已存在，操作取消`);
       return;
     }
@@ -2373,11 +2711,11 @@ const handleRenameSession = async () => {
 
         // 检查云端是否存在该文件
         if (await client.exists(oldRemotePath)) {
-          await ElMessageBox.confirm(
-            '云端也存在同名文件，是否同步重命名？',
-            '同步操作提示',
-            { confirmButtonText: '是', cancelButtonText: '否', type: 'info' }
-          );
+          await ElMessageBox.confirm('云端也存在同名文件，是否同步重命名？', '同步操作提示', {
+            confirmButtonText: '是',
+            cancelButtonText: '否',
+            type: 'info',
+          });
           await client.moveFile(oldRemotePath, newRemotePath);
           showDismissibleMessage.success('云端同步重命名成功');
         }
@@ -2387,7 +2725,6 @@ const handleRenameSession = async () => {
         }
       }
     }
-
   } catch (error) {
     if (error !== 'cancel' && error !== 'close') {
       showDismissibleMessage.error(`操作失败: ${error.message}`);
@@ -2406,33 +2743,69 @@ const handleSaveAction = async () => {
       title: '重命名对话',
       description: '修改当前对话名称，并同步修改本地文件（以及云端文件）。',
       buttonType: 'warning',
-      action: handleRenameSession
+      action: handleRenameSession,
     });
   }
 
   if (isCloudEnabled) {
-    saveOptions.push({ title: '保存到云端', description: '同步到 WebDAV 服务器，支持跨设备访问。', buttonType: 'success', action: saveSessionToCloud });
+    saveOptions.push({
+      title: '保存到云端',
+      description: '同步到 WebDAV 服务器，支持跨设备访问。',
+      buttonType: 'success',
+      action: saveSessionToCloud,
+    });
   }
 
-  saveOptions.push({ title: '保存为 JSON', description: '保存为可恢复的会話文件，便于下次继续。', buttonType: 'primary', action: saveSessionAsJson, isDefault: true });
-  saveOptions.push({ title: '保存为 Markdown', description: '导出为可读性更强的 .md 文件，适合分享。', buttonType: '', action: saveSessionAsMarkdown });
-  saveOptions.push({ title: '保存为 HTML', description: '导出为带样式的网页文件，保留格式和图片。', buttonType: '', action: saveSessionAsHtml });
+  saveOptions.push({
+    title: '保存为 JSON',
+    description: '保存为可恢复的会話文件，便于下次继续。',
+    buttonType: 'primary',
+    action: saveSessionAsJson,
+    isDefault: true,
+  });
+  saveOptions.push({
+    title: '保存为 Markdown',
+    description: '导出为可读性更强的 .md 文件，适合分享。',
+    buttonType: '',
+    action: saveSessionAsMarkdown,
+  });
+  saveOptions.push({
+    title: '保存为 HTML',
+    description: '导出为带样式的网页文件，保留格式和图片。',
+    buttonType: '',
+    action: saveSessionAsHtml,
+  });
 
-  const messageVNode = h('div', { class: 'save-options-list' }, saveOptions.map(opt => {
-    const trigger = () => { ElMessageBox.close(); opt.action(); };
+  const messageVNode = h(
+    'div',
+    { class: 'save-options-list' },
+    saveOptions.map((opt) => {
+      const trigger = () => {
+        ElMessageBox.close();
+        opt.action();
+      };
 
-    return h('div', { class: 'save-option-item', onClick: trigger }, [
-      h('div', { class: 'save-option-text' }, [
-        h('h4', null, opt.title), h('p', null, opt.description)
-      ]),
-      h(ElButton, {
-        type: opt.buttonType,
-        plain: true,
-        class: opt.isDefault ? 'default-save-target' : '',
-        onClick: (e) => { e.stopPropagation(); trigger(); }
-      }, { default: () => '选择' })
-    ]);
-  }));
+      return h('div', { class: 'save-option-item', onClick: trigger }, [
+        h('div', { class: 'save-option-text' }, [
+          h('h4', null, opt.title),
+          h('p', null, opt.description),
+        ]),
+        h(
+          ElButton,
+          {
+            type: opt.buttonType,
+            plain: true,
+            class: opt.isDefault ? 'default-save-target' : '',
+            onClick: (e) => {
+              e.stopPropagation();
+              trigger();
+            },
+          },
+          { default: () => '选择' },
+        ),
+      ]);
+    }),
+  );
 
   ElMessageBox({
     title: '',
@@ -2441,8 +2814,8 @@ const handleSaveAction = async () => {
     showCancelButton: false,
     customClass: 'save-options-dialog no-header-msgbox',
     width: '450px',
-    showClose: false
-  }).catch(() => { });
+    showClose: false,
+  }).catch(() => {});
 
   setTimeout(() => {
     const targetBtn = document.querySelector('.default-save-target');
@@ -2477,26 +2850,31 @@ const loadSession = async (jsonData) => {
     currentConfig.value = configData.config;
 
     zoomLevel.value = currentConfig.value.zoom || 1;
-    if (window.api && typeof window.api.setZoomFactor === 'function') window.api.setZoomFactor(zoomLevel.value);
+    if (window.api && typeof window.api.setZoomFactor === 'function')
+      window.api.setZoomFactor(zoomLevel.value);
 
-    if (currentConfig.value.isDarkMode) { document.documentElement.classList.add('dark'); }
-    else { document.documentElement.classList.remove('dark'); }
+    if (currentConfig.value.isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
 
-    const currentPromptConfigFromLoad = jsonData.currentPromptConfig || currentConfig.value.prompts[CODE.value];
+    const currentPromptConfigFromLoad =
+      jsonData.currentPromptConfig || currentConfig.value.prompts[CODE.value];
     if (currentPromptConfigFromLoad && currentPromptConfigFromLoad.icon) {
       AIAvart.value = currentPromptConfigFromLoad.icon;
       favicon.value = currentPromptConfigFromLoad.icon;
     } else {
-      AIAvart.value = "ai.svg";
-      favicon.value = currentConfig.value.isDarkMode ? "favicon-b.png" : "favicon.png";
+      AIAvart.value = 'ai.svg';
+      favicon.value = currentConfig.value.isDarkMode ? 'favicon-b.png' : 'favicon.png';
     }
 
     modelList.value = [];
     modelMap.value = {};
-    currentConfig.value.providerOrder.forEach(id => {
+    currentConfig.value.providerOrder.forEach((id) => {
       const provider = currentConfig.value.providers[id];
       if (provider?.enable) {
-        provider.modelList.forEach(m => {
+        provider.modelList.forEach((m) => {
           const key = `${id}|${m}`;
           modelList.value.push({ key, value: key, label: `${provider.name}|${m}` });
           modelMap.value[key] = `${provider.name}|${m}`;
@@ -2506,10 +2884,17 @@ const loadSession = async (jsonData) => {
 
     let restoredModel = '';
     if (jsonData.model && modelMap.value[jsonData.model]) restoredModel = jsonData.model;
-    else if (jsonData.currentPromptConfig?.model && modelMap.value[jsonData.currentPromptConfig.model]) restoredModel = jsonData.currentPromptConfig.model;
+    else if (
+      jsonData.currentPromptConfig?.model &&
+      modelMap.value[jsonData.currentPromptConfig.model]
+    )
+      restoredModel = jsonData.currentPromptConfig.model;
     else {
       const currentPromptConfig = currentConfig.value.prompts[CODE.value];
-      restoredModel = (currentPromptConfig?.model && modelMap.value[currentPromptConfig.model]) ? currentPromptConfig.model : (modelList.value[0]?.value || '');
+      restoredModel =
+        currentPromptConfig?.model && modelMap.value[currentPromptConfig.model]
+          ? currentPromptConfig.model
+          : modelList.value[0]?.value || '';
     }
     model.value = restoredModel;
 
@@ -2520,44 +2905,48 @@ const loadSession = async (jsonData) => {
       sessionSkillIds.value = [];
       tempSessionSkillIds.value = [];
     }
-    
+
     if (chat_show.value && chat_show.value.length > 0) {
-      chat_show.value.forEach(msg => { if (msg.id === undefined) msg.id = messageIdCounter.value++; });
-      const maxId = Math.max(...chat_show.value.map(m => m.id || 0));
+      chat_show.value.forEach((msg) => {
+        if (msg.id === undefined) msg.id = messageIdCounter.value++;
+      });
+      const maxId = Math.max(...chat_show.value.map((m) => m.id || 0));
       messageIdCounter.value = maxId + 1;
     }
 
-    const systemMessageIndex = history.value.findIndex(m => m.role === 'system');
+    const systemMessageIndex = history.value.findIndex((m) => m.role === 'system');
     if (systemMessageIndex !== -1) {
       currentSystemPrompt.value = history.value[systemMessageIndex].content;
 
-      if (!chat_show.value[systemMessageIndex] || chat_show.value[systemMessageIndex].role !== 'system') {
+      if (
+        !chat_show.value[systemMessageIndex] ||
+        chat_show.value[systemMessageIndex].role !== 'system'
+      ) {
         chat_show.value.unshift({
-          role: "system",
+          role: 'system',
           content: currentSystemPrompt.value,
-          id: messageIdCounter.value++
+          id: messageIdCounter.value++,
         });
       }
-
     } else if (currentConfig.value.prompts[CODE.value]?.prompt) {
       currentSystemPrompt.value = currentConfig.value.prompts[CODE.value].prompt;
-      history.value.unshift({ role: "system", content: currentSystemPrompt.value });
+      history.value.unshift({ role: 'system', content: currentSystemPrompt.value });
       chat_show.value.unshift({
-        role: "system",
+        role: 'system',
         content: currentSystemPrompt.value,
-        id: messageIdCounter.value++
+        id: messageIdCounter.value++,
       });
     } else {
-      currentSystemPrompt.value = "";
+      currentSystemPrompt.value = '';
     }
 
     if (model.value) {
-      currentProviderID.value = model.value.split("|")[0];
+      currentProviderID.value = model.value.split('|')[0];
       const provider = currentConfig.value.providers[currentProviderID.value];
       base_url.value = provider?.url;
       api_key.value = provider?.api_key;
     } else {
-      showDismissibleMessage.error("没有可用的模型。请检查您的服务商配置。");
+      showDismissibleMessage.error('没有可用的模型。请检查您的服务商配置。');
       loading.value = false;
       return;
     }
@@ -2580,8 +2969,8 @@ const loadSession = async (jsonData) => {
       mcpServersToLoad = [...new Set([...mcpServersToLoad, ...builtinIds])];
     }
 
-    const validMcpServerIds = mcpServersToLoad.filter(id =>
-      currentConfig.value.mcpServers && currentConfig.value.mcpServers[id]
+    const validMcpServerIds = mcpServersToLoad.filter(
+      (id) => currentConfig.value.mcpServers && currentConfig.value.mcpServers[id],
     );
 
     if (validMcpServerIds.length > 0) {
@@ -2596,15 +2985,13 @@ const loadSession = async (jsonData) => {
 
     isSessionDirty.value = false;
     hasSessionInitialized.value = true;
-
   } catch (error) {
-    console.error("加载会话失败:", error);
+    console.error('加载会话失败:', error);
     showDismissibleMessage.error(`加载会话失败: ${error.message}`);
     loading.value = false;
     hasSessionInitialized.value = true;
   }
 };
-
 
 const checkAndLoadSessionFromFile = async (file) => {
   if (file && file.name.toLowerCase().endsWith('.json')) {
@@ -2616,14 +3003,19 @@ const checkAndLoadSessionFromFile = async (file) => {
         await loadSession(jsonData);
         return true;
       }
-    } catch (e) { console.warn("一个JSON文件被检测到，但它不是一个有效的会话文件:", e.message); }
+    } catch (e) {
+      console.warn('一个JSON文件被检测到，但它不是一个有效的会话文件:', e.message);
+    }
   }
   return false;
 };
 
 const file2fileList = async (file, idx) => {
   const isSessionFile = await checkAndLoadSessionFromFile(file);
-  if (isSessionFile) { chatInputRef.value?.focus({ cursor: 'end' }); return; }
+  if (isSessionFile) {
+    chatInputRef.value?.focus({ cursor: 'end' });
+    return;
+  }
 
   return new Promise((resolve, reject) => {
     if (!window.api.isFileTypeSupported(file.name)) {
@@ -2640,7 +3032,7 @@ const file2fileList = async (file, idx) => {
         name: file.name,
         size: file.size,
         type: file.type,
-        url: e.target.result
+        url: e.target.result,
       });
       resolve();
     };
@@ -2648,18 +3040,24 @@ const file2fileList = async (file, idx) => {
       const errorMsg = `读取文件 ${file.name} 失败`;
       showDismissibleMessage.error(errorMsg);
       reject(new Error(errorMsg));
-    }
+    };
     reader.readAsDataURL(file);
   });
 };
 
 const processFilePath = async (filePath) => {
-  if (!filePath || typeof filePath !== 'string') { showDismissibleMessage.error('无效的文件路径'); return; }
+  if (!filePath || typeof filePath !== 'string') {
+    showDismissibleMessage.error('无效的文件路径');
+    return;
+  }
   try {
     const fileObject = await window.api.handleFilePath(filePath);
     if (fileObject) await file2fileList(fileObject, fileList.value.length + 1);
     else showDismissibleMessage.error('无法读取或访问该文件，请检查路径和权限');
-  } catch (error) { console.error('调用 handleFilePath 时发生意外错误:', error); showDismissibleMessage.error('处理文件路径时发生未知错误'); }
+  } catch (error) {
+    console.error('调用 handleFilePath 时发生意外错误:', error);
+    showDismissibleMessage.error('处理文件路径时发生未知错误');
+  }
 };
 
 const sendFile = async () => {
@@ -2670,7 +3068,7 @@ const sendFile = async () => {
     try {
       const processedContent = await window.api.parseFileObject({
         name: currentFile.name,
-        url: currentFile.url
+        url: currentFile.url,
       });
 
       if (processedContent) {
@@ -2715,17 +3113,19 @@ async function applyMcpTools(show_none = true) {
     const {
       openaiFormattedTools: newFormattedTools,
       successfulServerIds,
-      failedServerIds
+      failedServerIds,
     } = await window.api.initializeMcpClient(activeServerConfigs);
 
     openaiFormattedTools.value = newFormattedTools;
     sessionMcpServerIds.value = successfulServerIds;
 
     if (failedServerIds && failedServerIds.length > 0) {
-      const failedNames = failedServerIds.map(id => currentConfig.value.mcpServers[id]?.name || id).join('、');
+      const failedNames = failedServerIds
+        .map((id) => currentConfig.value.mcpServers[id]?.name || id)
+        .join('、');
       showDismissibleMessage.error({
         message: `以下 MCP 服务加载失败，已自动取消勾选: ${failedNames}`,
-        duration: 5000
+        duration: 5000,
       });
     }
 
@@ -2736,9 +3136,8 @@ async function applyMcpTools(show_none = true) {
     } else if (serverIdsToLoad.length === 0 && show_none) {
       showDismissibleMessage.info('已清除所有 MCP 工具');
     }
-
   } catch (error) {
-    console.error("Failed to initialize MCP tools:", error);
+    console.error('Failed to initialize MCP tools:', error);
     showDismissibleMessage.error(`加载MCP工具失败: ${error.message}`);
     openaiFormattedTools.value = [];
     sessionMcpServerIds.value = [];
@@ -2752,12 +3151,11 @@ function clearMcpTools() {
 }
 
 function selectAllMcpServers() {
-  const allVisibleIds = filteredMcpServers.value.map(server => server.id);
+  const allVisibleIds = filteredMcpServers.value.map((server) => server.id);
   const selectedIdsSet = new Set(tempSessionMcpServerIds.value);
-  allVisibleIds.forEach(id => selectedIdsSet.add(id));
+  allVisibleIds.forEach((id) => selectedIdsSet.add(id));
   tempSessionMcpServerIds.value = Array.from(selectedIdsSet);
 }
-
 
 async function toggleMcpDialog() {
   if (!isMcpDialogVisible.value) {
@@ -2768,7 +3166,7 @@ async function toggleMcpDialog() {
         const newMcpServers = result.config.mcpServers;
         const currentLocalMcpServers = currentConfig.value.mcpServers || {};
 
-        sessionMcpServerIds.value.forEach(activeId => {
+        sessionMcpServerIds.value.forEach((activeId) => {
           if (!newMcpServers[activeId] && currentLocalMcpServers[activeId]) {
             newMcpServers[activeId] = currentLocalMcpServers[activeId];
           }
@@ -2776,10 +3174,9 @@ async function toggleMcpDialog() {
 
         currentConfig.value.mcpServers = newMcpServers;
       }
-      mcpToolCache.value = await window.api.getMcpToolCache() || {};
-
+      mcpToolCache.value = (await window.api.getMcpToolCache()) || {};
     } catch (error) {
-      console.error("Auto refresh MCP config failed:", error);
+      console.error('Auto refresh MCP config failed:', error);
     }
 
     tempSessionMcpServerIds.value = [...sessionMcpServerIds.value];
@@ -2795,13 +3192,15 @@ async function toggleMcpPersistence(serverId, isPersistent) {
     const result = await window.api.saveSetting(keyPath, isPersistent);
     if (result && result.success) {
       currentConfig.value.mcpServers[serverId].isPersistent = isPersistent;
-      showDismissibleMessage.success(`'${currentConfig.value.mcpServers[serverId].name}' 的持久化设置已更新`);
+      showDismissibleMessage.success(
+        `'${currentConfig.value.mcpServers[serverId].name}' 的持久化设置已更新`,
+      );
     } else {
       throw new Error(result?.message || '保存设置到数据库失败');
     }
   } catch (error) {
-    console.error("Failed to save MCP persistence setting:", error);
-    showDismissibleMessage.error("保存持久化设置失败");
+    console.error('Failed to save MCP persistence setting:', error);
+    showDismissibleMessage.error('保存持久化设置失败');
   }
 }
 
@@ -2816,7 +3215,7 @@ const getSystemTime = () => {
   const weekDay = days[now.getDay()];
 
   return `${year}-${month}-${day} (${weekDay})`;
-}
+};
 
 const generateMcpSystemPrompt = () => {
   return `
@@ -2865,20 +3264,25 @@ const askAI = async (forceSend = false) => {
     const promptText = prompt.value.trim();
     if ((file_content && file_content.length > 0) || promptText) {
       const userContentList = [];
-      if (promptText) userContentList.push({ type: "text", text: promptText });
+      if (promptText) userContentList.push({ type: 'text', text: promptText });
       if (file_content && file_content.length > 0) userContentList.push(...file_content);
       const userTimestamp = new Date().toLocaleString('sv-SE');
       if (userContentList.length > 0) {
-        const contentForHistory = userContentList.length === 1 && userContentList[0].type === 'text'
-          ? userContentList[0].text
-          : userContentList;
-        history.value.push({ role: "user", content: contentForHistory });
-        chat_show.value.push({ id: messageIdCounter.value++, role: "user", content: userContentList, timestamp: userTimestamp });
+        const contentForHistory =
+          userContentList.length === 1 && userContentList[0].type === 'text'
+            ? userContentList[0].text
+            : userContentList;
+        history.value.push({ role: 'user', content: contentForHistory });
+        chat_show.value.push({
+          id: messageIdCounter.value++,
+          role: 'user',
+          content: userContentList,
+          timestamp: userTimestamp,
+        });
         markSessionDirty();
-
       } else return;
     } else return;
-    prompt.value = "";
+    prompt.value = '';
   }
 
   // --- 2. 初始化 AI 回合 ---
@@ -2913,19 +3317,19 @@ const askAI = async (forceSend = false) => {
       // --- 为本次请求创建临时消息列表 ---
       let messagesForThisRequest = JSON.parse(JSON.stringify(history.value));
 
-      messagesForThisRequest = messagesForThisRequest.filter(msg => {
+      messagesForThisRequest = messagesForThisRequest.filter((msg) => {
         if (msg.role === 'system' && (!msg.content || msg.content.trim() === '')) {
           return false;
         }
         return true;
       });
 
-      messagesForThisRequest.forEach(msg => {
+      messagesForThisRequest.forEach((msg) => {
         if (Array.isArray(msg.content)) {
-          msg.content = msg.content.filter(part => !part.isTranscript);
+          msg.content = msg.content.filter((part) => !part.isTranscript);
           if (msg.content.length === 0) msg.content = null;
         }
-        ['content', 'reasoning_content', 'extra_content'].forEach(key => {
+        ['content', 'reasoning_content', 'extra_content'].forEach((key) => {
           if (msg[key] === null) {
             delete msg[key];
           }
@@ -2936,25 +3340,25 @@ const askAI = async (forceSend = false) => {
         const now = new Date();
         const timestamp = `current time: ${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-        messagesForThisRequest.forEach(msg => {
+        messagesForThisRequest.forEach((msg) => {
           if (msg.role === 'user') {
             if (msg.content === undefined || msg.content === null) {
               msg.content = timestamp;
-            }
-            else if (typeof msg.content === 'string') {
+            } else if (typeof msg.content === 'string') {
               if (msg.content.trim() === '') {
                 msg.content = timestamp;
               }
-            }
-            else if (Array.isArray(msg.content)) {
+            } else if (Array.isArray(msg.content)) {
               if (msg.content.length === 0) {
                 msg.content = timestamp;
               } else {
-                const hasText = msg.content.some(part => part.type === 'text' && part.text && part.text.trim() !== '');
+                const hasText = msg.content.some(
+                  (part) => part.type === 'text' && part.text && part.text.trim() !== '',
+                );
                 if (!hasText) {
                   msg.content.push({
-                    type: "text",
-                    text: timestamp
+                    type: 'text',
+                    text: timestamp,
                   });
                 }
               }
@@ -2964,27 +3368,28 @@ const askAI = async (forceSend = false) => {
       }
 
       // 准备 System Prompt 和 MCP 规则
-      let mcpSystemPromptStr = "";
+      let mcpSystemPromptStr = '';
       if (openaiFormattedTools.value.length > 0 || sessionSkillIds.value.length > 0) {
         mcpSystemPromptStr = generateMcpSystemPrompt();
-        const systemMessageIndex = messagesForThisRequest.findIndex(m => m.role === 'system');
+        const systemMessageIndex = messagesForThisRequest.findIndex((m) => m.role === 'system');
         if (systemMessageIndex !== -1) {
-          if (!messagesForThisRequest[systemMessageIndex].content.includes("## Tool Use Rules")) {
+          if (!messagesForThisRequest[systemMessageIndex].content.includes('## Tool Use Rules')) {
             messagesForThisRequest[systemMessageIndex].content += mcpSystemPromptStr;
           }
         } else {
-          messagesForThisRequest.unshift({ role: "system", content: mcpSystemPromptStr });
+          messagesForThisRequest.unshift({ role: 'system', content: mcpSystemPromptStr });
         }
       }
 
       const payload = {
-        model: model.value.split("|")[1],
+        model: model.value.split('|')[1],
         messages: messagesForThisRequest,
         stream: useStream,
       };
 
       if (currentPromptConfig?.isTemperature) payload.temperature = currentPromptConfig.temperature;
-      if (tempReasoningEffort.value && tempReasoningEffort.value !== 'default') payload.reasoning_effort = tempReasoningEffort.value;
+      if (tempReasoningEffort.value && tempReasoningEffort.value !== 'default')
+        payload.reasoning_effort = tempReasoningEffort.value;
 
       // --- 构建工具列表 (MCP + Skill) ---
       let activeTools = [...openaiFormattedTools.value];
@@ -2992,33 +3397,40 @@ const askAI = async (forceSend = false) => {
       // 注入 Skill 工具定义
       if (sessionSkillIds.value.length > 0 && currentConfig.value.skillPath) {
         try {
-          const skillToolDef = await window.api.getSkillToolDefinition(currentConfig.value.skillPath, sessionSkillIds.value);
+          const skillToolDef = await window.api.getSkillToolDefinition(
+            currentConfig.value.skillPath,
+            sessionSkillIds.value,
+          );
           if (skillToolDef) {
             activeTools.push(skillToolDef);
           }
         } catch (e) {
-          console.error("Failed to generate skill tool definition:", e);
+          console.error('Failed to generate skill tool definition:', e);
         }
       }
 
       if (activeTools.length > 0) {
         payload.tools = activeTools;
-        payload.tool_choice = "auto";
+        payload.tool_choice = 'auto';
       }
 
       if (isVoiceReply) {
         payload.stream = false;
         useStream = false;
-        payload.modalities = ["text", "audio"];
-        payload.audio = { voice: selectedVoice.value.split('-')[0].trim(), format: "wav" };
+        payload.modalities = ['text', 'audio'];
+        payload.audio = { voice: selectedVoice.value.split('-')[0].trim(), format: 'wav' };
       }
 
       const assistantMessageId = messageIdCounter.value++;
       chat_show.value.push({
         id: assistantMessageId,
-        role: "assistant", content: [], reasoning_content: "", status: "",
+        role: 'assistant',
+        content: [],
+        reasoning_content: '',
+        status: '',
         aiName: modelMap.value[model.value] || model.value.split('|')[1],
-        voiceName: selectedVoice.value, tool_calls: []
+        voiceName: selectedVoice.value,
+        tool_calls: [],
       });
       currentAssistantChatShowIndex = chat_show.value.length - 1;
 
@@ -3027,10 +3439,12 @@ const askAI = async (forceSend = false) => {
       let responseMessage;
 
       if (useStream) {
-        const stream = await openai.chat.completions.create(payload, { signal: signalController.value.signal });
+        const stream = await openai.chat.completions.create(payload, {
+          signal: signalController.value.signal,
+        });
 
-        let aggregatedReasoningContent = "";
-        let aggregatedContent = "";
+        let aggregatedReasoningContent = '';
+        let aggregatedContent = '';
         let aggregatedMedia = []; // 用于收集非文本内容（如 image_url）
         let aggregatedToolCalls = [];
         let aggregatedExtraContent = null;
@@ -3057,20 +3471,21 @@ const askAI = async (forceSend = false) => {
             }
 
             if (Date.now() - lastUpdateTime > 100) {
-              chat_show.value[currentAssistantChatShowIndex].reasoning_content = aggregatedReasoningContent;
+              chat_show.value[currentAssistantChatShowIndex].reasoning_content =
+                aggregatedReasoningContent;
               lastUpdateTime = Date.now();
             }
           }
-          
+
           // 处理 content (支持 string 和 array)
           if (delta.content) {
             if (typeof delta.content === 'string') {
               aggregatedContent += delta.content;
             } else if (Array.isArray(delta.content)) {
               // 遍历数组处理多模态内容
-              delta.content.forEach(item => {
+              delta.content.forEach((item) => {
                 if (item.type === 'text') {
-                  aggregatedContent += (item.text || '');
+                  aggregatedContent += item.text || '';
                 } else if (item.type === 'image_url') {
                   aggregatedMedia.push(item);
                 }
@@ -3085,9 +3500,10 @@ const askAI = async (forceSend = false) => {
             if (Date.now() - lastUpdateTime > 100) {
               // 构建混合内容数组
               const currentDisplayContent = [];
-              if (aggregatedContent) currentDisplayContent.push({ type: 'text', text: aggregatedContent });
+              if (aggregatedContent)
+                currentDisplayContent.push({ type: 'text', text: aggregatedContent });
               if (aggregatedMedia.length > 0) currentDisplayContent.push(...aggregatedMedia);
-              
+
               chat_show.value[currentAssistantChatShowIndex].content = currentDisplayContent;
               lastUpdateTime = Date.now();
             }
@@ -3097,15 +3513,24 @@ const askAI = async (forceSend = false) => {
             for (const toolCallChunk of delta.tool_calls) {
               const index = toolCallChunk.index ?? aggregatedToolCalls.length;
               if (!aggregatedToolCalls[index]) {
-                aggregatedToolCalls[index] = { id: "", type: "function", function: { name: "", arguments: "" } };
+                aggregatedToolCalls[index] = {
+                  id: '',
+                  type: 'function',
+                  function: { name: '', arguments: '' },
+                };
               }
               const currentTool = aggregatedToolCalls[index];
               if (toolCallChunk.id) currentTool.id = toolCallChunk.id;
-              if (toolCallChunk.function?.name) currentTool.function.name = toolCallChunk.function.name;
-              if (toolCallChunk.function?.arguments) currentTool.function.arguments += toolCallChunk.function.arguments;
+              if (toolCallChunk.function?.name)
+                currentTool.function.name = toolCallChunk.function.name;
+              if (toolCallChunk.function?.arguments)
+                currentTool.function.arguments += toolCallChunk.function.arguments;
 
               if (toolCallChunk.extra_content) {
-                currentTool.extra_content = { ...currentTool.extra_content, ...toolCallChunk.extra_content };
+                currentTool.extra_content = {
+                  ...currentTool.extra_content,
+                  ...toolCallChunk.extra_content,
+                };
               }
             }
           }
@@ -3114,30 +3539,35 @@ const askAI = async (forceSend = false) => {
         // 构建最终历史消息内容
         let finalContentForHistory = null;
         if (aggregatedMedia.length > 0) {
-            finalContentForHistory = [];
-            if (aggregatedContent) finalContentForHistory.push({ type: 'text', text: aggregatedContent });
-            finalContentForHistory.push(...aggregatedMedia);
+          finalContentForHistory = [];
+          if (aggregatedContent)
+            finalContentForHistory.push({ type: 'text', text: aggregatedContent });
+          finalContentForHistory.push(...aggregatedMedia);
         } else {
-            finalContentForHistory = aggregatedContent || null;
+          finalContentForHistory = aggregatedContent || null;
         }
 
         responseMessage = {
           role: 'assistant',
           content: finalContentForHistory,
           reasoning_content: aggregatedReasoningContent || null,
-          extra_content: aggregatedExtraContent
+          extra_content: aggregatedExtraContent,
         };
 
         if (aggregatedToolCalls.length > 0) {
-          responseMessage.tool_calls = aggregatedToolCalls.filter(tc => tc.id && tc.function.name);
+          responseMessage.tool_calls = aggregatedToolCalls.filter(
+            (tc) => tc.id && tc.function.name,
+          );
         }
       } else {
-        const response = await openai.chat.completions.create(payload, { signal: signalController.value.signal });
+        const response = await openai.chat.completions.create(payload, {
+          signal: signalController.value.signal,
+        });
         responseMessage = response.choices[0].message;
       }
 
       if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
-        responseMessage.tool_calls.forEach(tc => {
+        responseMessage.tool_calls.forEach((tc) => {
           if (tc.function && tc.function.arguments) {
             tc.function.arguments = sanitizeToolArgs(tc.function.arguments);
           }
@@ -3150,12 +3580,12 @@ const askAI = async (forceSend = false) => {
       // 处理最终显示内容
       if (responseMessage.content) {
         if (typeof responseMessage.content === 'string') {
-            currentBubble.content = [{ type: 'text', text: responseMessage.content }];
+          currentBubble.content = [{ type: 'text', text: responseMessage.content }];
         } else if (Array.isArray(responseMessage.content)) {
-            currentBubble.content = responseMessage.content;
+          currentBubble.content = responseMessage.content;
         }
       }
-      
+
       if (responseMessage.reasoning_content) {
         currentBubble.reasoning_content = responseMessage.reasoning_content;
         currentBubble.status = 'end';
@@ -3163,19 +3593,19 @@ const askAI = async (forceSend = false) => {
 
       if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
         tool_calls_count++;
-        currentBubble.tool_calls = responseMessage.tool_calls.map(tc => ({
+        currentBubble.tool_calls = responseMessage.tool_calls.map((tc) => ({
           id: tc.id,
           name: tc.function.name,
           args: tc.function.arguments,
           result: '等待批准...',
-          approvalStatus: isAutoApproveTools.value ? 'approved' : 'waiting'
+          approvalStatus: isAutoApproveTools.value ? 'approved' : 'waiting',
         }));
 
         await nextTick();
 
         const toolMessages = await Promise.all(
           responseMessage.tool_calls.map(async (toolCall) => {
-            const uiToolCall = currentBubble.tool_calls.find(t => t.id === toolCall.id);
+            const uiToolCall = currentBubble.tool_calls.find((t) => t.id === toolCall.id);
             let toolContent;
 
             if (!isAutoApproveTools.value) {
@@ -3191,13 +3621,12 @@ const askAI = async (forceSend = false) => {
                   }
                   return {
                     tool_call_id: toolCall.id,
-                    role: "tool",
+                    role: 'tool',
                     name: toolCall.function.name,
-                    content: "User denied this tool execution."
+                    content: 'User denied this tool execution.',
                   };
                 }
-              } catch (e) {
-              }
+              } catch (e) {}
             }
 
             if (uiToolCall) {
@@ -3221,7 +3650,7 @@ const askAI = async (forceSend = false) => {
 
                 const onUpdateCallback = (logContent) => {
                   if (uiToolCall) {
-                    uiToolCall.result = logContent + "\n\n[Skill (Sub-Agent) Running...]";
+                    uiToolCall.result = logContent + '\n\n[Skill (Sub-Agent) Running...]';
                   }
                 };
 
@@ -3229,22 +3658,25 @@ const askAI = async (forceSend = false) => {
                   apiKey: currentApiKey,
                   baseUrl: currentBaseUrl,
                   model: currentModelName,
-                  tools: activeTools.filter(t => t.function.name !== 'sub_agent'),
-                  mcpSystemPrompt: mcpSystemPromptStr, 
-                  onUpdate: onUpdateCallback
+                  tools: activeTools.filter((t) => t.function.name !== 'sub_agent'),
+                  mcpSystemPrompt: mcpSystemPromptStr,
+                  onUpdate: onUpdateCallback,
                 };
 
                 toolContent = await window.api.resolveSkillInvocation(
                   currentConfig.value.skillPath,
                   toolArgs.skill,
-                  toolArgs, 
+                  toolArgs,
                   executionContext,
-                  toolCallControllers.value.get(toolCall.id)?.signal || signalController.value.signal
+                  toolCallControllers.value.get(toolCall.id)?.signal ||
+                    signalController.value.signal,
                 );
 
                 if (uiToolCall) {
-                  if (toolContent.includes("[Sub-Agent]")) {
-                    const currentLog = uiToolCall.result ? uiToolCall.result.replace("\n\n[Skill (Sub-Agent) Running...]", "") : "";
+                  if (toolContent.includes('[Sub-Agent]')) {
+                    const currentLog = uiToolCall.result
+                      ? uiToolCall.result.replace('\n\n[Skill (Sub-Agent) Running...]', '')
+                      : '';
                     if (!currentLog.includes(toolContent)) {
                       uiToolCall.result = `${currentLog}\n\n=== Skill Execution Result ===\n${toolContent}`;
                     } else {
@@ -3254,7 +3686,6 @@ const askAI = async (forceSend = false) => {
                     uiToolCall.result = `[Skill Instructions Loaded]\n${toolContent}`;
                   }
                 }
-
               } else {
                 let executionContext = null;
 
@@ -3263,11 +3694,11 @@ const askAI = async (forceSend = false) => {
                   const currentBaseUrl = base_url.value;
                   const currentModelName = model.value.split('|')[1] || model.value;
 
-                  const toolsContext = activeTools.filter(t => t.function.name !== 'sub_agent');
+                  const toolsContext = activeTools.filter((t) => t.function.name !== 'sub_agent');
 
                   const onUpdateCallback = (logContent) => {
                     if (uiToolCall) {
-                      uiToolCall.result = logContent + "\n\n[Sub-Agent 执行中...]";
+                      uiToolCall.result = logContent + '\n\n[Sub-Agent 执行中...]';
                     }
                   };
 
@@ -3277,22 +3708,30 @@ const askAI = async (forceSend = false) => {
                     model: currentModelName,
                     tools: toolsContext,
                     mcpSystemPrompt: mcpSystemPromptStr,
-                    onUpdate: onUpdateCallback
+                    onUpdate: onUpdateCallback,
                   };
                 }
 
                 const result = await window.api.invokeMcpTool(
                   toolCall.function.name,
                   toolArgs,
-                  toolCallControllers.value.get(toolCall.id)?.signal || signalController.value.signal,
-                  executionContext
+                  toolCallControllers.value.get(toolCall.id)?.signal ||
+                    signalController.value.signal,
+                  executionContext,
                 );
 
-                toolContent = Array.isArray(result) ? result.filter(item => item?.type === 'text' && typeof item.text === 'string').map(item => item.text).join('\n\n') : String(result);
+                toolContent = Array.isArray(result)
+                  ? result
+                      .filter((item) => item?.type === 'text' && typeof item.text === 'string')
+                      .map((item) => item.text)
+                      .join('\n\n')
+                  : String(result);
 
                 if (uiToolCall) {
                   if (toolCall.function.name === 'sub_agent') {
-                    const currentLog = uiToolCall.result ? uiToolCall.result.replace("\n\n[Sub-Agent 执行中...]", "") : "";
+                    const currentLog = uiToolCall.result
+                      ? uiToolCall.result.replace('\n\n[Sub-Agent 执行中...]', '')
+                      : '';
                     if (!currentLog.includes(toolContent)) {
                       uiToolCall.result = `${currentLog}\n\n=== 最终结果 ===\n${toolContent}`;
                     } else {
@@ -3305,10 +3744,9 @@ const askAI = async (forceSend = false) => {
               }
 
               if (uiToolCall) uiToolCall.approvalStatus = 'finished';
-
             } catch (e) {
               if (e.name === 'AbortError') {
-                toolContent = "Error: Tool call was canceled by the user.";
+                toolContent = 'Error: Tool call was canceled by the user.';
                 if (uiToolCall) uiToolCall.approvalStatus = 'rejected';
               } else {
                 toolContent = `{'result':'工具执行或参数解析错误: ${e.message}'}`;
@@ -3318,8 +3756,13 @@ const askAI = async (forceSend = false) => {
             } finally {
               toolCallControllers.value.delete(toolCall.id);
             }
-            return { tool_call_id: toolCall.id, role: "tool", name: toolCall.function.name, content: toolContent };
-          })
+            return {
+              tool_call_id: toolCall.id,
+              role: 'tool',
+              name: toolCall.function.name,
+              content: toolContent,
+            };
+          }),
         );
 
         history.value.push(...toolMessages);
@@ -3330,18 +3773,18 @@ const askAI = async (forceSend = false) => {
           if (responseMessage.audio.transcript) {
             const rawTranscript = responseMessage.audio.transcript;
             currentBubble.content.push({
-              type: "text",
+              type: 'text',
               text: `\n\n${rawTranscript}`,
-              isTranscript: true
+              isTranscript: true,
             });
           }
 
           currentBubble.content.push({
-            type: "input_audio",
+            type: 'input_audio',
             input_audio: {
               data: responseMessage.audio.data,
-              format: 'wav'
-            }
+              format: 'wav',
+            },
           });
         }
         break;
@@ -3349,25 +3792,32 @@ const askAI = async (forceSend = false) => {
     }
   } catch (error) {
     let errorDisplay = `发生错误: ${error.message || '未知错误'}`;
-    if (error.name === 'AbortError') errorDisplay = "请求已取消";
+    if (error.name === 'AbortError') errorDisplay = '请求已取消';
 
-    const errorBubbleIndex = currentAssistantChatShowIndex > -1 ? currentAssistantChatShowIndex : chat_show.value.length;
+    const errorBubbleIndex =
+      currentAssistantChatShowIndex > -1 ? currentAssistantChatShowIndex : chat_show.value.length;
     if (currentAssistantChatShowIndex === -1) {
       chat_show.value.push({
-        id: messageIdCounter.value++, role: "assistant", content: [],
-        aiName: modelMap.value[model.value] || model.value.split('|')[1], voiceName: selectedVoice.value
+        id: messageIdCounter.value++,
+        role: 'assistant',
+        content: [],
+        aiName: modelMap.value[model.value] || model.value.split('|')[1],
+        voiceName: selectedVoice.value,
       });
     }
     const currentBubble = chat_show.value[errorBubbleIndex];
-    if (chat_show.value[errorBubbleIndex].reasoning_content && currentBubble.status === 'thinking') {
-      chat_show.value[errorBubbleIndex].status = "error";
+    if (
+      chat_show.value[errorBubbleIndex].reasoning_content &&
+      currentBubble.status === 'thinking'
+    ) {
+      chat_show.value[errorBubbleIndex].status = 'error';
     }
 
-    let existingText = "";
+    let existingText = '';
     if (currentBubble.content && Array.isArray(currentBubble.content)) {
       existingText = currentBubble.content
-        .filter(part => part.type === 'text')
-        .map(part => part.text)
+        .filter((part) => part.type === 'text')
+        .map((part) => part.text)
         .join('');
     } else if (typeof currentBubble.content === 'string') {
       existingText = currentBubble.content;
@@ -3375,26 +3825,27 @@ const askAI = async (forceSend = false) => {
 
     if (existingText && existingText.trim().length > 0) {
       const combinedText = `${existingText}\n\n> **Error**: ${errorDisplay}`;
-      currentBubble.content = [{ type: "text", text: combinedText }];
+      currentBubble.content = [{ type: 'text', text: combinedText }];
       history.value.push({
         role: 'assistant',
         content: combinedText,
-        reasoning_content: currentBubble.reasoning_content || null
+        reasoning_content: currentBubble.reasoning_content || null,
       });
     } else {
-      currentBubble.content = [{ type: "text", text: `${errorDisplay}` }];
+      currentBubble.content = [{ type: 'text', text: `${errorDisplay}` }];
       history.value.push({
         role: 'assistant',
         content: `${errorDisplay}`,
-        reasoning_content: currentBubble.reasoning_content || null
+        reasoning_content: currentBubble.reasoning_content || null,
       });
     }
-
   } finally {
     loading.value = false;
     signalController.value = null;
     if (currentAssistantChatShowIndex > -1) {
-      chat_show.value[currentAssistantChatShowIndex].completedTimestamp = new Date().toLocaleString('sv-SE');
+      chat_show.value[currentAssistantChatShowIndex].completedTimestamp = new Date().toLocaleString(
+        'sv-SE',
+      );
     }
     await nextTick();
     chatInputRef.value?.focus({ cursor: 'end' });
@@ -3403,12 +3854,22 @@ const askAI = async (forceSend = false) => {
   }
 };
 
-const cancelAskAI = () => { if (loading.value && signalController.value) { signalController.value.abort(); chatInputRef.value?.focus(); } };
-const copyText = async (content, index) => { if (loading.value && index === chat_show.value.length - 1) return; await window.api.copyText(content); };
+const cancelAskAI = () => {
+  if (loading.value && signalController.value) {
+    signalController.value.abort();
+    chatInputRef.value?.focus();
+  }
+};
+const copyText = async (content, index) => {
+  if (loading.value && index === chat_show.value.length - 1) return;
+  await window.api.copyText(content);
+};
 const reaskAI = async () => {
   if (loading.value) return;
 
-  const lastVisibleMessageIndexInHistory = history.value.findLastIndex(msg => msg.role !== 'tool');
+  const lastVisibleMessageIndexInHistory = history.value.findLastIndex(
+    (msg) => msg.role !== 'tool',
+  );
 
   if (lastVisibleMessageIndexInHistory === -1) {
     showDismissibleMessage.warning('没有可以重新提问的用户消息');
@@ -3419,14 +3880,14 @@ const reaskAI = async () => {
 
   if (lastVisibleMessage.role === 'assistant') {
     const historyItemsToRemove = history.value.length - lastVisibleMessageIndexInHistory;
-    const showItemsToRemove = history.value.slice(lastVisibleMessageIndexInHistory)
-      .filter(m => m.role !== 'tool').length;
+    const showItemsToRemove = history.value
+      .slice(lastVisibleMessageIndexInHistory)
+      .filter((m) => m.role !== 'tool').length;
 
     history.value.splice(lastVisibleMessageIndexInHistory, historyItemsToRemove);
     if (showItemsToRemove > 0) {
       chat_show.value.splice(chat_show.value.length - showItemsToRemove);
     }
-
   } else if (lastVisibleMessage.role === 'user') {
   } else {
     showDismissibleMessage.warning('无法从此消息类型重新提问。');
@@ -3464,8 +3925,8 @@ const deleteMessage = (index) => {
   }
 
   if (history_idx === -1) {
-    console.error("关键错误: 无法将 chat_show 索引映射到 history 索引。中止删除。");
-    showDismissibleMessage.error("删除失败：消息状态不一致。");
+    console.error('关键错误: 无法将 chat_show 索引映射到 history 索引。中止删除。');
+    showDismissibleMessage.error('删除失败：消息状态不一致。');
     return;
   }
 
@@ -3516,8 +3977,11 @@ const clearHistory = () => {
 
   const systemPromptFromConfig = currentConfig.value.prompts[CODE.value]?.prompt;
   const firstMessageInHistory = history.value.length > 0 ? history.value[0] : null;
-  const systemPromptFromHistory = (firstMessageInHistory && firstMessageInHistory.role === 'system') ? firstMessageInHistory : null;
-  const systemPromptToKeep = systemPromptFromConfig ? { role: "system", content: systemPromptFromConfig } : systemPromptFromHistory;
+  const systemPromptFromHistory =
+    firstMessageInHistory && firstMessageInHistory.role === 'system' ? firstMessageInHistory : null;
+  const systemPromptToKeep = systemPromptFromConfig
+    ? { role: 'system', content: systemPromptFromConfig }
+    : systemPromptFromHistory;
 
   if (systemPromptToKeep) {
     history.value = [systemPromptToKeep];
@@ -3530,7 +3994,7 @@ const clearHistory = () => {
   collapsedMessages.value.clear();
   messageRefs.clear();
   focusedMessageIndex.value = null;
-  defaultConversationName.value = "";
+  defaultConversationName.value = '';
   isSessionDirty.value = false;
   chatInputRef.value?.focus({ cursor: 'end' });
   showDismissibleMessage.success('历史记录已清除');
@@ -3578,14 +4042,12 @@ function getDisplayTypeName(type) {
   const lowerType = type.toLowerCase();
 
   if (lowerType === 'builtin') {
-    return "内置";
+    return '内置';
   }
 
   if (streamableHttpRegex.test(lowerType) || lowerType === 'http') {
-    return "可流式 HTTP";
-  }
-
-  else return type
+    return '可流式 HTTP';
+  } else return type;
 }
 
 const handleSaveModel = async (modelToSave) => {
@@ -3604,7 +4066,7 @@ const handleSaveModel = async (modelToSave) => {
       throw new Error(result?.message || '保存失败');
     }
   } catch (error) {
-    console.error("保存模型失败:", error);
+    console.error('保存模型失败:', error);
     showDismissibleMessage.error(`保存模型失败: ${error.message}`);
   }
 
@@ -3715,27 +4177,25 @@ const handleOpenSearch = () => {
 const navMessages = computed(() => {
   return chat_show.value
     .map((msg, index) => ({ ...msg, originalIndex: index })) // 保留原始索引用于跳转
-    .filter(msg => msg.role !== 'system');
+    .filter((msg) => msg.role !== 'system');
 });
-
-
 
 const getMessagePreviewText = (message) => {
   let text = '';
-  
+
   // 1. 尝试获取文本内容
   if (typeof message.content === 'string') {
     text = message.content;
   } else if (Array.isArray(message.content)) {
-    const textPart = message.content.find(p => p.type === 'text' && p.text && p.text.trim());
+    const textPart = message.content.find((p) => p.type === 'text' && p.text && p.text.trim());
     if (textPart) {
       text = textPart.text;
     } else {
       // 2. 如果没有文本，查找附件/图片
-      const filePart = message.content.find(p => p.type === 'file' || p.type === 'input_file');
-      const imgPart = message.content.find(p => p.type === 'image_url');
-      const audioPart = message.content.find(p => p.type === 'input_audio');
-      
+      const filePart = message.content.find((p) => p.type === 'file' || p.type === 'input_file');
+      const imgPart = message.content.find((p) => p.type === 'image_url');
+      const audioPart = message.content.find((p) => p.type === 'input_audio');
+
       if (filePart) {
         // 优先显示文件名
         text = `[文件] ${filePart.filename || filePart.name || '未知文件'}`;
@@ -3749,10 +4209,10 @@ const getMessagePreviewText = (message) => {
 
   // 3. 如果还是空的，检查工具调用
   if (!text && message.tool_calls && message.tool_calls.length > 0) {
-    const toolNames = message.tool_calls.map(t => t.name).join(', ');
+    const toolNames = message.tool_calls.map((t) => t.name).join(', ');
     text = `调用工具: ${toolNames}`;
   }
-  
+
   // 4. AI 思考中状态
   if (!text && message.role === 'assistant' && message.status === 'thinking') {
     text = '思考中...';
@@ -3776,44 +4236,90 @@ const scrollToMessageByIndex = (index) => {
 </script>
 
 <template>
-  <main :class="{ 'native-vibrancy': isNativeMacVibrancy, 'fallback-vibrancy': !isNativeMacVibrancy }">
+  <main
+    :class="{ 'native-vibrancy': isNativeMacVibrancy, 'fallback-vibrancy': !isNativeMacVibrancy }"
+  >
     <div v-if="windowBackgroundImage" class="window-bg-base"></div>
-    <div class="window-bg-layer" :class="{ 'is-visible': !!windowBackgroundImage }" :style="{
-      backgroundImage: windowBackgroundImage ? `url('${windowBackgroundImage}')` : 'none',
-      opacity: windowBackgroundImage ? windowBackgroundOpacity : 0,
-      filter: `blur(${windowBackgroundBlur}px)`
-    }">
-    </div>
-    <el-container class="app-container" :class="{
-      'has-bg': !!windowBackgroundImage,
-      'native-vibrancy': isNativeMacVibrancy,
-      'fallback-vibrancy': !isNativeMacVibrancy
-    }">
-      <TitleBar :favicon="favicon" :promptName="CODE" :conversationName="defaultConversationName"
-        :isAlwaysOnTop="isAlwaysOnTop" :autoCloseOnBlur="autoCloseOnBlur" :isDarkMode="currentConfig.isDarkMode"
-        :os="currentOS" @save-window-size="handleSaveWindowSize" @save-session="handleSaveSession"
-        @toggle-pin="handleTogglePin" @toggle-always-on-top="handleToggleAlwaysOnTop" @minimize="handleMinimize"
-        @maximize="handleMaximize" @close="handleCloseWindow" />
-      <ChatHeader :modelMap="modelMap" :model="model" :is-mcp-loading="isMcpLoading" :systemPrompt="currentSystemPrompt"
-        @open-model-dialog="handleOpenModelDialog" @show-system-prompt="handleShowSystemPrompt"
-        @open-search="handleOpenSearch" />
+    <div
+      class="window-bg-layer"
+      :class="{ 'is-visible': !!windowBackgroundImage }"
+      :style="{
+        backgroundImage: windowBackgroundImage ? `url('${windowBackgroundImage}')` : 'none',
+        opacity: windowBackgroundImage ? windowBackgroundOpacity : 0,
+        filter: `blur(${windowBackgroundBlur}px)`,
+      }"
+    ></div>
+    <el-container
+      class="app-container"
+      :class="{
+        'has-bg': !!windowBackgroundImage,
+        'native-vibrancy': isNativeMacVibrancy,
+        'fallback-vibrancy': !isNativeMacVibrancy,
+      }"
+    >
+      <TitleBar
+        :favicon="favicon"
+        :promptName="CODE"
+        :conversationName="defaultConversationName"
+        :isAlwaysOnTop="isAlwaysOnTop"
+        :autoCloseOnBlur="autoCloseOnBlur"
+        :isDarkMode="currentConfig.isDarkMode"
+        :os="currentOS"
+        @save-window-size="handleSaveWindowSize"
+        @save-session="handleSaveSession"
+        @toggle-pin="handleTogglePin"
+        @toggle-always-on-top="handleToggleAlwaysOnTop"
+        @minimize="handleMinimize"
+        @maximize="handleMaximize"
+        @close="handleCloseWindow"
+      />
+      <ChatHeader
+        :modelMap="modelMap"
+        :model="model"
+        :is-mcp-loading="isMcpLoading"
+        :systemPrompt="currentSystemPrompt"
+        @open-model-dialog="handleOpenModelDialog"
+        @show-system-prompt="handleShowSystemPrompt"
+        @open-search="handleOpenSearch"
+      />
 
       <div class="main-area-wrapper">
-        <el-main ref="chatContainerRef" class="chat-main custom-scrollbar" @click="handleMarkdownImageClick"
-          @scroll="handleScroll">
-          <ChatMessage v-for="(message, index) in chat_show" :key="message.id" :is-auto-approve="isAutoApproveTools"
-            @update-auto-approve="handleToggleAutoApprove" @confirm-tool="handleToolApproval"
-            @reject-tool="handleToolApproval" :ref="el => setMessageRef(el, message.id)" :message="message"
-            :index="index" :is-last-message="index === chat_show.length - 1" :is-loading="loading"
-            :user-avatar="UserAvart" :ai-avatar="AIAvart" :is-collapsed="isCollapsed(index)"
-            :is-dark-mode="currentConfig.isDarkMode" @delete-message="handleDeleteMessage" @copy-text="handleCopyText"
-            @re-ask="handleReAsk" @toggle-collapse="handleToggleCollapse" @show-system-prompt="handleShowSystemPrompt"
-            @avatar-click="onAvatarClick" @edit-message-requested="handleEditStart" @edit-finished="handleEditEnd"
-            @edit-message="handleEditMessage" @cancel-tool-call="handleCancelToolCall" />
+        <el-main
+          ref="chatContainerRef"
+          class="chat-main custom-scrollbar"
+          @click="handleMarkdownImageClick"
+          @scroll="handleScroll"
+        >
+          <ChatMessage
+            v-for="(message, index) in chat_show"
+            :key="message.id"
+            :is-auto-approve="isAutoApproveTools"
+            @update-auto-approve="handleToggleAutoApprove"
+            @confirm-tool="handleToolApproval"
+            @reject-tool="handleToolApproval"
+            :ref="(el) => setMessageRef(el, message.id)"
+            :message="message"
+            :index="index"
+            :is-last-message="index === chat_show.length - 1"
+            :is-loading="loading"
+            :user-avatar="UserAvart"
+            :ai-avatar="AIAvart"
+            :is-collapsed="isCollapsed(index)"
+            :is-dark-mode="currentConfig.isDarkMode"
+            @delete-message="handleDeleteMessage"
+            @copy-text="handleCopyText"
+            @re-ask="handleReAsk"
+            @toggle-collapse="handleToggleCollapse"
+            @show-system-prompt="handleShowSystemPrompt"
+            @avatar-click="onAvatarClick"
+            @edit-message-requested="handleEditStart"
+            @edit-finished="handleEditEnd"
+            @edit-message="handleEditMessage"
+            @cancel-tool-call="handleCancelToolCall"
+          />
         </el-main>
 
         <div class="unified-nav-sidebar" v-if="chat_show.length > 0">
-          
           <!-- 上部控制区 -->
           <div class="nav-group top">
             <el-tooltip content="回到顶部" placement="left" :show-after="500">
@@ -3831,25 +4337,23 @@ const scrollToMessageByIndex = (index) => {
           <div class="nav-timeline-area">
             <div class="timeline-track"></div>
             <div class="timeline-scroller no-scrollbar">
-              <div 
-                v-for="msg in navMessages" 
+              <div
+                v-for="msg in navMessages"
                 :key="msg.id"
                 class="timeline-node-wrapper"
                 @click="scrollToMessageByIndex(msg.originalIndex)"
               >
-                <el-tooltip 
-                  :content="getMessagePreviewText(msg)" 
-                  placement="left" 
+                <el-tooltip
+                  :content="getMessagePreviewText(msg)"
+                  placement="left"
                   :show-after="200"
                   :enterable="false"
                   effect="dark"
                 >
-                  <div class="timeline-node" 
-                       :class="[
-                         msg.role, 
-                         { 'active': focusedMessageIndex === msg.originalIndex }
-                       ]">
-                  </div>
+                  <div
+                    class="timeline-node"
+                    :class="[msg.role, { active: focusedMessageIndex === msg.originalIndex }]"
+                  ></div>
                 </el-tooltip>
               </div>
             </div>
@@ -3862,70 +4366,139 @@ const scrollToMessageByIndex = (index) => {
                 <ArrowDown :size="16" />
               </div>
             </el-tooltip>
-            
+
             <el-tooltip content="跳到底部" placement="left" :show-after="500">
-              <div class="nav-mini-btn" 
-                   :class="{ 'highlight-bottom': showScrollToBottomButton }" 
-                   @click="forceScrollToBottom">
+              <div
+                class="nav-mini-btn"
+                :class="{ 'highlight-bottom': showScrollToBottomButton }"
+                @click="forceScrollToBottom"
+              >
                 <ChevronsDown :size="16" />
               </div>
             </el-tooltip>
           </div>
-
         </div>
 
-        <ChatInput ref="chatInputRef" v-model:prompt="prompt" v-model:fileList="fileList"
-          v-model:selectedVoice="selectedVoice" v-model:tempReasoningEffort="tempReasoningEffort" :loading="loading"
-          :ctrlEnterToSend="currentConfig.CtrlEnterToSend" :layout="inputLayout" :voiceList="currentConfig.voiceList"
-          :is-mcp-active="isMcpActive" :all-mcp-servers="availableMcpServers" :active-mcp-ids="sessionMcpServerIds"
-          :active-skill-ids="sessionSkillIds" :all-skills="allSkillsList" @submit="handleSubmit" @cancel="handleCancel"
-          @clear-history="handleClearHistory" @remove-file="handleRemoveFile" @upload="handleUpload"
-          @send-audio="handleSendAudio" @open-mcp-dialog="handleOpenMcpDialog" @pick-file-start="handlePickFileStart"
-          @toggle-mcp="handleQuickMcpToggle" @toggle-skill="handleQuickSkillToggle" @open-skill-dialog="toggleSkillDialog" />
+        <ChatInput
+          ref="chatInputRef"
+          v-model:prompt="prompt"
+          v-model:fileList="fileList"
+          v-model:selectedVoice="selectedVoice"
+          v-model:tempReasoningEffort="tempReasoningEffort"
+          :loading="loading"
+          :ctrlEnterToSend="currentConfig.CtrlEnterToSend"
+          :layout="inputLayout"
+          :voiceList="currentConfig.voiceList"
+          :is-mcp-active="isMcpActive"
+          :all-mcp-servers="availableMcpServers"
+          :active-mcp-ids="sessionMcpServerIds"
+          :active-skill-ids="sessionSkillIds"
+          :all-skills="allSkillsList"
+          @submit="handleSubmit"
+          @cancel="handleCancel"
+          @clear-history="handleClearHistory"
+          @remove-file="handleRemoveFile"
+          @upload="handleUpload"
+          @send-audio="handleSendAudio"
+          @open-mcp-dialog="handleOpenMcpDialog"
+          @pick-file-start="handlePickFileStart"
+          @toggle-mcp="handleQuickMcpToggle"
+          @toggle-skill="handleQuickSkillToggle"
+          @open-skill-dialog="toggleSkillDialog"
+        />
       </div>
     </el-container>
   </main>
 
-  <ModelSelectionDialog v-model="changeModel_page" :modelList="modelList" :currentModel="model"
-    @select="handleChangeModel" @save-model="handleSaveModel" />
+  <ModelSelectionDialog
+    v-model="changeModel_page"
+    :modelList="modelList"
+    :currentModel="model"
+    @select="handleChangeModel"
+    @save-model="handleSaveModel"
+  />
 
-  <el-dialog v-model="systemPromptDialogVisible" title="" custom-class="system-prompt-dialog" width="60%"
-    :show-close="false" :lock-scroll="false" :append-to-body="true" center :close-on-click-modal="true"
-    :close-on-press-escape="true">
+  <el-dialog
+    v-model="systemPromptDialogVisible"
+    title=""
+    custom-class="system-prompt-dialog"
+    width="60%"
+    :show-close="false"
+    :lock-scroll="false"
+    :append-to-body="true"
+    center
+    :close-on-click-modal="true"
+    :close-on-press-escape="true"
+  >
     <template #header="{ close, titleId, titleClass }">
-      <div style="display: none;"></div>
+      <div style="display: none"></div>
     </template>
-    <el-input v-model="systemPromptContent" type="textarea" :autosize="{ minRows: 4, maxRows: 15 }"
-      class="system-prompt-full-content" resize="none" @keydown="handleSystemPromptKeydown" />
+    <el-input
+      v-model="systemPromptContent"
+      type="textarea"
+      :autosize="{ minRows: 4, maxRows: 15 }"
+      class="system-prompt-full-content"
+      resize="none"
+      @keydown="handleSystemPromptKeydown"
+    />
     <template #footer>
       <el-button @click="systemPromptDialogVisible = false">取消</el-button>
       <el-button type="primary" @click="saveSystemPrompt">保存</el-button>
     </template>
   </el-dialog>
 
-  <el-image-viewer v-if="imageViewerVisible" :url-list="imageViewerSrcList" :initial-index="imageViewerInitialIndex"
-    @close="imageViewerVisible = false" :hide-on-click-modal="true" teleported />
+  <el-image-viewer
+    v-if="imageViewerVisible"
+    :url-list="imageViewerSrcList"
+    :initial-index="imageViewerInitialIndex"
+    @close="imageViewerVisible = false"
+    :hide-on-click-modal="true"
+    teleported
+  />
   <div v-if="imageViewerVisible" class="custom-viewer-actions">
-    <el-button type="primary" circle @click="handleCopyImageFromViewer(imageViewerSrcList[0])" title="复制图片">
+    <el-button
+      type="primary"
+      circle
+      @click="handleCopyImageFromViewer(imageViewerSrcList[0])"
+      title="复制图片"
+    >
       <Copy :size="16" />
     </el-button>
-    <el-button type="primary" circle @click="handleDownloadImageFromViewer(imageViewerSrcList[0])" title="下载图片">
+    <el-button
+      type="primary"
+      circle
+      @click="handleDownloadImageFromViewer(imageViewerSrcList[0])"
+      title="下载图片"
+    >
       <Download :size="16" />
     </el-button>
   </div>
 
-  <el-dialog v-model="isMcpDialogVisible" width="80%" custom-class="mcp-dialog no-header-dialog" @close="focusOnInput"
-    :show-close="false">
+  <el-dialog
+    v-model="isMcpDialogVisible"
+    width="80%"
+    custom-class="mcp-dialog no-header-dialog"
+    @close="focusOnInput"
+    :show-close="false"
+  >
     <template #header>
-      <div style="display: none;"></div>
+      <div style="display: none"></div>
     </template>
     <div class="mcp-dialog-content">
       <div class="mcp-dialog-toolbar">
         <el-button-group>
-          <el-button :type="mcpFilter === 'all' ? 'primary' : ''" @click="mcpFilter = 'all'">全部</el-button>
-          <el-button :type="mcpFilter === 'selected' ? 'primary' : ''" @click="mcpFilter = 'selected'">已选
+          <el-button :type="mcpFilter === 'all' ? 'primary' : ''" @click="mcpFilter = 'all'"
+            >全部</el-button
+          >
+          <el-button
+            :type="mcpFilter === 'selected' ? 'primary' : ''"
+            @click="mcpFilter = 'selected'"
+            >已选
           </el-button>
-          <el-button :type="mcpFilter === 'unselected' ? 'primary' : ''" @click="mcpFilter = 'unselected'">未选
+          <el-button
+            :type="mcpFilter === 'unselected' ? 'primary' : ''"
+            @click="mcpFilter = 'unselected'"
+            >未选
           </el-button>
         </el-button-group>
         <el-button-group>
@@ -3936,14 +4509,21 @@ const scrollToMessageByIndex = (index) => {
       <div class="mcp-server-list custom-scrollbar">
         <div v-for="server in filteredMcpServers" :key="server.id" class="mcp-server-item-wrapper">
           <!-- 主卡片区域 -->
-          <div class="mcp-server-item" :class="{ 'is-checked': tempSessionMcpServerIds.includes(server.id) }"
-            @click="toggleMcpServerSelection(server.id)">
-
+          <div
+            class="mcp-server-item"
+            :class="{ 'is-checked': tempSessionMcpServerIds.includes(server.id) }"
+            @click="toggleMcpServerSelection(server.id)"
+          >
             <div class="mcp-server-content">
               <!-- 第一行：勾选框 | Logo | 名称 | 间隔 | 持久化 | 标签 -->
               <div class="mcp-server-header-row">
-                <el-checkbox :model-value="tempSessionMcpServerIds.includes(server.id)" size="large"
-                  @change="() => toggleMcpServerSelection(server.id)" @click.stop class="header-checkbox" />
+                <el-checkbox
+                  :model-value="tempSessionMcpServerIds.includes(server.id)"
+                  size="large"
+                  @change="() => toggleMcpServerSelection(server.id)"
+                  @click.stop
+                  class="header-checkbox"
+                />
 
                 <el-avatar :src="server.logoUrl" shape="square" :size="20" class="mcp-server-icon">
                   <Wrench :size="12" />
@@ -3957,20 +4537,33 @@ const scrollToMessageByIndex = (index) => {
 
                 <!-- 右侧分组：包含持久连接按钮和标签，统一靠右 -->
                 <div class="mcp-header-right-group">
-                  <el-tooltip :content="server.isPersistent ? '持久连接已开启' : '持久连接已关闭'" placement="top">
-                    <el-button text circle :class="{ 'is-persistent-active': server.isPersistent }"
-                      @click.stop="toggleMcpPersistence(server.id, !server.isPersistent)" class="persistent-btn">
+                  <el-tooltip
+                    :content="server.isPersistent ? '持久连接已开启' : '持久连接已关闭'"
+                    placement="top"
+                  >
+                    <el-button
+                      text
+                      circle
+                      :class="{ 'is-persistent-active': server.isPersistent }"
+                      @click.stop="toggleMcpPersistence(server.id, !server.isPersistent)"
+                      class="persistent-btn"
+                    >
                       <Zap :size="16" />
                     </el-button>
                   </el-tooltip>
 
                   <div class="mcp-server-tags">
                     <el-tag v-if="server.type" type="info" size="small" effect="plain" round>{{
-                      getDisplayTypeName(server.type) }}</el-tag>
-                    <el-tag v-for="tag in (server.tags || []).slice(0, 2)" :key="tag" size="small" effect="plain"
-                      round>{{
-                        tag
-                      }}</el-tag>
+                      getDisplayTypeName(server.type)
+                    }}</el-tag>
+                    <el-tag
+                      v-for="tag in (server.tags || []).slice(0, 2)"
+                      :key="tag"
+                      size="small"
+                      effect="plain"
+                      round
+                      >{{ tag }}</el-tag
+                    >
                   </div>
                 </div>
               </div>
@@ -3978,13 +4571,20 @@ const scrollToMessageByIndex = (index) => {
               <!-- 第二行：折叠按钮 | 描述 -->
               <div class="mcp-server-body-row">
                 <div class="mcp-tools-toggle" @click.stop="toggleMcpServerExpansion(server.id)">
-                  <ChevronRight :size="10" class="mcp-tools-toggle-icon"
-                    :class="{ 'is-expanded': expandedMcpServers.has(server.id) }" />
+                  <ChevronRight
+                    :size="10"
+                    class="mcp-tools-toggle-icon"
+                    :class="{ 'is-expanded': expandedMcpServers.has(server.id) }"
+                  />
                   <span>{{ expandedMcpServers.has(server.id) ? '收起' : '工具' }}</span>
                 </div>
 
-                <span v-if="server.description" class="mcp-server-description"
-                  @click.stop="toggleMcpServerExpansion(server.id)">{{ server.description }}</span>
+                <span
+                  v-if="server.description"
+                  class="mcp-server-description"
+                  @click.stop="toggleMcpServerExpansion(server.id)"
+                  >{{ server.description }}</span
+                >
               </div>
             </div>
           </div>
@@ -3993,17 +4593,20 @@ const scrollToMessageByIndex = (index) => {
           <div v-if="expandedMcpServers.has(server.id)" class="mcp-tools-panel" @click.stop>
             <template v-if="mcpToolCache[server.id] && mcpToolCache[server.id].length > 0">
               <div v-for="tool in mcpToolCache[server.id]" :key="tool.name" class="mcp-tool-row">
-                <el-switch :model-value="tool.enabled !== false" size="small"
-                  @change="(val) => handleMcpToolStatusChange(server.id, tool.name, val)" />
+                <el-switch
+                  :model-value="tool.enabled !== false"
+                  size="small"
+                  @change="(val) => handleMcpToolStatusChange(server.id, tool.name, val)"
+                />
                 <div class="mcp-tool-info">
                   <span class="mcp-tool-name">{{ tool.name }}</span>
-                  <span class="mcp-tool-desc" :title="tool.description">{{ tool.description || '暂无描述' }}</span>
+                  <span class="mcp-tool-desc" :title="tool.description">{{
+                    tool.description || '暂无描述'
+                  }}</span>
                 </div>
               </div>
             </template>
-            <div v-else class="mcp-tools-empty">
-              工具未缓存，使用/测试后即可查看具体工具
-            </div>
+            <div v-else class="mcp-tools-empty">工具未缓存，使用/测试后即可查看具体工具</div>
           </div>
         </div>
       </div>
@@ -4017,42 +4620,68 @@ const scrollToMessageByIndex = (index) => {
     </div>
     <template #footer>
       <div class="mcp-dialog-footer">
-        <div class="footer-left-controls"> <!-- 使用新容器包裹左侧内容 -->
-          <span class="mcp-limit-hint" :class="{ 'warning': mcpConnectionCount > 5 }">
+        <div class="footer-left-controls">
+          <!-- 使用新容器包裹左侧内容 -->
+          <span class="mcp-limit-hint" :class="{ warning: mcpConnectionCount > 5 }">
             连接数：{{ 5 - mcpConnectionCount }}/5
             <el-tooltip placement="top">
               <template #content>
-                持久连接各占1个名额<br>
+                持久连接各占1个名额<br />
                 所有临时连接共占1个名额
               </template>
-              <CircleHelp :size="14"
-                style="vertical-align: middle; margin-left: 4px; cursor: help;" />
+              <CircleHelp
+                :size="14"
+                style="vertical-align: middle; margin-left: 4px; cursor: help"
+              />
             </el-tooltip>
           </span>
-          <el-checkbox v-model="isAutoApproveTools" label="自动批准工具调用" style="margin-left: 40px; margin-right: 0;" />
+          <el-checkbox
+            v-model="isAutoApproveTools"
+            label="自动批准工具调用"
+            style="margin-left: 40px; margin-right: 0"
+          />
         </div>
         <div>
-          <el-button type="primary"
-            @click="sessionMcpServerIds = [...tempSessionMcpServerIds]; applyMcpTools();">应用</el-button>
+          <el-button
+            type="primary"
+            @click="
+              sessionMcpServerIds = [...tempSessionMcpServerIds];
+              applyMcpTools();
+            "
+            >应用</el-button
+          >
         </div>
       </div>
     </template>
   </el-dialog>
 
-  <el-dialog v-model="isSkillDialogVisible" width="80%" custom-class="mcp-dialog no-header-dialog" :show-close="false">
+  <el-dialog
+    v-model="isSkillDialogVisible"
+    width="80%"
+    custom-class="mcp-dialog no-header-dialog"
+    :show-close="false"
+  >
     <template #header>
-      <div style="display: none;"></div>
+      <div style="display: none"></div>
     </template>
 
     <div class="mcp-dialog-content">
       <!-- 顶部工具栏 -->
       <div class="mcp-dialog-toolbar">
         <el-button-group>
-          <el-button :type="skillFilter === 'all' ? 'primary' : ''" @click="skillFilter = 'all'">全部</el-button>
-          <el-button :type="skillFilter === 'selected' ? 'primary' : ''"
-            @click="skillFilter = 'selected'">已选</el-button>
-          <el-button :type="skillFilter === 'unselected' ? 'primary' : ''"
-            @click="skillFilter = 'unselected'">未选</el-button>
+          <el-button :type="skillFilter === 'all' ? 'primary' : ''" @click="skillFilter = 'all'"
+            >全部</el-button
+          >
+          <el-button
+            :type="skillFilter === 'selected' ? 'primary' : ''"
+            @click="skillFilter = 'selected'"
+            >已选</el-button
+          >
+          <el-button
+            :type="skillFilter === 'unselected' ? 'primary' : ''"
+            @click="skillFilter = 'unselected'"
+            >未选</el-button
+          >
         </el-button-group>
         <el-button-group>
           <el-button @click="selectAllSkills">全选</el-button>
@@ -4062,41 +4691,68 @@ const scrollToMessageByIndex = (index) => {
 
       <!-- 列表区域 -->
       <div class="mcp-server-list custom-scrollbar">
-        <div v-if="filteredSkillsList.length === 0"
-          style="padding: 20px; text-align: center; color: var(--el-text-color-placeholder);">
+        <div
+          v-if="filteredSkillsList.length === 0"
+          style="padding: 20px; text-align: center; color: var(--el-text-color-placeholder)"
+        >
           暂无匹配的技能
         </div>
-        <div v-else v-for="skill in filteredSkillsList" :key="skill.name" class="mcp-server-item-wrapper">
-          <div class="mcp-server-item" :class="{ 'is-checked': tempSessionSkillIds.includes(skill.name) }"
-            @click="toggleSkillSelection(skill.name)">
-
+        <div
+          v-else
+          v-for="skill in filteredSkillsList"
+          :key="skill.name"
+          class="mcp-server-item-wrapper"
+        >
+          <div
+            class="mcp-server-item"
+            :class="{ 'is-checked': tempSessionSkillIds.includes(skill.name) }"
+            @click="toggleSkillSelection(skill.name)"
+          >
             <!-- 单行布局结构 -->
             <div class="skill-single-row">
-              <el-checkbox :model-value="tempSessionSkillIds.includes(skill.name)" size="large"
-                @change="() => toggleSkillSelection(skill.name)" @click.stop class="header-checkbox" />
+              <el-checkbox
+                :model-value="tempSessionSkillIds.includes(skill.name)"
+                size="large"
+                @change="() => toggleSkillSelection(skill.name)"
+                @click.stop
+                class="header-checkbox"
+              />
 
-              <el-avatar shape="square" :size="20" class="mcp-server-icon"
-                style="background:transparent; color: var(--el-text-color-primary); flex-shrink: 0;">
+              <el-avatar
+                shape="square"
+                :size="20"
+                class="mcp-server-icon"
+                style="background: transparent; color: var(--el-text-color-primary); flex-shrink: 0"
+              >
                 <Folder :size="16" />
               </el-avatar>
 
               <span class="mcp-server-name skill-name-fixed">{{ skill.name }}</span>
 
               <!-- 描述显示在同一行 -->
-              <span class="skill-desc-inline" :title="skill.description">{{ skill.description }}</span>
+              <span class="skill-desc-inline" :title="skill.description">{{
+                skill.description
+              }}</span>
 
               <!-- 标签靠右 -->
               <div class="mcp-header-right-group">
                 <!-- Sub-Agent 切换按钮 -->
-                <el-tooltip :content="skill.context === 'fork' ? 'Sub-Agent 模式已开启' : 'Sub-Agent 模式已关闭'" placement="top">
-                  <div class="subagent-toggle-btn-small" :class="{ 'is-active': skill.context === 'fork' }"
-                    @click.stop="handleSkillForkToggle(skill)">
+                <el-tooltip
+                  :content="
+                    skill.context === 'fork' ? 'Sub-Agent 模式已开启' : 'Sub-Agent 模式已关闭'
+                  "
+                  placement="top"
+                >
+                  <div
+                    class="subagent-toggle-btn-small"
+                    :class="{ 'is-active': skill.context === 'fork' }"
+                    @click.stop="handleSkillForkToggle(skill)"
+                  >
                     <Cpu :size="14" />
                   </div>
                 </el-tooltip>
               </div>
             </div>
-
           </div>
         </div>
       </div>
@@ -4115,13 +4771,19 @@ const scrollToMessageByIndex = (index) => {
       <div class="mcp-dialog-footer">
         <div class="footer-left-controls">
           <!-- 状态计数 -->
-          <span class="mcp-limit-hint" v-if="tempSessionSkillIds.length > 0"
-            style="margin-right: 15px; font-weight: bold; color: var(--el-color-primary);">
+          <span
+            class="mcp-limit-hint"
+            v-if="tempSessionSkillIds.length > 0"
+            style="margin-right: 15px; font-weight: bold; color: var(--el-color-primary)"
+          >
             已选 {{ tempSessionSkillIds.length }} 个技能
           </span>
           <!-- Warning 提示 -->
-          <span class="mcp-limit-hint warning" style="display: inline-flex; align-items: center; opacity: 0.8;">
-            <TriangleAlert :size="14" style="margin-right: 4px;" />
+          <span
+            class="mcp-limit-hint warning"
+            style="display: inline-flex; align-items: center; opacity: 0.8"
+          >
+            <TriangleAlert :size="14" style="margin-right: 4px" />
             Skill 依赖内置 MCP 服务，请勿禁用
           </span>
         </div>
@@ -4146,7 +4808,17 @@ body {
     radial-gradient(98% 78% at 14% 50%, rgba(246, 180, 194, 0.66) 0%, rgba(246, 180, 194, 0) 74%),
     radial-gradient(86% 66% at 60% 54%, rgba(237, 207, 193, 0.58) 0%, rgba(237, 207, 193, 0) 75%),
     linear-gradient(180deg, #ecebf1 0%, #f5d9d2 52%, #f3f1f1 100%);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'SF Pro Text',
+    'SF Pro Display',
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
   color: #202020;
 }
 
@@ -4235,13 +4907,13 @@ html.dark {
   --el-text-color-placeholder: var(--text-tertiary);
   --el-text-color-disabled: #7b7b7b;
 
-  --el-color-primary: #14B8A6;
-  --el-color-primary-light-3: #2DD4BF;
-  --el-color-primary-light-5: #5EEAD4;
-  --el-color-primary-light-7: #0D9488;
-  --el-color-primary-light-8: #0F766E;
-  --el-color-primary-light-9: #115E59;
-  --el-color-primary-dark-2: #0F766E;
+  --el-color-primary: #14b8a6;
+  --el-color-primary-light-3: #2dd4bf;
+  --el-color-primary-light-5: #5eead4;
+  --el-color-primary-light-7: #0d9488;
+  --el-color-primary-light-8: #0f766e;
+  --el-color-primary-light-9: #115e59;
+  --el-color-primary-dark-2: #0f766e;
 
   --el-box-shadow: 0 16px 44px rgba(8, 8, 8, 0.34);
   --el-box-shadow-light: 0 10px 24px rgba(8, 8, 8, 0.28);
@@ -4250,7 +4922,8 @@ html.dark {
 }
 
 html.dark body {
-  background: radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.06), transparent 40%), #1d1f22;
+  background:
+    radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.06), transparent 40%), #1d1f22;
 }
 
 html.mac-native-vibrancy,
@@ -4343,7 +5016,13 @@ html.mac-native-vibrancy body {
 }
 
 .system-prompt-full-content {
-  font-family: SFMono-Regular, Consolas, Liberation Mono, Menlo, Courier, monospace;
+  font-family:
+    SFMono-Regular,
+    Consolas,
+    Liberation Mono,
+    Menlo,
+    Courier,
+    monospace;
   white-space: pre-wrap;
   word-wrap: break-word;
   font-size: 14px;
@@ -4732,7 +5411,17 @@ main > .app-container {
   flex-direction: column;
   background-color: color-mix(in srgb, #ffffff 30%, transparent);
   color: var(--el-text-color-primary);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family:
+    Inter,
+    -apple-system,
+    BlinkMacSystemFont,
+    'SF Pro Text',
+    'SF Pro Display',
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
   box-sizing: border-box;
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, #ffffff 84%, var(--el-border-color-light));
@@ -4867,9 +5556,9 @@ main.fallback-vibrancy .app-container.fallback-vibrancy {
   width: 100%;
   display: flex;
   justify-content: center;
-  overflow: hidden; 
+  overflow: hidden;
   flex-direction: column;
-  min-height: 0;   
+  min-height: 0;
   pointer-events: auto;
 }
 
@@ -4896,8 +5585,10 @@ main.fallback-vibrancy .app-container.fallback-vibrancy {
   align-items: center;
   gap: 6px;
   padding: 4px 0;
-  
-  &::-webkit-scrollbar { display: none; }
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
   scrollbar-width: none;
 }
 
@@ -5060,7 +5751,9 @@ html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
 
   /* 核心优化：默认透明，且具有过渡效果 */
   opacity: 0;
-  transition: opacity 0.4s ease-in-out, filter 0.3s ease;
+  transition:
+    opacity 0.4s ease-in-out,
+    filter 0.3s ease;
 }
 
 .app-container.has-bg,
@@ -5091,7 +5784,6 @@ html.dark .app-container.has-bg :deep(.chat-input-area-vertical) {
 }
 
 html.dark .app-container.has-bg :deep(.title-bar) {
-
   /* 强制功能按钮（Pin, Top）和 Mac红绿灯图标变亮 */
   .func-btn,
   .traffic-icon {
@@ -5118,13 +5810,13 @@ html.dark .app-container.has-bg :deep(.title-bar) {
 
   /* Windows 关闭按钮悬浮仍保持红色 */
   .win-btn.close:hover {
-    background-color: #E81123 !important;
+    background-color: #e81123 !important;
     color: white !important;
   }
 
   /* Linux 关闭按钮悬浮仍保持红色 */
   .linux-btn.close:hover {
-    background-color: #E95420 !important;
+    background-color: #e95420 !important;
     color: white !important;
   }
 
@@ -5376,7 +6068,7 @@ html.dark .app-container.has-bg :deep(.tool-call-details .tool-detail-section pr
 }
 
 .subagent-toggle-btn-small.is-active {
-  color: #E6A23C;
+  color: #e6a23c;
   background-color: rgba(230, 162, 60, 0.15);
 }
 

@@ -13,6 +13,7 @@ lerna-debug.log*
 /apps/window/dist
 /apps/backend/node_modules
 /apps/backend/public
+/apps/fast-window/fast_input.js
 /node_modules
 .DS_Store
 dist
@@ -51,6 +52,7 @@ ToDoList.md
 /runtime/fast_window_preload.js
 /runtime/runtime/*
 /release
+/backend/public
 
 !/runtime/window/.gitkeep
 !/runtime/fast_window/.gitkeep
