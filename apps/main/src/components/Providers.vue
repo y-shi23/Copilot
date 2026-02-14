@@ -437,7 +437,7 @@ watch(contextMenuVisible, (val) => {
 
     <!-- Dialogs -->
     <el-dialog v-model="addProvider_page" :title="t('providers.addProviderDialogTitle')" width="500px"
-      :close-on-click-modal="false">
+      :close-on-click-modal="false" append-to-body>
       <el-form :model="addprovider_form" @submit.prevent="add_prvider_function" label-position="top">
         <el-form-item :label="t('providers.providerNameLabel')" required>
           <el-input v-model="addprovider_form.name" autocomplete="off"
@@ -451,7 +451,7 @@ watch(contextMenuVisible, (val) => {
     </el-dialog>
 
     <el-dialog v-model="change_provider_name_page" :title="t('providers.changeProviderNameDialogTitle')" width="500px"
-      :close-on-click-modal="false">
+      :close-on-click-modal="false" append-to-body>
       <el-form :model="change_provider_name_form" @submit.prevent="change_provider_name_function" label-position="top">
         <el-form-item :label="t('providers.providerNameLabel')" required>
           <el-input v-model="change_provider_name_form.name" autocomplete="off" />
@@ -464,7 +464,7 @@ watch(contextMenuVisible, (val) => {
     </el-dialog>
 
     <el-dialog v-model="addModel_page" :title="t('providers.addModelDialogTitle')" width="500px"
-      :close-on-click-modal="false">
+      :close-on-click-modal="false" append-to-body>
       <el-form :model="addModel_form" @submit.prevent="add_model_function" label-position="top">
         <el-form-item :label="t('providers.modelNameIdLabel')" required>
           <el-input v-model="addModel_form.name" autocomplete="off"

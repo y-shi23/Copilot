@@ -679,7 +679,7 @@ async function triggerConnectionTest(server) {
 
         <!-- 编辑弹窗 (保持不变) -->
         <el-dialog v-model="showEditDialog" :title="isNewServer ? t('mcp.addServerTitle') : t('mcp.editServerTitle')"
-            width="700px" :close-on-click-modal="false">
+            width="700px" :close-on-click-modal="false" append-to-body>
             <el-scrollbar max-height="50vh" class="mcp-dialog-scrollbar">
                 <el-form :model="editingServer" label-position="top" @submit.prevent="saveServer">
                     <el-row :gutter="20">
@@ -785,7 +785,7 @@ async function triggerConnectionTest(server) {
 
         <!-- JSON 编辑弹窗 (保持不变) -->
         <el-dialog v-model="showJsonDialog" :title="t('mcp.jsonDialog.title')" width="700px"
-            :close-on-click-modal="false" custom-class="mcp-json-dialog">
+            :close-on-click-modal="false" custom-class="mcp-json-dialog" append-to-body>
             <el-alert :title="t('mcp.jsonDialog.description')" type="warning" show-icon :closable="false"
                 style="margin-bottom: 15px;" />
             <el-scrollbar max-height="50vh" class="json-editor-scrollbar">

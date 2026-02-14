@@ -784,7 +784,7 @@ async function selectLocalChatPath() {
 
     <!-- [修改] 备份数据管理弹窗 -->
     <el-dialog v-model="isBackupManagerVisible" :title="t('setting.webdav.manager.title')" width="700px" top="10vh"
-      :destroy-on-close="true" style="max-width: 90vw;" class="backup-manager-dialog">
+      :destroy-on-close="true" style="max-width: 90vw;" class="backup-manager-dialog" append-to-body>
       <el-table :data="paginatedFiles" v-loading="isTableLoading" @selection-change="handleSelectionChange"
         style="width: 100%" max-height="50vh" border stripe>
         <el-table-column type="selection" width="50" align="center" />

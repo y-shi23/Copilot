@@ -610,7 +610,7 @@ async function executeAutoClean() {
         </div>
     </div>
     <el-dialog v-model="isSyncing" :title="t('chats.alerts.syncInProgress')" :close-on-click-modal="false"
-        :show-close="false" :close-on-press-escape="false" width="400px" center>
+        :show-close="false" :close-on-press-escape="false" width="400px" center append-to-body>
         <div class="sync-progress-container">
             <el-progress :percentage="syncProgress" :stroke-width="10" striped striped-flow />
             <p class="sync-status-text">{{ syncStatusText }}</p>

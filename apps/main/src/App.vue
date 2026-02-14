@@ -560,7 +560,7 @@ watch(locale, () => {
       </el-main>
 
       <!-- 帮助文档弹窗 -->
-      <el-dialog v-model="showDocDialog" :title="t('doc.title')" width="80%" :lock-scroll="false" class="doc-dialog">
+      <el-dialog v-model="showDocDialog" :title="t('doc.title')" width="80%" :lock-scroll="false" class="doc-dialog" append-to-body>
         <div class="doc-container">
           <div class="doc-sidebar">
             <el-menu :default-active="activeDocIndex" @select="(index) => activeDocIndex = index" class="doc-menu">

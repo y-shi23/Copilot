@@ -597,7 +597,7 @@ async function handleExportSkills() {
     </div>
 
     <!-- 编辑弹窗 -->
-    <el-dialog v-model="showEditDialog" width="650px" :close-on-click-modal="false" class="skill-edit-dialog">
+    <el-dialog v-model="showEditDialog" width="650px" :close-on-click-modal="false" class="skill-edit-dialog" append-to-body>
       <template #header>
         <div class="dialog-header-row" style="justify-content: space-between; width: 100%; padding-right: 30px;">
           <!-- 左侧：标题 -->
@@ -730,7 +730,7 @@ async function handleExportSkills() {
         <el-button type="primary" @click="saveEditDialog">{{ t('common.save') }}</el-button>
       </template>
     </el-dialog>
-    <el-dialog v-model="showExportDialog" :title="t('skills.export.title')" width="500px" :close-on-click-modal="false">
+    <el-dialog v-model="showExportDialog" :title="t('skills.export.title')" width="500px" :close-on-click-modal="false" append-to-body>
       <div class="export-dialog-content">
         <p style="margin-top:0; color:var(--el-text-color-secondary); font-size:13px;">
           {{ t('skills.export.hint') }}

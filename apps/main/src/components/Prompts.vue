@@ -912,7 +912,7 @@ async function refreshPromptsConfig() {
     </div>
 
     <el-dialog v-model="showPromptEditDialog" :title="isNewPrompt ? t('prompts.addNewPrompt') : t('prompts.editPrompt')"
-      width="700px" :close-on-click-modal="false" top="5vh" custom-class="edit-prompt-dialog">
+      width="700px" :close-on-click-modal="false" top="5vh" custom-class="edit-prompt-dialog" append-to-body>
       <el-scrollbar max-height="60vh" class="prompt-dialog-scrollbar">
         <el-form :model="editingPrompt" @submit.prevent="savePrompt" class="edit-prompt-form">
           <div class="top-section-grid">
@@ -1255,7 +1255,7 @@ async function refreshPromptsConfig() {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="showAddTagDialog" :title="t('prompts.addNewTag')" width="400px" :close-on-click-modal="false">
+    <el-dialog v-model="showAddTagDialog" :title="t('prompts.addNewTag')" width="400px" :close-on-click-modal="false" append-to-body>
       <el-form @submit.prevent="addTag">
         <el-form-item :label="t('prompts.tagNameLabel')" required>
           <el-input v-model="newTagName" />
@@ -1269,7 +1269,7 @@ async function refreshPromptsConfig() {
 
     <el-dialog v-model="showAssignPromptDialog"
       :title="t('prompts.assignPromptsToTag', { tagName: assignPromptForm.targetTagName })" width="600px"
-      :close-on-click-modal="false">
+      :close-on-click-modal="false" append-to-body>
       <el-form :model="assignPromptForm" label-position="top">
         <el-form-item :label="t('prompts.selectPromptsToAddLabel')">
           <el-alert v-if="!promptsAvailableToAssign(assignPromptForm.targetTagName).length"
@@ -1289,7 +1289,7 @@ async function refreshPromptsConfig() {
     </el-dialog>
 
     <el-dialog v-model="showReplaceModelDialog" :title="t('prompts.replaceModelsDialog.title')" width="600px"
-      :close-on-click-modal="false">
+      :close-on-click-modal="false" append-to-body>
       <el-form :model="replaceModelForm" label-position="top">
         <el-row :gutter="20">
           <el-col :span="12">
