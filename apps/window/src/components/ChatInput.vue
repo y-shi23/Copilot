@@ -1,7 +1,8 @@
 <script setup>
 import { ref, h, onMounted, onBeforeUnmount, nextTick, watch, computed } from 'vue';
 import { ElFooter, ElRow, ElCol, ElText, ElDivider, ElButton, ElInput, ElMessage, ElTooltip, ElScrollbar, ElIcon } from 'element-plus';
-import { Close, Check, Document, Delete, Collection, Microphone, Monitor } from '@element-plus/icons-vue';
+import { Close, Check, Document, Delete, Microphone, Monitor } from '@element-plus/icons-vue';
+import { Library } from 'lucide-vue-next';
 
 // --- Props and Emits ---
 const prompt = defineModel('prompt');
@@ -866,7 +867,7 @@ defineExpose({ focus, senderRef });
                                     :class="{ 'is-active-special': activeSkillIds && activeSkillIds.length > 0 }"
                                     @click="$emit('open-skill-dialog')">
                                     <el-icon :size="18">
-                                        <Collection />
+                                        <Library size="1em" />
                                     </el-icon>
                                 </el-button>
                             </el-tooltip>

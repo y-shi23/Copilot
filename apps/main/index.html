@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1.0">
-  <title>Anywhere</title>
+  <title>Sanft</title>
 </head>
 
 <body>
@@ -16,18 +16,18 @@
       --bg-primary: #fbfbfb;
       --bg-secondary: #f7f7f4;
       --bg-tertiary: #f2f2ef;
-      --bg-accent: #4a6173;
+      --bg-accent: #339CFF;
       --bg-accent-light: #e9edf1;
 
       --text-primary: #202020;
       --text-secondary: #8a8a8a;
       --text-tertiary: #a3a3a3;
-      --text-accent: #3f5567;
+      --text-accent: #339CFF;
       --text-on-accent: #f7f7f3;
 
       --border-primary: #e5e5e5;
       --border-secondary: #ecece9;
-      --border-accent: rgba(63, 85, 103, 0.26);
+      --border-accent: rgba(0, 122, 255, 0.32);
 
       --shadow-sm: 0 6px 20px rgba(32, 32, 32, 0.045);
       --shadow-md: 0 12px 32px rgba(32, 32, 32, 0.065);
@@ -40,11 +40,11 @@
       --radius-2xl: 20px;
 
       --el-color-primary: var(--text-accent);
-      --el-color-primary-light-3: #6d8090;
-      --el-color-primary-light-5: #95a3af;
-      --el-color-primary-light-7: #bcc5cd;
-      --el-color-primary-light-8: #dbe0e4;
-      --el-color-primary-light-9: #edf1f4;
+      --el-color-primary-light-3: #3395FF;
+      --el-color-primary-light-5: #66B0FF;
+      --el-color-primary-light-7: #99CAFF;
+      --el-color-primary-light-8: #CCE0FF;
+      --el-color-primary-light-9: #E6F0FF;
 
       --el-switch-on-color: var(--text-accent);
       --el-switch-off-color: rgba(32, 32, 32, 0.24);
@@ -87,38 +87,38 @@
     html.dark {
       color-scheme: dark;
 
-      --bg-primary: #1d1f22;
+      --bg-primary: #1E1E1E;
       --bg-secondary: #25282d;
       --bg-tertiary: #2d3137;
-      --bg-accent: #dae2ea;
+      --bg-accent: #8DBE74;
       --bg-accent-light: #353a42;
 
       --text-primary: #ececec;
       --text-secondary: #aeaeae;
       --text-tertiary: #8f8f8f;
-      --text-accent: #d2dae3;
-      --text-on-accent: #1f2124;
+      --text-accent: #8DBE74;
+      --text-on-accent: #f7f7f3;
 
       --border-primary: rgba(236, 236, 236, 0.14);
       --border-secondary: rgba(236, 236, 236, 0.09);
-      --border-accent: rgba(210, 218, 227, 0.24);
+      --border-accent: rgba(141, 190, 116, 0.32);
 
       --shadow-sm: 0 8px 22px rgba(8, 8, 8, 0.3);
       --shadow-md: 0 16px 40px rgba(8, 8, 8, 0.36);
       --shadow-lg: 0 24px 56px rgba(8, 8, 8, 0.4);
 
       --el-color-primary: var(--text-accent);
-      --el-color-primary-light-3: #e2e7ed;
-      --el-color-primary-light-5: #edf1f5;
-      --el-color-primary-light-7: #3a3e45;
-      --el-color-primary-light-8: #343840;
-      --el-color-primary-light-9: #2e3239;
+      --el-color-primary-light-3: #A5CE8F;
+      --el-color-primary-light-5: #B8D9A5;
+      --el-color-primary-light-7: #6FA85C;
+      --el-color-primary-light-8: #5C9249;
+      --el-color-primary-light-9: #4A7C39;
 
       --el-bg-color: var(--bg-secondary);
       --el-bg-color-page: var(--bg-primary);
       --el-bg-color-overlay: #272a2f;
       --el-fill-color: var(--bg-tertiary);
-      --el-fill-color-light: #32363d;
+      --el-fill-color-light: #212121;
       --el-fill-color-lighter: #2d3137;
       --el-fill-color-dark: #393e46;
       --el-fill-color-darker: #434953;
@@ -159,14 +159,93 @@
     .el-card,
     .el-dialog,
     .el-message-box,
-    .el-popover.el-popper,
-    .el-select-dropdown,
-    .el-dropdown-menu {
+    .el-popover.el-popper {
       border: 1px solid var(--border-primary) !important;
       border-radius: var(--radius-xl) !important;
       box-shadow: var(--shadow-md) !important;
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
+    }
+
+    .el-select-dropdown,
+    .el-dropdown-menu {
+      border: none !important;
+      border-radius: var(--radius-lg) !important;
+      box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-primary) !important;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 6px !important;
+      background-color: color-mix(in srgb, var(--bg-secondary) 92%, transparent) !important;
+      overflow: hidden !important;
+    }
+
+    .el-select-dropdown__wrap,
+    .el-select-dropdown__list,
+    .el-scrollbar__wrap,
+    .el-scrollbar__view {
+      padding: 0 !important;
+      margin: 0 !important;
+    }
+
+    .el-select-dropdown__item,
+    .el-dropdown-menu__item {
+      border-radius: 6px !important;
+      margin: 0 !important;
+      padding: 0 12px !important;
+      height: 32px !important;
+      line-height: 32px !important;
+      display: flex !important;
+      align-items: center !important;
+      transition: background-color 0.15s ease !important;
+    }
+
+    .el-select-dropdown__item + .el-select-dropdown__item,
+    .el-dropdown-menu__item + .el-dropdown-menu__item {
+      margin-top: 2px !important;
+    }
+
+    .el-select-dropdown__item:hover,
+    .el-dropdown-menu__item:hover {
+      background-color: #eeeeee !important;
+      color: var(--text-primary) !important;
+    }
+
+    .el-select-dropdown__item.selected {
+      font-weight: 500;
+    }
+
+    .el-select-dropdown__item.selected:not(:hover) {
+      background-color: var(--bg-tertiary) !important;
+      color: var(--text-primary) !important;
+    }
+
+    .el-select-dropdown__item.is-disabled,
+    .el-dropdown-menu__item.is-disabled {
+      color: var(--text-tertiary) !important;
+    }
+
+    .el-select-dropdown__item.is-disabled:hover,
+    .el-dropdown-menu__item.is-disabled:hover {
+      background-color: transparent !important;
+      color: var(--text-tertiary) !important;
+    }
+
+    .el-select-dropdown.is-multiple .el-select-dropdown__item.selected {
+      background-color: var(--bg-tertiary) !important;
+      color: var(--text-primary) !important;
+    }
+
+    .el-select-dropdown.is-multiple .el-select-dropdown__item.selected:hover {
+      background-color: #eeeeee !important;
+      color: var(--text-primary) !important;
+    }
+
+    .el-popper.is-light {
+      border: none !important;
+    }
+
+    .el-popper__arrow::before {
+      display: none !important;
     }
 
     .el-dialog__header,

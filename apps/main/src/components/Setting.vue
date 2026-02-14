@@ -1,8 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, inject, h } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { createClient } from "webdav/web";
-import { Upload, FolderOpened, Refresh, Delete as DeleteIcon, Download, Plus } from '@element-plus/icons-vue'
+import { Upload, FolderOpen as FolderOpened, Folder, RefreshCw as Refresh, Trash2 as DeleteIcon, Download, Plus } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox, ElInput } from 'element-plus'
 
 const { t, locale } = useI18n()
@@ -18,6 +17,19 @@ const isTableLoading = ref(false);
 const selectedFiles = ref([]);
 const currentPage = ref(1);
 const pageSize = ref(10);
+
+let createWebdavClientPromise = null;
+const getCreateWebdavClient = async () => {
+  if (!createWebdavClientPromise) {
+    createWebdavClientPromise = import('webdav/web').then(module => module.createClient);
+  }
+  return createWebdavClientPromise;
+};
+
+const createWebdavClient = async (url, username, password) => {
+  const createClient = await getCreateWebdavClient();
+  return createClient(url, { username, password });
+};
 
 // --- 计算属性用于分页 ---
 const paginatedFiles = computed(() => {
@@ -141,7 +153,7 @@ async function exportConfig() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'Anywhere_config.json';
+    a.download = 'Sanft_config.json';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -314,7 +326,7 @@ async function backupToWebdav() {
 
   const now = new Date();
   const timestamp = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
-  const defaultBasename = `Anywhere-${timestamp}`;
+  const defaultBasename = `Sanft-${timestamp}`;
 
   const inputValue = ref(defaultBasename);
 
@@ -351,7 +363,7 @@ async function backupToWebdav() {
           ElMessage.info(t('setting.webdav.alerts.backupInProgress'));
 
           try {
-            const client = createClient(url, { username, password });
+            const client = await createWebdavClient(url, username, password);
             const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
             const remoteFilePath = `${remoteDir}/${filename}`;
 
@@ -409,7 +421,7 @@ async function fetchBackupFiles() {
   isTableLoading.value = true;
   const { url, username, password, path } = currentConfig.value.webdav;
   try {
-    const client = createClient(url, { username, password });
+    const client = await createWebdavClient(url, username, password);
     const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
 
     if (!(await client.exists(remoteDir))) {
@@ -465,7 +477,7 @@ async function restoreFromWebdav(file) {
     const currentSkillPath = currentConfig.value.skillPath;
 
     const { url, username, password, path } = currentConfig.value.webdav;
-    const client = createClient(url, { username, password });
+    const client = await createWebdavClient(url, username, password);
     const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
     const remoteFilePath = `${remoteDir}/${file.basename}`;
 
@@ -515,7 +527,7 @@ async function deleteFile(file) {
     );
 
     const { url, username, password, path } = currentConfig.value.webdav;
-    const client = createClient(url, { username, password });
+    const client = await createWebdavClient(url, username, password);
     const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
     const remoteFilePath = `${remoteDir}/${file.basename}`;
 
@@ -544,7 +556,7 @@ async function deleteSelectedFiles() {
     );
 
     const { url, username, password, path } = currentConfig.value.webdav;
-    const client = createClient(url, { username, password });
+    const client = await createWebdavClient(url, username, password);
     const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
 
     const deletePromises = selectedFiles.value.map(file =>
@@ -587,7 +599,14 @@ async function selectLocalChatPath() {
               <span class="setting-option-label">{{ t('setting.language.label') }}</span>
               <span class="setting-option-description">{{ t('setting.language.selectPlaceholder') }}</span>
             </div>
-            <el-select v-model="selectedLanguage" @change="handleLanguageChange" size="default" style="width: 120px;">
+            <el-select
+              v-model="selectedLanguage"
+              @change="handleLanguageChange"
+              size="default"
+              style="width: 120px;"
+              class="setting-inline-select"
+              popper-class="settings-select-popper"
+            >
               <el-option :label="t('setting.language.chinese')" value="zh"></el-option>
               <el-option :label="t('setting.language.english')" value="en"></el-option>
               <el-option :label="t('setting.language.japanese')" value="ja"></el-option>
@@ -599,8 +618,14 @@ async function selectLocalChatPath() {
               <span class="setting-option-label">{{ t('setting.darkMode.label') }}</span>
               <span class="setting-option-description">{{ t('setting.darkMode.description') }}</span>
             </div>
-            <el-select v-model="currentConfig.themeMode" @change="handleThemeChange" size="default"
-              style="width: 120px;">
+            <el-select
+              v-model="currentConfig.themeMode"
+              @change="handleThemeChange"
+              size="default"
+              style="width: 120px;"
+              class="setting-inline-select"
+              popper-class="settings-select-popper"
+            >
               <el-option :label="t('setting.darkMode.system')" value="system"></el-option>
               <el-option :label="t('setting.darkMode.light')" value="light"></el-option>
               <el-option :label="t('setting.darkMode.dark')" value="dark"></el-option>
@@ -725,13 +750,18 @@ async function selectLocalChatPath() {
               <span class="setting-option-label">{{ t('setting.webdav.localChatPath') }}</span>
               <span class="setting-option-description">{{ t('setting.webdav.localChatPathPlaceholder') }}</span>
             </div>
-            <el-input v-model="currentConfig.webdav.localChatPath"
-              @change="(value) => saveSingleSetting('webdav.localChatPath', value)"
-              :placeholder="t('setting.webdav.localChatPathPlaceholder')" style="width: 320px;">
-              <template #append>
-                <el-button @click="selectLocalChatPath">{{ t('setting.webdav.selectFolder') }}</el-button>
-              </template>
-            </el-input>
+            <div class="path-input-wrapper">
+              <input
+                type="text"
+                class="path-input"
+                v-model="currentConfig.webdav.localChatPath"
+                @change="(e) => saveSingleSetting('webdav.localChatPath', e.target.value)"
+                :placeholder="t('setting.webdav.localChatPathPlaceholder')"
+              />
+              <button class="path-input-btn" @click="selectLocalChatPath" :title="t('setting.webdav.selectFolder')">
+                <el-icon :size="18"><Folder /></el-icon>
+              </button>
+            </div>
           </div>
         </section>
 
@@ -766,7 +796,7 @@ async function selectLocalChatPath() {
 
     <!-- [修改] 备份数据管理弹窗 -->
     <el-dialog v-model="isBackupManagerVisible" :title="t('setting.webdav.manager.title')" width="700px" top="10vh"
-      :destroy-on-close="true" style="max-width: 90vw;" class="backup-manager-dialog">
+      :destroy-on-close="true" style="max-width: 90vw;" class="backup-manager-dialog" append-to-body>
       <el-table :data="paginatedFiles" v-loading="isTableLoading" @selection-change="handleSelectionChange"
         style="width: 100%" max-height="50vh" border stripe>
         <el-table-column type="selection" width="50" align="center" />
@@ -874,9 +904,8 @@ async function selectLocalChatPath() {
 }
 
 .section-title {
-  margin: 0 0 6px;
-  padding: 2px 0 12px;
-  border-bottom: 1px solid var(--border-primary);
+  margin: 0 0 8px;
+  padding: 2px 0 6px;
   font-size: 17px;
   color: var(--text-primary);
   font-weight: 650;
@@ -892,15 +921,13 @@ async function selectLocalChatPath() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border-primary);
+  padding: 10px 0;
   gap: 20px;
   flex-wrap: wrap;
 }
 
-.setting-option-item:last-child,
-.setting-option-item.no-border {
-  border-bottom: none;
+.setting-option-item + .setting-option-item {
+  margin-top: 2px;
 }
 
 .setting-text-content {
@@ -934,6 +961,10 @@ async function selectLocalChatPath() {
 .el-button,
 .el-input-number {
   flex-shrink: 0;
+}
+
+:deep(.setting-inline-select .el-select__wrapper) {
+  border-radius: var(--radius-lg);
 }
 
 :deep(.el-form-item__label) {
@@ -1026,5 +1057,56 @@ async function selectLocalChatPath() {
 
 :deep(.backup-manager-dialog .el-dialog__footer) {
   padding: 5px;
+}
+
+.path-input-wrapper {
+  display: flex;
+  align-items: center;
+  width: 320px;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 9999px;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.path-input-wrapper:focus-within {
+  border-color: var(--bg-accent);
+  box-shadow: 0 0 0 2px rgba(51, 156, 255, 0.15);
+}
+
+.path-input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 16px;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.path-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.path-input-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 32px;
+  margin-right: 4px;
+  background: transparent;
+  border: none;
+  border-radius: 9999px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.path-input-btn:hover {
+  background-color: var(--bg-tertiary);
+  color: var(--bg-accent);
 }
 </style>

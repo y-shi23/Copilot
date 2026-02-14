@@ -5,7 +5,6 @@ import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import App from './App.vue'
 import { createI18n } from 'vue-i18n'
-import * as ElementPlusIconsVue from '@element-plus/icons-vue'
 
 // 导入所有语言文件
 import en from './locales/en.json'

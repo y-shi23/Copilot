@@ -1,20 +1,600 @@
 <script setup>
-import { ref, reactive, onMounted, computed, inject } from 'vue'
-import { Plus, Delete, Edit, ArrowUp, ArrowDown, Refresh, CirclePlus, Remove, Search, Folder, FolderOpened, FolderAdd } from '@element-plus/icons-vue';
+import { ref, reactive, onMounted, computed, inject, watch } from 'vue'
+import { Plus, Trash2 as Delete, Pencil as Edit, Search, ListCheck, Minus, Eye, EyeOff, Globe, Brain, Wrench, Binary, Settings } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus';
 import draggable from 'vuedraggable';
 
 const { t } = useI18n();
 
+const MODELS_DEV_API_URL = 'https://models.dev/api.json';
+const MODELS_DEV_CACHE_KEY = 'sanft_modelsdev_cache_v1';
+const MODELS_DEV_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const WEB_KEYWORD_PATTERN = /\b(web|www|search|browse|internet|research)\b/i;
+const EMBEDDING_KEYWORD_PATTERN = /\b(embed|embedding|text-embedding|bge|e5)\b/i;
+const LOCAL_ICON_PRIORITY = ['openai', 'claude', 'gemini', 'deepseek', 'moonshot', 'qwen', 'zhipu', 'doubao', 'stepfun', 'minimax', 'xiaomimimo'];
+const LOCAL_ICON_MATCH_RULES = {
+  openai: {
+    strongPatterns: [/^gpt/i, /^o[1-9]/i, /codex/i, /chatgpt/i, /text-embedding/i, /whisper/i, /dall-e/i, /openai\//i],
+    weakKeywords: ['gpt', 'o1', 'o2', 'o3', 'o4', 'o5', 'codex', 'chatgpt', 'text-embedding', 'whisper', 'dall-e', 'openai/'],
+    metadataProviderAliases: ['openai', 'azure'],
+    providerHintKeywords: ['openai', 'chatgpt', 'azure openai'],
+  },
+  claude: {
+    strongPatterns: [/^claude/i, /anthropic\//i],
+    weakKeywords: ['claude', 'anthropic/'],
+    metadataProviderAliases: ['anthropic'],
+    providerHintKeywords: ['anthropic', 'claude'],
+  },
+  gemini: {
+    strongPatterns: [/^gemini/i, /google\//i],
+    weakKeywords: ['gemini', 'google/'],
+    metadataProviderAliases: ['google'],
+    providerHintKeywords: ['google', 'gemini'],
+  },
+  deepseek: {
+    strongPatterns: [/^deepseek/i, /deepseek\//i],
+    weakKeywords: ['deepseek'],
+    metadataProviderAliases: ['deepseek'],
+    providerHintKeywords: ['deepseek'],
+  },
+  moonshot: {
+    strongPatterns: [/^kimi/i, /kimi\//i, /moonshot\//i],
+    weakKeywords: ['kimi', 'moonshot'],
+    metadataProviderAliases: ['moonshot'],
+    providerHintKeywords: ['moonshot', 'kimi', 'kimi.ai'],
+  },
+  qwen: {
+    strongPatterns: [/^qwen/i, /qwen\//i, /tongyi/i, /alibaba\//i],
+    weakKeywords: ['qwen', 'tongyi', 'alibaba/'],
+    metadataProviderAliases: ['alibaba', 'alibaba-cn', 'qwen'],
+    providerHintKeywords: ['qwen', 'tongyi', 'alibaba', 'dashscope', 'aliyun'],
+  },
+  zhipu: {
+    strongPatterns: [/^glm/i, /zhipu/i, /z-ai\//i, /zai\//i],
+    weakKeywords: ['glm', 'zhipu', 'z-ai/', 'zai/'],
+    metadataProviderAliases: ['zai', 'z-ai', 'zhipu'],
+    providerHintKeywords: ['zhipu', 'z.ai', 'z-ai', 'glm'],
+  },
+  doubao: {
+    strongPatterns: [/^doubao/i, /doubao-/i, /volcengine\/doubao/i],
+    weakKeywords: ['doubao', 'volcengine/doubao'],
+    metadataProviderAliases: ['doubao', 'volcengine'],
+    providerHintKeywords: ['doubao', 'volcengine', 'ark.cn-beijing', 'bytedance'],
+  },
+  stepfun: {
+    strongPatterns: [/^step-/i, /stepfun\//i],
+    weakKeywords: ['step-', 'stepfun/'],
+    metadataProviderAliases: ['stepfun'],
+    providerHintKeywords: ['stepfun', 'step-'],
+  },
+  minimax: {
+    strongPatterns: [/^minimax/i, /abab/i],
+    weakKeywords: ['minimax', 'abab'],
+    metadataProviderAliases: ['minimax'],
+    providerHintKeywords: ['minimax', 'abab'],
+  },
+  xiaomimimo: {
+    strongPatterns: [/^mimo/i, /xiaomi\/mimo/i, /xiaomi\//i],
+    weakKeywords: ['mimo', 'xiaomi/mimo', 'xiaomi/'],
+    metadataProviderAliases: ['xiaomi'],
+    providerHintKeywords: ['xiaomi', 'mimo'],
+  },
+};
+
+const localSvgModules = import.meta.glob('@/assets/model-svgs/*.svg', { eager: true, import: 'default' });
+
+function normalizeLocalSvgKey(filePath) {
+  const fileName = String(filePath || '').split('/').pop() || '';
+  return fileName.toLowerCase().replace(/\.svg$/i, '').replace(/-color$/i, '');
+}
+
+const localSvgMap = Object.entries(localSvgModules).reduce((acc, [filePath, moduleValue]) => {
+  const iconKey = normalizeLocalSvgKey(filePath);
+  if (iconKey) {
+    acc[iconKey] = moduleValue;
+  }
+  return acc;
+}, {});
+
+const DEFAULT_LOCAL_ICON_KEY = localSvgMap.openai
+  ? 'openai'
+  : (LOCAL_ICON_PRIORITY.find((key) => !!localSvgMap[key]) || Object.keys(localSvgMap)[0] || '');
+const FALLBACK_MODEL_LOGO_URL = DEFAULT_LOCAL_ICON_KEY ? localSvgMap[DEFAULT_LOCAL_ICON_KEY] : '';
+
+const MODEL_FAMILY_PROVIDER_HINTS = [
+  { providerId: 'openai', pattern: /^(gpt|o[1-9]|codex|chatgpt|text-embedding|whisper|dall-e|tts)/i },
+  { providerId: 'anthropic', pattern: /^claude/i },
+  { providerId: 'google', pattern: /^gemini/i },
+  { providerId: 'deepseek', pattern: /^deepseek/i },
+  { providerId: 'xai', pattern: /^grok/i },
+  { providerId: 'moonshot', pattern: /^kimi/i },
+  { providerId: 'zai', pattern: /^(glm|z-ai\/glm|zhipu)/i },
+  { providerId: 'alibaba', pattern: /^(qwen|tongyi)/i },
+  { providerId: 'mistral', pattern: /^(mistral|ministral|codestral|pixtral|devstral)/i },
+  { providerId: 'cohere', pattern: /^(command|embed-)/i },
+];
+
+const capabilityOrder = ['vision', 'web', 'reasoning', 'tools', 'embedding'];
+const capabilityIconMap = {
+  vision: { icon: Eye, className: 'capability-vision', labelKey: 'providers.capabilities.vision' },
+  web: { icon: Globe, className: 'capability-web', labelKey: 'providers.capabilities.web' },
+  reasoning: { icon: Brain, className: 'capability-reasoning', labelKey: 'providers.capabilities.reasoning' },
+  tools: { icon: Wrench, className: 'capability-tools', labelKey: 'providers.capabilities.tools' },
+  embedding: { icon: Binary, className: 'capability-embedding', labelKey: 'providers.capabilities.embedding' },
+};
+
+function createEmptyCapabilities() {
+  return {
+    vision: false,
+    web: false,
+    reasoning: false,
+    tools: false,
+    embedding: false,
+  };
+}
+
+function sanitizeCapabilities(raw) {
+  return {
+    vision: !!raw?.vision,
+    web: !!raw?.web,
+    reasoning: !!raw?.reasoning,
+    tools: !!raw?.tools,
+    embedding: !!raw?.embedding,
+  };
+}
+
+function normalizeModelId(modelId) {
+  return String(modelId || '').trim().toLowerCase();
+}
+
 const currentConfig = inject('config');
 const provider_key = ref(null);
+const showApiKey = ref(false);
 
-// 文件夹相关状态
-const addFolder_page = ref(false);
-const addFolder_form = reactive({ name: "" });
-const renameFolder_page = ref(false);
-const renameFolder_form = reactive({ id: "", name: "" });
+const contextMenuVisible = ref(false);
+const contextMenuPosition = ref({ x: 0, y: 0 });
+const contextMenuProviderKey = ref(null);
+
+const modelsMetadata = reactive({
+  providers: {},
+  modelIndex: {},
+  providerIds: [],
+  loaded: false,
+  isLoading: false,
+  error: null,
+});
+
+const modelCapabilityDialogVisible = ref(false);
+const modelCapabilityDialogForm = reactive({
+  modelId: '',
+  vision: false,
+  web: false,
+  reasoning: false,
+  tools: false,
+  embedding: false,
+});
+const modelCapabilityDialogHasOverride = ref(false);
+
+const modelCapabilityDialogItems = capabilityOrder.map((key) => ({
+  key,
+  ...capabilityIconMap[key],
+}));
+
+function isValidModelsPayload(payload) {
+  return !!payload && typeof payload === 'object' && !Array.isArray(payload);
+}
+
+function readModelsMetadataCache() {
+  try {
+    const raw = localStorage.getItem(MODELS_DEV_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (typeof parsed.cachedAt !== 'number' || !isValidModelsPayload(parsed.data)) return null;
+    return parsed;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function writeModelsMetadataCache(data) {
+  try {
+    localStorage.setItem(MODELS_DEV_CACHE_KEY, JSON.stringify({
+      cachedAt: Date.now(),
+      data,
+    }));
+  } catch (_error) {
+    // Ignore localStorage write errors; runtime data is still usable.
+  }
+}
+
+function applyModelsMetadataData(data) {
+  const providersData = isValidModelsPayload(data) ? data : {};
+  const nextModelIndex = {};
+
+  for (const [providerIdRaw, providerData] of Object.entries(providersData)) {
+    if (!providerData || typeof providerData !== 'object') continue;
+
+    const providerId = String(providerIdRaw);
+    const providerIdNormalized = providerId.toLowerCase();
+    const providerName = String(providerData.name || providerId);
+    const models = providerData.models;
+    if (!models || typeof models !== 'object') continue;
+
+    for (const modelData of Object.values(models)) {
+      if (!modelData || typeof modelData !== 'object') continue;
+      const modelId = modelData.id ? String(modelData.id) : '';
+      if (!modelId) continue;
+      const normalizedId = normalizeModelId(modelId);
+      if (!normalizedId) continue;
+
+      if (!nextModelIndex[normalizedId]) {
+        nextModelIndex[normalizedId] = [];
+      }
+
+      nextModelIndex[normalizedId].push({
+        providerId,
+        providerIdNormalized,
+        providerName,
+        modelId,
+        modelData,
+      });
+    }
+  }
+
+  modelsMetadata.providers = providersData;
+  modelsMetadata.modelIndex = nextModelIndex;
+  modelsMetadata.providerIds = Object.keys(providersData).map((providerId) => String(providerId).toLowerCase());
+  modelsMetadata.loaded = true;
+  modelsMetadata.error = null;
+}
+
+async function loadModelsMetadata() {
+  if (modelsMetadata.isLoading) return;
+
+  const now = Date.now();
+  const cached = readModelsMetadataCache();
+  const hasCachedData = !!cached?.data;
+
+  if (hasCachedData) {
+    applyModelsMetadataData(cached.data);
+    const cacheAge = now - cached.cachedAt;
+    if (cacheAge <= MODELS_DEV_CACHE_TTL_MS) {
+      return;
+    }
+  }
+
+  modelsMetadata.isLoading = true;
+  try {
+    const response = await fetch(MODELS_DEV_API_URL);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    if (!isValidModelsPayload(payload)) {
+      throw new Error('Invalid models metadata payload.');
+    }
+    applyModelsMetadataData(payload);
+    writeModelsMetadataCache(payload);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('Failed to load models metadata:', message);
+    modelsMetadata.error = message;
+    if (!hasCachedData) {
+      modelsMetadata.loaded = true;
+      ElMessage.warning(t('providers.alerts.modelMetadataLoadFailed'));
+    }
+  } finally {
+    modelsMetadata.isLoading = false;
+  }
+}
+
+function inferProviderHints(provider, normalizedModelId = '') {
+  const hints = new Set();
+
+  if (normalizedModelId.includes('/')) {
+    hints.add(normalizedModelId.split('/')[0]);
+  }
+
+  const modelIdWithoutPrefix = normalizedModelId.includes('/')
+    ? normalizedModelId.split('/').slice(1).join('/')
+    : normalizedModelId;
+  for (const { providerId, pattern } of MODEL_FAMILY_PROVIDER_HINTS) {
+    if (pattern.test(normalizedModelId) || pattern.test(modelIdWithoutPrefix)) {
+      hints.add(providerId);
+    }
+  }
+
+  const providerName = String(provider?.name || '').toLowerCase();
+  const providerUrl = String(provider?.url || '').toLowerCase();
+
+  const textParts = [providerName, providerUrl];
+  try {
+    const hostname = new URL(provider?.url || '').hostname.toLowerCase();
+    if (hostname) textParts.push(hostname);
+  } catch (_error) {
+    // Ignore invalid URL.
+  }
+  const fullText = textParts.join(' ');
+
+  const providerKeywordMap = {
+    openai: ['openai', 'chatgpt'],
+    anthropic: ['anthropic', 'claude'],
+    google: ['google', 'gemini'],
+    deepseek: ['deepseek'],
+    xai: ['x.ai', 'xai', 'grok'],
+    moonshot: ['moonshot', 'kimi'],
+    zai: ['z.ai', 'zhipu', 'glm'],
+    alibaba: ['alibaba', 'aliyun', 'dashscope', 'qwen', 'tongyi'],
+    azure: ['azure'],
+    ollama: ['ollama'],
+    cohere: ['cohere'],
+    mistral: ['mistral'],
+  };
+
+  for (const [providerId, keywords] of Object.entries(providerKeywordMap)) {
+    if (keywords.some((keyword) => fullText.includes(keyword))) {
+      hints.add(providerId);
+    }
+  }
+
+  for (const providerId of modelsMetadata.providerIds) {
+    if (providerId && fullText.includes(providerId)) {
+      hints.add(providerId);
+    }
+  }
+
+  return hints;
+}
+
+function getCandidateScore(candidate, hints, normalizedModelId) {
+  let score = 0;
+  const providerId = String(candidate?.providerIdNormalized || '');
+  const candidateModelId = normalizeModelId(candidate?.modelId || candidate?.modelData?.id);
+
+  if (hints.has(providerId)) score += 120;
+  if (normalizedModelId.startsWith(`${providerId}/`)) score += 90;
+  if (candidateModelId === normalizedModelId) score += 40;
+
+  if (normalizedModelId.includes('/')) {
+    const suffixId = normalizedModelId.split('/').slice(1).join('/');
+    if (candidateModelId === suffixId) score += 25;
+  }
+
+  return score;
+}
+
+function pickCandidateByHints(candidates, hints, normalizedModelId) {
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  // Prefer the highest scoring candidate; if tied, keep deterministic order.
+  const scored = candidates
+    .map((candidate) => ({
+      candidate,
+      score: getCandidateScore(candidate, hints, normalizedModelId),
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const aProvider = String(a.candidate.providerIdNormalized || '');
+      const bProvider = String(b.candidate.providerIdNormalized || '');
+      if (aProvider !== bProvider) return aProvider.localeCompare(bProvider);
+      return String(a.candidate.modelId || '').localeCompare(String(b.candidate.modelId || ''));
+    });
+
+  return scored[0]?.candidate || null;
+}
+
+function resolveModelMetadata(modelId, provider) {
+  const normalizedId = normalizeModelId(modelId);
+  if (!normalizedId) {
+    return { matched: false, entry: null };
+  }
+
+  const hints = inferProviderHints(provider, normalizedId);
+  const directCandidates = modelsMetadata.modelIndex[normalizedId] || [];
+  const directPick = pickCandidateByHints(directCandidates, hints, normalizedId);
+  if (directPick) {
+    return { matched: true, entry: directPick };
+  }
+
+  if (normalizedId.includes('/')) {
+    const suffixId = normalizedId.split('/').slice(1).join('/');
+    const suffixCandidates = modelsMetadata.modelIndex[suffixId] || [];
+    const suffixPick = pickCandidateByHints(suffixCandidates, hints, normalizedId);
+    if (suffixPick) {
+      return { matched: true, entry: suffixPick };
+    }
+  }
+
+  return { matched: false, entry: null };
+}
+
+function getAutomaticCapabilities(entry, modelId) {
+  const base = createEmptyCapabilities();
+  if (!entry?.modelData) return base;
+
+  const modelData = entry.modelData;
+  const inputModalities = Array.isArray(modelData.modalities?.input)
+    ? modelData.modalities.input.map((item) => String(item).toLowerCase())
+    : [];
+
+  const textForKeywordMatch = `${modelId} ${modelData.name || ''}`;
+
+  base.vision = inputModalities.includes('image') || inputModalities.includes('video');
+  base.reasoning = !!modelData.reasoning;
+  base.tools = !!modelData.tool_call;
+  base.web = WEB_KEYWORD_PATTERN.test(textForKeywordMatch);
+  base.embedding = EMBEDDING_KEYWORD_PATTERN.test(textForKeywordMatch);
+
+  return base;
+}
+
+function getProviderHintText(provider) {
+  const providerName = String(provider?.name || '').toLowerCase();
+  const providerUrl = String(provider?.url || '').toLowerCase();
+  let providerHost = '';
+
+  try {
+    providerHost = new URL(provider?.url || '').hostname.toLowerCase();
+  } catch (_error) {
+    providerHost = '';
+  }
+
+  return `${providerName} ${providerUrl} ${providerHost}`.trim();
+}
+
+function isStrongIconMatch(rule, normalizedModelId) {
+  if (!rule?.strongPatterns) return false;
+  return rule.strongPatterns.some((pattern) => pattern.test(normalizedModelId));
+}
+
+function isWeakIconMatch(rule, normalizedModelId) {
+  if (!rule?.weakKeywords) return false;
+  return rule.weakKeywords.some((keyword) => normalizedModelId.includes(keyword));
+}
+
+function isMetadataProviderIconMatch(rule, metadataProviderId) {
+  if (!rule?.metadataProviderAliases || !metadataProviderId) return false;
+  return rule.metadataProviderAliases.some((alias) => (
+    metadataProviderId === alias || metadataProviderId.includes(alias)
+  ));
+}
+
+function isProviderHintIconMatch(rule, providerHintText) {
+  if (!rule?.providerHintKeywords || !providerHintText) return false;
+  return rule.providerHintKeywords.some((keyword) => providerHintText.includes(keyword));
+}
+
+function getLocalIconScore(iconKey, normalizedModelId, providerHintText, metadataProviderId) {
+  const rule = LOCAL_ICON_MATCH_RULES[iconKey];
+  if (!rule) return 0;
+
+  let score = 0;
+  if (isStrongIconMatch(rule, normalizedModelId)) {
+    score += 120;
+  } else if (isWeakIconMatch(rule, normalizedModelId)) {
+    score += 60;
+  }
+  if (isMetadataProviderIconMatch(rule, metadataProviderId)) {
+    score += 45;
+  }
+  if (isProviderHintIconMatch(rule, providerHintText)) {
+    score += 25;
+  }
+
+  return score;
+}
+
+function resolveLocalIconKey(modelId, provider, metadataEntry) {
+  const normalizedModelId = normalizeModelId(modelId);
+  const providerHintText = getProviderHintText(provider);
+  const metadataProviderId = normalizeModelId(metadataEntry?.providerId);
+
+  const ranked = LOCAL_ICON_PRIORITY
+    .filter((iconKey) => !!localSvgMap[iconKey])
+    .map((iconKey) => ({
+      iconKey,
+      score: getLocalIconScore(iconKey, normalizedModelId, providerHintText, metadataProviderId),
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return LOCAL_ICON_PRIORITY.indexOf(a.iconKey) - LOCAL_ICON_PRIORITY.indexOf(b.iconKey);
+    });
+
+  const best = ranked[0];
+  if (best && best.score >= 25) {
+    return best.iconKey;
+  }
+
+  return DEFAULT_LOCAL_ICON_KEY || 'openai';
+}
+
+function resolveLocalLogoUrl(modelId, provider, metadataEntry) {
+  const iconKey = resolveLocalIconKey(modelId, provider, metadataEntry);
+  return localSvgMap[iconKey] || FALLBACK_MODEL_LOGO_URL;
+}
+
+function getModelCapabilityOverride(provider, modelId) {
+  const overrides = provider?.modelCapabilityOverrides;
+  if (!overrides || typeof overrides !== 'object') return null;
+
+  if (Object.prototype.hasOwnProperty.call(overrides, modelId)) {
+    return sanitizeCapabilities(overrides[modelId]);
+  }
+
+  const normalizedModelId = normalizeModelId(modelId);
+  for (const [key, value] of Object.entries(overrides)) {
+    if (normalizeModelId(key) === normalizedModelId) {
+      return sanitizeCapabilities(value);
+    }
+  }
+
+  return null;
+}
+
+function removeModelCapabilityOverride(provider, modelId) {
+  if (!provider?.modelCapabilityOverrides || typeof provider.modelCapabilityOverrides !== 'object') return;
+
+  if (Object.prototype.hasOwnProperty.call(provider.modelCapabilityOverrides, modelId)) {
+    delete provider.modelCapabilityOverrides[modelId];
+  } else {
+    const normalizedModelId = normalizeModelId(modelId);
+    for (const key of Object.keys(provider.modelCapabilityOverrides)) {
+      if (normalizeModelId(key) === normalizedModelId) {
+        delete provider.modelCapabilityOverrides[key];
+      }
+    }
+  }
+
+  if (Object.keys(provider.modelCapabilityOverrides).length === 0) {
+    delete provider.modelCapabilityOverrides;
+  }
+}
+
+function getEffectiveModelCapabilities(modelId, provider) {
+  const override = getModelCapabilityOverride(provider, modelId);
+  const resolved = resolveModelMetadata(modelId, provider);
+
+  let capabilities = createEmptyCapabilities();
+  if (override) {
+    capabilities = override;
+  } else if (resolved.matched) {
+    capabilities = getAutomaticCapabilities(resolved.entry, modelId);
+  }
+
+  return {
+    capabilities,
+    hasOverride: !!override,
+    matched: resolved.matched,
+    entry: resolved.entry,
+  };
+}
+
+function buildModelRenderMeta(modelId, provider) {
+  const effective = getEffectiveModelCapabilities(modelId, provider);
+  const capabilityEntries = capabilityOrder
+    .filter((capabilityKey) => effective.capabilities[capabilityKey])
+    .map((capabilityKey) => ({
+      key: capabilityKey,
+      ...capabilityIconMap[capabilityKey],
+    }));
+
+  return {
+    ...effective,
+    capabilityEntries,
+    logoUrl: resolveLocalLogoUrl(modelId, provider, effective.entry),
+  };
+}
+
+function handleModelLogoError(event) {
+  const img = event?.target;
+  if (!img || !FALLBACK_MODEL_LOGO_URL) return;
+  if (img.dataset.logoFallbackApplied === '1') return;
+  img.dataset.logoFallbackApplied = '1';
+  img.src = FALLBACK_MODEL_LOGO_URL;
+}
 
 onMounted(() => {
   if (currentConfig.value.providerOrder && currentConfig.value.providerOrder.length > 0) {
@@ -24,6 +604,8 @@ onMounted(() => {
   } else {
     provider_key.value = null;
   }
+
+  loadModelsMetadata();
 });
 
 const selectedProvider = computed(() => {
@@ -33,70 +615,33 @@ const selectedProvider = computed(() => {
   return null;
 });
 
-// 计算属性：排序后的文件夹列表
-const sortedFolders = computed(() => {
-  if (!currentConfig.value.providerFolders) return [];
-  return Object.entries(currentConfig.value.providerFolders)
-    .map(([id, folder]) => ({ id, ...folder }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+const modelRenderMetaMap = computed(() => {
+  const output = {};
+  const provider = selectedProvider.value;
+  if (!provider?.modelList || !Array.isArray(provider.modelList)) {
+    return output;
+  }
+
+  for (const modelId of provider.modelList) {
+    output[modelId] = buildModelRenderMeta(modelId, provider);
+  }
+  return output;
 });
 
-// 计算属性：根目录下的服务商 (没有 folderId 或 folderId 无效)
-const rootProviders = computed(() => {
-  if (!currentConfig.value.providerOrder) return [];
-  const folders = currentConfig.value.providerFolders || {};
-  return currentConfig.value.providerOrder.filter(key => {
-    const p = currentConfig.value.providers[key];
-    // 如果没有 provider 或 folderId 为空，或 folderId 指向的文件夹不存在
-    return p && (!p.folderId || !folders[p.folderId]);
+const localProviderOrder = ref([]);
+
+watch(() => currentConfig.value.providerOrder, (val) => {
+  localProviderOrder.value = val ? [...val] : [];
+}, { immediate: true });
+
+function saveProviderOrder() {
+  atomicSave(config => {
+    config.providerOrder = [...localProviderOrder.value];
   });
-});
-
-// 方法：获取指定文件夹下的服务商 (按 providerOrder 排序)
-const getProvidersInFolder = (folderId) => {
-  if (!currentConfig.value.providerOrder) return [];
-  return currentConfig.value.providerOrder.filter(key => {
-    const p = currentConfig.value.providers[key];
-    return p && p.folderId === folderId;
-  });
-};
-
-// [新增] 获取当前选中服务商所在的“分组”内的所有ID列表（按顺序）
-// 分组指的是：具体的文件夹 或 根目录
-const getCurrentGroupIds = () => {
-  if (!selectedProvider.value) return [];
-  const targetFolderId = selectedProvider.value.folderId;
-  const folders = currentConfig.value.providerFolders || {};
-
-  // 判断当前选中的是在哪个有效分组下
-  // 如果 folderId 存在且文件夹配置中存在该ID，则是在该文件夹下；否则视为根目录
-  const effectiveFolderId = (targetFolderId && folders[targetFolderId]) ? targetFolderId : "";
-
-  return currentConfig.value.providerOrder.filter(key => {
-    const p = currentConfig.value.providers[key];
-    if (!p) return false;
-    const pFolderId = p.folderId;
-    const pEffectiveFolderId = (pFolderId && folders[pFolderId]) ? pFolderId : "";
-    return pEffectiveFolderId === effectiveFolderId;
-  });
-};
-
-// [新增] 判断是否可以上移
-const canMoveUp = computed(() => {
-  if (!selectedProvider.value || !provider_key.value) return false;
-  const groupIds = getCurrentGroupIds();
-  return groupIds.indexOf(provider_key.value) > 0;
-});
-
-// [新增] 判断是否可以下移
-const canMoveDown = computed(() => {
-  if (!selectedProvider.value || !provider_key.value) return false;
-  const groupIds = getCurrentGroupIds();
-  return groupIds.indexOf(provider_key.value) < groupIds.length - 1;
-});
+}
 
 // 原子化保存函数
-async function atomicSave(updateFunction) {
+const atomicSave = async (updateFunction) => {
   try {
     const latestConfigData = await window.api.getConfig();
     if (!latestConfigData || !latestConfigData.config) {
@@ -114,88 +659,6 @@ async function atomicSave(updateFunction) {
     console.error("Atomic save failed:", error);
     ElMessage.error(t('providers.alerts.configSaveFailed'));
   }
-}
-
-// 添加文件夹
-function add_folder_function() {
-  const name = addFolder_form.name.trim();
-  if (!name) return;
-
-  const folderId = `folder_${Date.now()}`;
-
-  atomicSave(config => {
-    if (!config.providerFolders) config.providerFolders = {};
-    config.providerFolders[folderId] = {
-      name: name,
-      collapsed: false
-    };
-  });
-
-  addFolder_form.name = "";
-  addFolder_page.value = false;
-  ElMessage.success(t('providers.folders.createSuccess'));
-}
-
-// 打开重命名弹窗
-function open_rename_folder_dialog(id, currentName) {
-  renameFolder_form.id = id;
-  renameFolder_form.name = currentName;
-  renameFolder_page.value = true;
-}
-
-// 重命名文件夹
-function rename_folder_function() {
-  const newName = renameFolder_form.name.trim();
-  if (!newName) return;
-
-  atomicSave(config => {
-    if (config.providerFolders && config.providerFolders[renameFolder_form.id]) {
-      config.providerFolders[renameFolder_form.id].name = newName;
-    }
-  });
-
-  renameFolder_page.value = false;
-  ElMessage.success(t('providers.folders.renameSuccess'));
-}
-
-// 删除文件夹 (服务商移回根目录)
-function delete_folder(folderId) {
-  ElMessageBox.confirm(
-    t('providers.folders.deleteConfirmMessage'),
-    t('providers.folders.deleteConfirmTitle'),
-    { type: 'warning', confirmButtonText: t('common.confirm'), cancelButtonText: t('common.cancel') }
-  ).then(() => {
-    atomicSave(config => {
-      if (config.providerFolders) delete config.providerFolders[folderId];
-      for (const key in config.providers) {
-        if (config.providers[key].folderId === folderId) {
-          config.providers[key].folderId = "";
-        }
-      }
-    });
-    ElMessage.success(t('providers.folders.deleteSuccess'));
-  }).catch(() => { });
-}
-
-// 切换文件夹折叠状态
-function toggle_folder(folderId) {
-  atomicSave(config => {
-    if (config.providerFolders && config.providerFolders[folderId]) {
-      config.providerFolders[folderId].collapsed = !config.providerFolders[folderId].collapsed;
-    }
-  });
-}
-
-// 设置服务商所属文件夹
-function set_provider_folder(folderId) {
-  if (!provider_key.value) return;
-  const keyToUpdate = provider_key.value;
-
-  atomicSave(config => {
-    if (config.providers[keyToUpdate]) {
-      config.providers[keyToUpdate].folderId = folderId;
-    }
-  });
 }
 
 function delete_provider() {
@@ -231,11 +694,10 @@ function add_prvider_function() {
   atomicSave(config => {
     config.providers[timestamp] = {
       name: newName,
-      url: "", api_key: "", modelList: [], enable: true,
-      folderId: "" // 默认为空
+      url: "", api_key: "", modelList: [], enable: true
     };
     config.providerOrder.push(timestamp);
-    provider_key.value = timestamp; // 设置新添加的为当前选中
+    provider_key.value = timestamp;
   });
 
   addprovider_form.name = "";
@@ -275,6 +737,7 @@ function delete_model(model) {
     const provider = config.providers[keyToUpdate];
     if (provider) {
       provider.modelList = provider.modelList.filter(m => m !== model);
+      removeModelCapabilityOverride(provider, model);
     }
   });
 }
@@ -379,62 +842,12 @@ function get_model_function(add, modelId) {
         }
       } else {
         provider.modelList = provider.modelList.filter(m => m !== modelId);
+        removeModelCapabilityOverride(provider, modelId);
       }
     }
   });
 }
 
-// [修改] 排序函数：现在支持在分组内部排序
-function change_order(flag) {
-  if (!provider_key.value) return;
-  const currentId = provider_key.value;
-
-  // 获取当前分组内的所有 ID 列表
-  const groupIds = getCurrentGroupIds();
-  const indexInGroup = groupIds.indexOf(currentId);
-
-  if (indexInGroup === -1) return;
-
-  let targetId = null; // 参照物 ID（要交换位置的邻居）
-  let insertAfter = false; // true: 插入到 target 后面，false: 插入到 target 前面
-
-  if (flag === "up") {
-    if (indexInGroup > 0) {
-      targetId = groupIds[indexInGroup - 1];
-      insertAfter = false; // 放在上一个的前面，即交换位置
-    }
-  } else if (flag === "down") {
-    if (indexInGroup < groupIds.length - 1) {
-      targetId = groupIds[indexInGroup + 1];
-      insertAfter = true; // 放在下一个的后面
-    }
-  }
-
-  if (!targetId) return;
-
-  atomicSave(config => {
-    const order = config.providerOrder;
-    const currentIndex = order.indexOf(currentId);
-    // targetId 在全局数组中的位置
-    const targetIndex = order.indexOf(targetId);
-
-    if (currentIndex === -1 || targetIndex === -1) return;
-
-    // 1. 先把当前 ID 拿出来
-    const newOrder = order.filter(id => id !== currentId);
-
-    // 2. 找到 target 在新数组中的位置（因为删除了一个元素，索引可能变了）
-    const newTargetIndex = newOrder.indexOf(targetId);
-
-    // 3. 插入到 target 附近
-    const insertIndex = insertAfter ? newTargetIndex + 1 : newTargetIndex;
-    newOrder.splice(insertIndex, 0, currentId);
-
-    config.providerOrder = newOrder;
-  });
-}
-
-// 拖拽排序结束后调用的保存函数
 function saveModelOrder() {
   if (!provider_key.value) return;
   const keyToUpdate = provider_key.value;
@@ -468,6 +881,108 @@ const apiKeyCount = computed(() => {
   const keys = selectedProvider.value.api_key.split(/[,，]/).filter(k => k.trim() !== '');
   return keys.length;
 });
+
+function fillModelCapabilityDialogForm(capabilities) {
+  const normalized = sanitizeCapabilities(capabilities);
+  modelCapabilityDialogForm.vision = normalized.vision;
+  modelCapabilityDialogForm.web = normalized.web;
+  modelCapabilityDialogForm.reasoning = normalized.reasoning;
+  modelCapabilityDialogForm.tools = normalized.tools;
+  modelCapabilityDialogForm.embedding = normalized.embedding;
+}
+
+function getModelCapabilityDialogFormData() {
+  return {
+    vision: !!modelCapabilityDialogForm.vision,
+    web: !!modelCapabilityDialogForm.web,
+    reasoning: !!modelCapabilityDialogForm.reasoning,
+    tools: !!modelCapabilityDialogForm.tools,
+    embedding: !!modelCapabilityDialogForm.embedding,
+  };
+}
+
+function openModelCapabilityDialog(modelId) {
+  const provider = selectedProvider.value;
+  if (!provider || !provider_key.value) return;
+
+  const effective = getEffectiveModelCapabilities(modelId, provider);
+  modelCapabilityDialogForm.modelId = modelId;
+  fillModelCapabilityDialogForm(effective.capabilities);
+  modelCapabilityDialogHasOverride.value = effective.hasOverride;
+  modelCapabilityDialogVisible.value = true;
+}
+
+async function saveModelCapabilityOverride() {
+  if (!provider_key.value || !modelCapabilityDialogForm.modelId) return;
+  const keyToUpdate = provider_key.value;
+  const modelId = modelCapabilityDialogForm.modelId;
+  const capabilities = getModelCapabilityDialogFormData();
+
+  await atomicSave(config => {
+    const provider = config.providers[keyToUpdate];
+    if (!provider) return;
+    if (!provider.modelCapabilityOverrides || typeof provider.modelCapabilityOverrides !== 'object') {
+      provider.modelCapabilityOverrides = {};
+    }
+    provider.modelCapabilityOverrides[modelId] = capabilities;
+  });
+
+  modelCapabilityDialogHasOverride.value = true;
+  modelCapabilityDialogVisible.value = false;
+}
+
+async function resetModelCapabilityOverride() {
+  if (!provider_key.value || !modelCapabilityDialogForm.modelId) return;
+  const keyToUpdate = provider_key.value;
+  const modelId = modelCapabilityDialogForm.modelId;
+
+  await atomicSave(config => {
+    const provider = config.providers[keyToUpdate];
+    if (!provider) return;
+    removeModelCapabilityOverride(provider, modelId);
+  });
+
+  const provider = selectedProvider.value;
+  if (provider) {
+    const refreshed = getEffectiveModelCapabilities(modelId, provider);
+    fillModelCapabilityDialogForm(refreshed.capabilities);
+  } else {
+    fillModelCapabilityDialogForm(createEmptyCapabilities());
+  }
+  modelCapabilityDialogHasOverride.value = false;
+}
+
+function handleProviderContextMenu(event, key_id) {
+  event.preventDefault();
+  contextMenuProviderKey.value = key_id;
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY };
+  contextMenuVisible.value = true;
+}
+
+function hideContextMenu() {
+  contextMenuVisible.value = false;
+}
+
+function handleContextMenuRename() {
+  hideContextMenu();
+  provider_key.value = contextMenuProviderKey.value;
+  openChangeProviderNameDialog();
+}
+
+function handleContextMenuDelete() {
+  hideContextMenu();
+  const keyToDelete = contextMenuProviderKey.value;
+  provider_key.value = keyToDelete;
+  delete_provider();
+}
+
+watch(contextMenuVisible, (val) => {
+  if (val) {
+    document.addEventListener('click', hideContextMenu);
+  } else {
+    document.removeEventListener('click', hideContextMenu);
+  }
+});
 </script>
 
 <template>
@@ -476,70 +991,39 @@ const apiKeyCount = computed(() => {
       <el-container>
         <el-aside width="240px" class="providers-aside">
           <el-scrollbar class="provider-list-scrollbar">
-            <!-- 1. 渲染文件夹 -->
-            <div v-for="folder in sortedFolders" :key="folder.id" class="folder-group">
-              <div class="folder-header" @click="toggle_folder(folder.id)">
-                <div class="folder-icon-wrapper">
-                  <el-icon :size="16" class="folder-icon">
-                    <Folder v-if="folder.collapsed" />
-                    <FolderOpened v-else />
-                  </el-icon>
-                </div>
-                <span class="folder-name">{{ folder.name }}</span>
-                <!-- 编辑和删除按钮容器，hover时显示 -->
-                <div class="folder-actions" @click.stop>
-                  <el-button link :icon="Edit" size="small" class="folder-action-btn"
-                    @click.stop="open_rename_folder_dialog(folder.id, folder.name)" />
-                  <el-button link type="danger" :icon="Delete" size="small" class="folder-action-btn"
-                    @click.stop="delete_folder(folder.id)" />
-                </div>
-              </div>
-
-              <!-- 文件夹内的服务商 -->
-              <div v-show="!folder.collapsed" class="folder-content">
-                <div v-for="key_id in getProvidersInFolder(folder.id)" :key="key_id" class="provider-item in-folder"
-                  :class="{
-                    'active': provider_key === key_id, 'disabled': currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable
-                  }" @click="provider_key = key_id">
+            <draggable v-model="localProviderOrder" :item-key="(el) => el" :animation="250"
+              ghost-class="provider-drag-ghost" :force-fallback="true" fallback-class="provider-drag-fallback"
+              :fallback-on-body="true" @end="saveProviderOrder">
+              <template #item="{ element: key_id }">
+                <div class="provider-item" :class="{
+                  'active': provider_key === key_id, 'disabled': currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable
+                }" @click="provider_key = key_id" @contextmenu="handleProviderContextMenu($event, key_id)">
                   <span class="provider-item-name">{{ currentConfig.providers[key_id]?.name ||
                     t('providers.unnamedProvider') }}</span>
-                  <el-tag v-if="currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable" type="info"
-                    size="small" effect="dark" round>{{ t('providers.statusOff') }}</el-tag>
+                  <div class="provider-status-wrapper">
+                    <transition name="status-flip" mode="out-in">
+                      <el-tag 
+                        :type="currentConfig.providers[key_id].enable ? 'primary' : 'info'"
+                        size="small" 
+                        effect="dark" 
+                        round
+                        :key="currentConfig.providers[key_id].enable ? 'on' : 'off'"
+                        class="provider-status-tag">
+                        {{ currentConfig.providers[key_id].enable ? t('providers.statusOn') : t('providers.statusOff') }}
+                      </el-tag>
+                    </transition>
+                  </div>
                 </div>
-                <!-- 空文件夹提示 -->
-                <div v-if="getProvidersInFolder(folder.id).length === 0" class="empty-folder-tip">
-                  {{ t('providers.folders.empty') }}
-                </div>
-              </div>
-            </div>
-
-            <!-- 分隔线 -->
-            <div class="root-providers-divider" v-if="sortedFolders.length > 0 && rootProviders.length > 0"></div>
-
-            <!-- 2. 渲染根目录服务商 -->
-            <div v-for="key_id in rootProviders" :key="key_id" class="provider-item" :class="{
-              'active': provider_key === key_id, 'disabled': currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable
-            }" @click="provider_key = key_id">
-              <span class="provider-item-name">{{ currentConfig.providers[key_id]?.name ||
-                t('providers.unnamedProvider') }}</span>
-              <el-tag v-if="currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable" type="info"
-                size="small" effect="dark" round>{{ t('providers.statusOff') }}</el-tag>
-            </div>
-            <div
-              v-if="(!currentConfig.providerOrder || currentConfig.providerOrder.length === 0) && sortedFolders.length === 0"
-              class="no-providers">
+              </template>
+            </draggable>
+            <div v-if="!currentConfig.providerOrder || currentConfig.providerOrder.length === 0" class="no-providers">
               {{ t('providers.noProviders') }}
             </div>
           </el-scrollbar>
           <div class="aside-actions">
-            <el-button-group class="action-group">
-              <el-tooltip content="新建目录" placement="top">
-                <el-button :icon="FolderAdd" @click="addFolder_page = true" />
-              </el-tooltip>
-              <el-button type="primary" :icon="Plus" @click="addProvider_page = true" class="add-provider-btn">
-                {{ t('providers.addProviderBtn') }}
-              </el-button>
-            </el-button-group>
+            <el-button type="primary" :icon="Plus" @click="addProvider_page = true" class="add-provider-btn">
+              {{ t('providers.addProviderBtn') }}
+            </el-button>
           </div>
         </el-aside>
 
@@ -547,25 +1031,9 @@ const apiKeyCount = computed(() => {
           <el-scrollbar class="provider-details-scrollbar">
             <div v-if="selectedProvider" class="provider-details">
               <div class="provider-header">
-                <div class="provider-title-actions">
-                  <h2 class="provider-name" @click="openChangeProviderNameDialog">
-                    {{ selectedProvider.name }}
-                    <el-tooltip :content="t('providers.editNameTooltip')" placement="top">
-                      <el-icon class="edit-icon">
-                        <Edit />
-                      </el-icon>
-                    </el-tooltip>
-                  </h2>
-                  <div class="header-buttons">
-                    <!-- [修改] 禁用状态绑定到 canMoveUp/canMoveDown -->
-                    <el-button :icon="ArrowUp" circle plain size="small" :title="t('providers.moveUpTooltip')"
-                      :disabled="!canMoveUp" @click="change_order('up')" />
-                    <el-button :icon="ArrowDown" circle plain size="small" :title="t('providers.moveDownTooltip')"
-                      :disabled="!canMoveDown" @click="change_order('down')" />
-                    <el-button type="danger" :icon="Delete" circle plain size="small" @click="delete_provider"
-                      :title="t('providers.deleteProviderTooltip')" />
-                  </div>
-                </div>
+                <h2 class="provider-name">
+                  {{ selectedProvider.name }}
+                </h2>
                 <el-switch v-model="selectedProvider.enable"
                   @change="(value) => saveSingleProviderSetting('enable', value)" size="large" />
               </div>
@@ -573,28 +1041,41 @@ const apiKeyCount = computed(() => {
               <el-form label-position="left" label-width="75px" class="provider-form">
                 <div class="form-item-header">
                   <div class="form-item-description">{{ t('providers.apiKeyDescription') }}</div>
-                  <el-tag v-if="apiKeyCount > 0" size="small" round class="api-key-count-tag">
-                    {{ apiKeyCount }}
-                  </el-tag>
                 </div>
-                <el-form-item :label="t('providers.apiKeyLabel')">
-                  <el-input v-model="selectedProvider.api_key" type="password"
-                    :placeholder="t('providers.apiKeyPlaceholder')" show-password
-                    @change="(value) => saveSingleProviderSetting('api_key', value)" />
+                <el-form-item>
+                  <template #label>
+                    <span class="label-with-badge">
+                      {{ t('providers.apiKeyLabel') }}
+                      <span v-if="apiKeyCount > 0" class="api-key-count-badge">{{ apiKeyCount }}</span>
+                    </span>
+                  </template>
+                  <el-input 
+                    v-model="selectedProvider.api_key" 
+                    :type="showApiKey ? 'text' : 'password'"
+                    :placeholder="t('providers.apiKeyPlaceholder')"
+                    @change="(value) => saveSingleProviderSetting('api_key', value)">
+                    <template #suffix>
+                      <component 
+                        :is="showApiKey ? EyeOff : Eye" 
+                        :size="16" 
+                        @click="showApiKey = !showApiKey"
+                        style="cursor: pointer;" />
+                    </template>
+                  </el-input>
                 </el-form-item>
                 <el-form-item :label="t('providers.apiUrlLabel')">
-                  <el-input v-model="selectedProvider.url" :placeholder="t('providers.apiUrlPlaceholder')" clearable
+                  <el-input v-model="selectedProvider.url" :placeholder="t('providers.apiUrlPlaceholder')"
                     @change="(value) => saveSingleProviderSetting('url', value)" />
                 </el-form-item>
 
                 <el-form-item :label="t('providers.modelsLabel')">
                   <div class="models-actions-row">
-                    <el-button :icon="Refresh" plain @click="activate_get_model_function">{{
-                      t('providers.getModelsFromApiBtn')
-                    }}</el-button>
-                    <el-button :icon="Plus" plain @click="addModel_page = true">{{
-                      t('providers.addManuallyBtn')
-                    }}</el-button>
+                    <el-tooltip :content="t('providers.getModelsFromApiBtn')" placement="top">
+                      <el-button :icon="ListCheck" @click="activate_get_model_function" circle class="circle-action-btn" />
+                    </el-tooltip>
+                    <el-tooltip :content="t('providers.addManuallyBtn')" placement="top">
+                      <el-button :icon="Plus" @click="addModel_page = true" circle class="circle-action-btn" />
+                    </el-tooltip>
                   </div>
                 </el-form-item>
                 <div class="models-list-wrapper">
@@ -603,30 +1084,48 @@ const apiKeyCount = computed(() => {
                     class="models-list-container draggable-models-list" @end="saveModelOrder"
                     ghost-class="sortable-ghost">
                     <template #item="{ element: model }">
-                      <el-tag :key="model" closable @close="delete_model(model)" class="model-tag" type="info"
-                        effect="light">
-                        {{ model }}
-                      </el-tag>
+                      <div class="model-tag">
+                        <div class="model-main">
+                          <img
+                            class="model-logo"
+                            :src="modelRenderMetaMap[model]?.logoUrl || FALLBACK_MODEL_LOGO_URL"
+                            :alt="model"
+                            loading="lazy"
+                            @error="handleModelLogoError"
+                          />
+                          <span class="model-name">{{ model }}</span>
+                          <div v-if="modelRenderMetaMap[model]?.capabilityEntries?.length" class="model-capabilities">
+                            <el-tooltip
+                              v-for="capability in modelRenderMetaMap[model].capabilityEntries"
+                              :key="`${model}-${capability.key}`"
+                              :content="t(capability.labelKey)"
+                              placement="top"
+                            >
+                              <span class="model-capability-pill" :class="capability.className">
+                                <component :is="capability.icon" :size="12" />
+                              </span>
+                            </el-tooltip>
+                          </div>
+                        </div>
+                        <div class="model-actions">
+                          <el-tooltip :content="t('providers.modelCapabilitySettingsTooltip')" placement="top">
+                            <button type="button" class="circle-action-btn-sm model-settings-btn" @click.stop="openModelCapabilityDialog(model)">
+                              <Settings :size="14" />
+                            </button>
+                          </el-tooltip>
+                          <el-tooltip :content="t('providers.removeModelTooltip')" placement="top">
+                            <button type="button" class="circle-action-btn-sm model-remove-btn" @click.stop="delete_model(model)">
+                              <Minus :size="16" />
+                            </button>
+                          </el-tooltip>
+                        </div>
+                      </div>
                     </template>
                   </draggable>
-                  <div v-else class="models-list-container">
-                    <div class="no-models-message">
-                      {{ t('providers.noModelsAdded') }}
-                    </div>
+                  <div v-else class="no-models-message">
+                    {{ t('providers.noModelsAdded') }}
                   </div>
                 </div>
-
-                <!-- 文件夹位置选择器 -->
-                <el-form-item :label="t('providers.folders.floder_label')">
-                  <div class="folder-selector">
-                    <el-radio-group :model-value="selectedProvider.folderId || ''" @change="set_provider_folder"
-                      size="small">
-                      <el-radio-button value="">{{ t('providers.folders.root') }}</el-radio-button>
-                      <el-radio-button v-for="f in sortedFolders" :key="f.id" :value="f.id">{{ f.name
-                      }}</el-radio-button>
-                    </el-radio-group>
-                  </div>
-                </el-form-item>
 
               </el-form>
             </div>
@@ -638,7 +1137,7 @@ const apiKeyCount = computed(() => {
 
     <!-- Dialogs -->
     <el-dialog v-model="addProvider_page" :title="t('providers.addProviderDialogTitle')" width="500px"
-      :close-on-click-modal="false">
+      :close-on-click-modal="false" append-to-body>
       <el-form :model="addprovider_form" @submit.prevent="add_prvider_function" label-position="top">
         <el-form-item :label="t('providers.providerNameLabel')" required>
           <el-input v-model="addprovider_form.name" autocomplete="off"
@@ -652,7 +1151,7 @@ const apiKeyCount = computed(() => {
     </el-dialog>
 
     <el-dialog v-model="change_provider_name_page" :title="t('providers.changeProviderNameDialogTitle')" width="500px"
-      :close-on-click-modal="false">
+      :close-on-click-modal="false" append-to-body>
       <el-form :model="change_provider_name_form" @submit.prevent="change_provider_name_function" label-position="top">
         <el-form-item :label="t('providers.providerNameLabel')" required>
           <el-input v-model="change_provider_name_form.name" autocomplete="off" />
@@ -665,7 +1164,7 @@ const apiKeyCount = computed(() => {
     </el-dialog>
 
     <el-dialog v-model="addModel_page" :title="t('providers.addModelDialogTitle')" width="500px"
-      :close-on-click-modal="false">
+      :close-on-click-modal="false" append-to-body>
       <el-form :model="addModel_form" @submit.prevent="add_model_function" label-position="top">
         <el-form-item :label="t('providers.modelNameIdLabel')" required>
           <el-input v-model="addModel_form.name" autocomplete="off"
@@ -679,9 +1178,11 @@ const apiKeyCount = computed(() => {
     </el-dialog>
 
     <el-dialog v-model="getModel_page" :title="t('providers.availableModelsDialogTitle')" width="700px" top="10vh"
-      :close-on-click-modal="false" class="available-models-dialog">
-      <el-input v-model="searchQuery" :placeholder="t('providers.searchModelsPlaceholder')" clearable
-        :prefix-icon="Search" class="dialog-search-input" />
+      :close-on-click-modal="false" append-to-body class="available-models-dialog">
+      <div class="dialog-search-bar-container">
+        <el-input v-model="searchQuery" :placeholder="t('providers.searchModelsPlaceholder')" clearable
+          :prefix-icon="Search" />
+      </div>
 
       <el-alert v-if="getModel_form.error" :title="getModel_form.error" type="error" show-icon :closable="false"
         class="dialog-error-alert" />
@@ -690,7 +1191,6 @@ const apiKeyCount = computed(() => {
         :empty-text="searchQuery ? t('providers.noModelsMatchSearch') : t('providers.noModelsFoundError')" stripe
         border>
         <el-table-column prop="id" :label="t('providers.table.modelId')" sortable />
-        <el-table-column prop="owned_by" :label="t('providers.table.ownedBy')" width="175" sortable />
         <el-table-column :label="t('providers.table.action')" width="100" align="center">
           <template #default="scope">
             <el-tooltip
@@ -698,8 +1198,8 @@ const apiKeyCount = computed(() => {
               placement="top">
               <el-button
                 :type="selectedProvider && selectedProvider.modelList && selectedProvider.modelList.includes(scope.row.id) ? 'danger' : 'success'"
-                :icon="selectedProvider && selectedProvider.modelList && selectedProvider.modelList.includes(scope.row.id) ? Remove : CirclePlus"
-                circle size="small"
+                :icon="selectedProvider && selectedProvider.modelList && selectedProvider.modelList.includes(scope.row.id) ? Minus : Plus"
+                circle size="small" class="circle-action-btn"
                 @click="get_model_function(!(selectedProvider && selectedProvider.modelList && selectedProvider.modelList.includes(scope.row.id)), scope.row.id)" />
             </el-tooltip>
           </template>
@@ -713,34 +1213,45 @@ const apiKeyCount = computed(() => {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="addFolder_page" :title="t('providers.folders.newFolderTitle')" width="400px"
-      :close-on-click-modal="false">
-      <el-form :model="addFolder_form" @submit.prevent="add_folder_function">
-        <el-form-item :label="t('providers.folders.folderNameLabel')" required>
-          <el-input v-model="addFolder_form.name" :placeholder="t('providers.folders.folderNamePlaceholder')"
-            @keyup.enter="add_folder_function" />
-        </el-form-item>
-      </el-form>
+    <el-dialog
+      v-model="modelCapabilityDialogVisible"
+      :title="t('providers.modelCapabilityDialogTitle')"
+      width="500px"
+      :close-on-click-modal="false"
+      append-to-body
+    >
+      <div class="model-capability-dialog-model">{{ modelCapabilityDialogForm.modelId }}</div>
+      <div class="model-capability-dialog-tip">{{ t('providers.modelCapabilityDialogTip') }}</div>
+      <div class="model-capability-grid">
+        <label v-for="item in modelCapabilityDialogItems" :key="item.key" class="model-capability-grid-item">
+          <el-checkbox v-model="modelCapabilityDialogForm[item.key]" />
+          <span class="model-capability-grid-icon" :class="item.className">
+            <component :is="item.icon" :size="14" />
+          </span>
+          <span>{{ t(item.labelKey) }}</span>
+        </label>
+      </div>
       <template #footer>
-        <el-button @click="addFolder_page = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="add_folder_function">{{ t('common.confirm') }}</el-button>
+        <el-button @click="modelCapabilityDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button @click="resetModelCapabilityOverride" :disabled="!modelCapabilityDialogHasOverride">
+          {{ t('providers.modelCapabilityResetToAuto') }}
+        </el-button>
+        <el-button type="primary" @click="saveModelCapabilityOverride">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
 
-    <!-- 重命名目录弹窗 -->
-    <el-dialog v-model="renameFolder_page" :title="t('providers.folders.renameFolderTitle')" width="400px"
-      :close-on-click-modal="false">
-      <el-form :model="renameFolder_form" @submit.prevent="rename_folder_function">
-        <el-form-item :label="t('providers.folders.folderNameLabel')" required>
-          <el-input v-model="renameFolder_form.name" :placeholder="t('providers.folders.folderNamePlaceholder')"
-            @keyup.enter="rename_folder_function" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="renameFolder_page = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="rename_folder_function">{{ t('common.confirm') }}</el-button>
-      </template>
-    </el-dialog>
+    <teleport to="body">
+      <div v-if="contextMenuVisible" class="provider-context-menu" :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }">
+        <div class="context-menu-item" @click="handleContextMenuRename">
+          <el-icon class="context-menu-icon"><Edit /></el-icon>
+          <span>{{ t('providers.rename') }}</span>
+        </div>
+        <div class="context-menu-item context-menu-item-danger" @click="handleContextMenuDelete">
+          <el-icon class="context-menu-icon"><Delete /></el-icon>
+          <span>{{ t('providers.delete') }}</span>
+        </div>
+      </div>
+    </teleport>
   </div>
 </template>
 
@@ -760,7 +1271,7 @@ const apiKeyCount = computed(() => {
   background-color: transparent;
   overflow: hidden;
   display: flex;
-  padding: 20px;
+  padding: 0px 20px 0 20px;
   gap: 20px;
 }
 
@@ -774,7 +1285,7 @@ const apiKeyCount = computed(() => {
 }
 
 .providers-aside {
-  background-color: var(--bg-primary);
+  background-color: transparent;
   border-right: 1px solid var(--border-primary);
   display: flex;
   flex-direction: column;
@@ -800,10 +1311,14 @@ const apiKeyCount = computed(() => {
   padding: 12px 14px;
   margin-bottom: 4px;
   border-radius: var(--radius-md);
-  cursor: pointer;
+  cursor: grab;
   transition: background-color 0.2s, color 0.2s;
   font-size: 14px;
   color: var(--text-primary) !important;
+}
+
+.provider-item:active {
+  cursor: grabbing;
 }
 
 .provider-item-name {
@@ -813,7 +1328,6 @@ const apiKeyCount = computed(() => {
   flex-grow: 1;
   margin-right: 8px;
   font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  font-weight: bolder;
 }
 
 .provider-item:hover {
@@ -823,34 +1337,85 @@ const apiKeyCount = computed(() => {
 .provider-item.active {
   background-color: var(--bg-accent-light);
   color: var(--text-accent);
-  font-weight: 600;
 }
 
 .provider-item.disabled .provider-item-name {
   color: var(--text-tertiary);
-  text-decoration: line-through;
+}
+
+.provider-status-wrapper {
+  perspective: 200px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.provider-status-tag {
+  min-width: 40px;
+  width: 40px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0 8px;
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+.status-flip-enter-active {
+  animation: flipIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.status-flip-leave-active {
+  animation: flipOut 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes flipIn {
+  0% {
+    transform: rotateY(-90deg);
+    opacity: 0;
+  }
+  100% {
+    transform: rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes flipOut {
+  0% {
+    transform: rotateY(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: rotateY(90deg);
+    opacity: 0;
+  }
+}
+
+.provider-status-tag.el-tag--primary {
+  background-color: var(--bg-accent);
+  border-color: var(--bg-accent);
+  color: var(--text-on-accent);
+}
+
+.provider-status-tag.el-tag--info {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-primary);
+  color: var(--text-secondary);
 }
 
 .aside-actions {
   padding: 12px;
-  border-top: 1px solid var(--border-primary);
   display: flex;
 }
 
-.action-group {
-  display: flex;
+.add-provider-btn {
   width: 100%;
-}
-
-.action-group .el-button:first-child {
-  flex: 0 0 50px;
-}
-
-.action-group .add-provider-btn {
-  flex: 1;
-  width: auto;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
+  height: 34px;
+  min-height: 34px;
   background-color: var(--bg-accent);
   color: var(--text-on-accent);
   border: none;
@@ -880,7 +1445,7 @@ const apiKeyCount = computed(() => {
 
 
 .provider-details {
-  padding: 15px 30px 0px 30px;
+  padding: 0px 30px 0px 30px;
   flex-grow: 1;
 }
 
@@ -888,7 +1453,7 @@ const apiKeyCount = computed(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 0px;
+  padding-top: 15px;
   padding-bottom: 5px;
   border-bottom: 1px solid var(--border-primary);
 }
@@ -944,13 +1509,8 @@ const apiKeyCount = computed(() => {
 
 .models-list-container {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 8px;
-  padding: 12px;
-  background-color: var(--bg-primary);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-primary);
-  min-height: 75px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -960,43 +1520,125 @@ const apiKeyCount = computed(() => {
   text-align: center;
   color: var(--text-secondary);
   font-size: 13px;
-  padding: 12px 0;
+  padding: 20px 0;
+  background-color: var(--bg-primary);
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-primary);
 }
 
 .model-tag {
-  background-color: var(--bg-accent) !important;
-  color: var(--text-on-accent) !important;
-  border: none !important;
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-primary);
   font-weight: 500;
-
-  display: inline-flex !important;
-  align-items: center !important;
-  height: 25px !important;
-  line-height: 1 !important;
+  border-radius: 9999px;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 10px 0 12px;
+  box-sizing: border-box;
+  cursor: move;
+  gap: 8px;
 }
 
-.model-tag :deep(.el-tag__content) {
+.model-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.model-logo {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border-radius: 50%;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.model-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-capabilities {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.model-capability-pill {
+  width: 18px;
+  height: 18px;
   display: inline-flex;
   align-items: center;
-  height: 100%;
-  padding-bottom: 2px;
+  justify-content: center;
+  border: none;
+  background: transparent;
 }
 
-.model-tag :deep(.el-tag__close) {
-  color: inherit !important;
-  position: relative;
-  top: 0;
-  margin-left: 6px;
+.model-capability-pill.capability-vision {
+  color: #2563eb;
 }
 
-.model-tag :deep(.el-tag__close:hover) {
-  background-color: rgba(255, 255, 255, 0.3) !important;
-  color: var(--text-on-accent) !important;
+.model-capability-pill.capability-web {
+  color: #059669;
 }
 
-html.dark .model-tag :deep(.el-tag__close:hover) {
-  background-color: rgba(0, 0, 0, 0.2) !important;
-  color: var(--text-on-accent) !important;
+.model-capability-pill.capability-reasoning {
+  color: #d97706;
+}
+
+.model-capability-pill.capability-tools {
+  color: #dc2626;
+}
+
+.model-capability-pill.capability-embedding {
+  color: #0891b2;
+}
+
+.model-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.model-settings-btn:hover {
+  color: #2563eb;
+}
+
+.model-remove-btn:hover {
+  color: var(--color-danger, #ef4444);
+}
+
+/* Provider list drag & drop */
+.provider-drag-ghost {
+  opacity: 0 !important;
+  transition: none !important;
+}
+
+:global(.provider-drag-fallback) {
+  opacity: 1 !important;
+  background-color: var(--bg-accent-light) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.12),
+              0 2px 6px -1px rgba(0, 0, 0, 0.05) !important;
+  z-index: 9999 !important;
+  transition: box-shadow 0.2s ease !important;
+}
+
+:global(html.dark .provider-drag-fallback) {
+  background-color: var(--bg-accent-light) !important;
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5),
+              0 2px 6px -1px rgba(0, 0, 0, 0.25) !important;
 }
 
 .draggable-models-list .model-tag {
@@ -1019,6 +1661,14 @@ html.dark .model-tag :deep(.el-tag__close:hover) {
 :deep(.el-switch.is-checked .el-switch__core) {
   background-color: var(--bg-accent);
   border-color: var(--bg-accent);
+}
+
+:deep(.el-switch .el-switch__core) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-switch .el-switch__action) {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 :deep(.el-table__header-wrapper th) {
@@ -1059,25 +1709,53 @@ html.dark .model-tag :deep(.el-tag__close:hover) {
   padding: 15px 20px 10px 20px !important;
 }
 
-:deep(.available-models-dialog .dialog-search-input) {
-  margin-bottom: 0 !important;
-}
-
 :deep(.available-models-dialog .dialog-error-alert) {
   margin-bottom: 15px !important;
+}
+
+.dialog-search-bar-container {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--bg-primary);
+  padding: 0px 0px 8px 0px;
+  margin: 0px 0px 10px 0px;
+}
+
+.dialog-search-bar-container :deep(.el-input__wrapper) {
+  box-shadow: 0 0 0 1px var(--border-primary) inset !important;
+}
+
+.dialog-search-bar-container :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--text-accent) inset !important;
 }
 
 :deep(.el-dialog__footer) {
   padding: 5px;
 }
 
-.api-key-count-tag {
-  background-color: transparent !important;
-  color: var(--text-primary);
-  height: 18px;
-  line-height: 18px;
-  box-shadow: none;
-  margin-top: -4px !important;
+.label-with-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.api-key-count-badge {
+  position: absolute;
+  top: -8px;
+  right: -12px;
+  background-color: var(--bg-accent);
+  color: #000000;
+  height: 16px;
+  min-width: 16px;
+  line-height: 16px;
+  padding: 0 4px;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .form-item-header {
@@ -1107,100 +1785,120 @@ html.dark .model-tag :deep(.el-tag__close:hover) {
 }
 
 .models-list-wrapper {
-  margin-left: 0px;
   margin-bottom: 18px;
 }
 
-/* 文件夹相关样式 */
-.folder-group {
+.model-capability-dialog-model {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
   margin-bottom: 4px;
+  word-break: break-all;
 }
 
-.folder-header {
+.model-capability-dialog-tip {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+}
+
+.model-capability-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.model-capability-grid-item {
   display: flex;
   align-items: center;
-  padding: 8px 10px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  border-radius: var(--radius-md);
-  transition: background-color 0.2s;
-}
-
-.folder-header:hover {
-  background-color: var(--bg-tertiary);
+  gap: 8px;
+  min-height: 34px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-primary);
+  background-color: var(--bg-primary);
+  padding: 0 10px;
   color: var(--text-primary);
 }
 
-.folder-icon-wrapper {
+.model-capability-grid-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+}
+
+.model-capability-grid-icon.capability-vision {
+  color: #2563eb;
+  border-color: color-mix(in srgb, #2563eb 35%, transparent);
+  background: color-mix(in srgb, #2563eb 15%, transparent);
+}
+
+.model-capability-grid-icon.capability-web {
+  color: #059669;
+  border-color: color-mix(in srgb, #059669 35%, transparent);
+  background: color-mix(in srgb, #059669 15%, transparent);
+}
+
+.model-capability-grid-icon.capability-reasoning {
+  color: #d97706;
+  border-color: color-mix(in srgb, #d97706 35%, transparent);
+  background: color-mix(in srgb, #d97706 15%, transparent);
+}
+
+.model-capability-grid-icon.capability-tools {
+  color: #dc2626;
+  border-color: color-mix(in srgb, #dc2626 35%, transparent);
+  background: color-mix(in srgb, #dc2626 15%, transparent);
+}
+
+.model-capability-grid-icon.capability-embedding {
+  color: #0891b2;
+  border-color: color-mix(in srgb, #0891b2 35%, transparent);
+  background: color-mix(in srgb, #0891b2 15%, transparent);
+}
+
+.provider-context-menu {
+  position: fixed;
+  z-index: 9999;
+  border-radius: var(--radius-lg) !important;
+  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent) !important;
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden !important;
+  padding: 6px !important;
+  min-width: 160px;
+}
+
+.context-menu-item {
   display: flex;
   align-items: center;
-  margin-right: 6px;
-  color: #FFB02E;
+  gap: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  font-size: 14px;
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
 }
 
-.folder-name {
-  flex-grow: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+html.dark .context-menu-item:hover {
+  background-color: #3d3d3d !important;
 }
 
-.folder-actions {
-  display: flex;
-  gap: 0;
-  opacity: 0;
-  transition: opacity 0.2s;
+html:not(.dark) .context-menu-item:hover {
+  background-color: var(--bg-tertiary);
 }
 
-.folder-header:hover .folder-actions {
-  opacity: 1;
+.context-menu-item-danger:hover {
+  color: #ef4444;
 }
 
-.folder-action-btn {
-  padding: 2px;
-  height: auto;
-  margin-left: 2px !important;
-}
-
-.folder-content {
-  margin-top: 2px;
-  position: relative;
-}
-
-.provider-item.in-folder {
-  margin-left: 12px;
-  padding: 8px 12px;
-  font-size: 13px;
-  border-left: 2px solid var(--border-primary);
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-}
-
-.empty-folder-tip {
-  font-size: 12px;
-  color: var(--text-tertiary);
-  padding: 4px 0 4px 24px;
-  font-style: italic;
-}
-
-.root-providers-divider {
-  height: 1px;
-  background-color: var(--border-primary);
-  margin: 8px 10px;
-}
-
-.folder-selector {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-html.dark .folder-icon-wrapper {
-  color: #E6A23C;
-}
-
-html.dark .provider-item.in-folder {
-  border-left-color: var(--border-primary);
+.context-menu-icon {
+  width: 16px;
+  height: 16px;
 }
 </style>

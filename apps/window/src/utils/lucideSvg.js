@@ -1,30 +1,48 @@
-const escapeAttrValue = (value) =>
-  String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/"/g, '&quot;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+import { createApp, h } from 'vue';
 
-const serializeAttrs = (attrs = {}) => {
-  const entries = Object.entries(attrs).filter(([, value]) => value !== undefined && value !== null);
-  if (entries.length === 0) return '';
-  return ` ${entries.map(([name, value]) => `${name}="${escapeAttrValue(value)}"`).join(' ')}`;
-};
+const iconRenderCache = new WeakMap();
 
-export const renderLucideSvg = (iconNode, options = {}) => {
+const getCacheKey = (options = {}) => {
   const size = options.size ?? 16;
   const strokeWidth = options.strokeWidth ?? 2;
-  const className = options.className ? ` class="${escapeAttrValue(options.className)}"` : '';
+  const className = options.className ?? '';
+  return `${size}|${strokeWidth}|${className}`;
+};
 
-  const children = (iconNode || [])
-    .map(([tag, attrs]) => {
-      const { key, ...rest } = attrs || {};
-      void key;
-      return `<${tag}${serializeAttrs(rest)}></${tag}>`;
-    })
-    .join('');
+export const renderLucideSvg = (iconComponent, options = {}) => {
+  if (!iconComponent || typeof document === 'undefined') return '';
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${escapeAttrValue(size)}" height="${escapeAttrValue(size)}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${escapeAttrValue(strokeWidth)}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"${className}>${children}</svg>`;
+  let componentCache = iconRenderCache.get(iconComponent);
+  if (!componentCache) {
+    componentCache = new Map();
+    iconRenderCache.set(iconComponent, componentCache);
+  }
+
+  const cacheKey = getCacheKey(options);
+  const cached = componentCache.get(cacheKey);
+  if (cached) return cached;
+
+  const size = options.size ?? 16;
+  const strokeWidth = options.strokeWidth ?? 2;
+  const className = options.className ?? '';
+
+  const container = document.createElement('div');
+  const app = createApp({
+    render() {
+      return h(iconComponent, {
+        size,
+        strokeWidth,
+        class: className || undefined,
+      });
+    },
+  });
+
+  app.mount(container);
+  const svgString = container.innerHTML;
+  app.unmount();
+
+  componentCache.set(cacheKey, svgString);
+  return svgString;
 };
 
 export default renderLucideSvg;

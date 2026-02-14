@@ -1,7 +1,7 @@
 const { webFrame, nativeImage, ipcRenderer } = require('electron');
 const crypto = require('crypto');
 const windowMap = new Map();
-const feature_suffix = "anywhere助手^_^"
+const feature_suffix = "sanft助手^_^"
 const MIN_CHAT_WINDOW_WIDTH = 412;
 const MIN_CHAT_WINDOW_HEIGHT = 640;
 const DEV_WINDOW_URL = String(process.env.ANYWHERE_DEV_WINDOW_URL || '').trim();
@@ -10,9 +10,13 @@ const DEV_FAST_WINDOW_ENTRY = String(process.env.ANYWHERE_DEV_FAST_WINDOW_ENTRY 
 const {
   requestTextOpenAI
 } = require('./input.js');
-const { 
-  getBuiltinServers
-} = require('./mcp_builtin.js');
+const {
+  getBuiltinServersMetadata,
+} = require('./builtin_metadata.js');
+
+const getBuiltinServers = () => getBuiltinServersMetadata({
+  isWin: process.platform === 'win32',
+});
 
 function appendQueryParam(rawUrl, key, value) {
   if (!rawUrl) return rawUrl;
@@ -24,6 +28,18 @@ function appendQueryParam(rawUrl, key, value) {
     const separator = rawUrl.includes('?') ? '&' : '?';
     return `${rawUrl}${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
   }
+}
+
+function syncNativeTheme(config = {}) {
+  if (typeof utools?.isMacOS === 'function' && !utools.isMacOS()) return;
+  if (!ipcRenderer || typeof ipcRenderer.send !== 'function') return;
+
+  const payload = {
+    themeMode: typeof config.themeMode === 'string' ? config.themeMode : 'system',
+    isDarkMode: !!config.isDarkMode,
+  };
+
+  ipcRenderer.send('utools:sync-native-theme', payload);
 }
 
 // 默认配置 (保持不变)
@@ -87,8 +103,8 @@ const defaultConfig = {
       url: "",
       username: "",
       password: "",
-      path: "/anywhere",
-      data_path: "/anywhere_data",
+      path: "/sanft",
+      data_path: "/sanft_data",
       localChatPath: ""
     },
     voiceList: [
@@ -232,7 +248,7 @@ async function getConfig() {
 
   // --- 2. 旧版本数据自动迁移 ---
   if (configDoc.data && configDoc.data.config && configDoc.data.config.prompts) {
-    console.warn("Anywhere: Old configuration format detected. Starting migration.");
+    console.warn("Sanft: Old configuration format detected. Starting migration.");
     const oldFullConfig = configDoc.data.config;
     const { baseConfigPart, promptsPart, providersPart, mcpServersPart, localConfigPart } = splitConfigForStorage(oldFullConfig);
 
@@ -413,7 +429,7 @@ function checkConfig(config) {
 
   // --- 3. WebDAV 检查 ---
   if (!config.webdav) {
-    config.webdav = { url: "", username: "", password: "", path: "/anywhere", data_path: "/anywhere_data", localChatPath: "" };
+    config.webdav = { url: "", username: "", password: "", path: "/sanft", data_path: "/sanft_data", localChatPath: "" };
     flag = true;
   } else {
     if (config.webdav.dataPath) { // 迁移旧字段
@@ -421,7 +437,7 @@ function checkConfig(config) {
       delete config.webdav.dataPath;
       flag = true;
     }
-    const webdavDefaults = { data_path: "/anywhere_data", localChatPath: "" };
+    const webdavDefaults = { data_path: "/sanft_data", localChatPath: "" };
     for (const [k, v] of Object.entries(webdavDefaults)) {
       if (config.webdav[k] === undefined) { config.webdav[k] = v; flag = true; }
     }
@@ -637,6 +653,10 @@ async function saveSetting(keyPath, value) {
       }
     }
 
+    if (keyPath === 'themeMode' || keyPath === 'isDarkMode') {
+      syncNativeTheme(fullConfig.config || {});
+    }
+
     if (keyPath === 'launcherEnabled' || keyPath === 'launcherHotkey') {
       const launcherResult = await syncLauncherSettings(fullConfig.config);
       if (launcherResult && launcherResult.ok === false) {
@@ -724,6 +744,8 @@ function updateConfigWithoutFeatures(newConfig) {
     }
   }
 
+  syncNativeTheme(fullConfigForFrontend || {});
+
   syncLauncherSettings(fullConfigForFrontend).catch((error) => {
     console.error('[Launcher] Failed to sync settings after config update:', error);
   });
@@ -794,7 +816,7 @@ function updateConfig(newConfig) {
 
   // 移除不再需要的 features
   for (const [code, feature] of featuresMap) {
-    if (code === "Anywhere Settings" || code === "Resume Conversation") continue;
+    if (code === "Sanft Settings" || code === "Resume Conversation") continue;
     const promptKey = feature.explain;
     if (!enabledPromptKeys.has(promptKey) ||
       (currentPrompts[promptKey] && (currentPrompts[promptKey].showMode !== "window") && code.endsWith(feature_suffix))
@@ -929,9 +951,13 @@ async function openWindow(config, msg) {
   const promptCode = msg.originalCode || msg.code;
   const { x, y, width, height } = getPosition(config, promptCode);
   const promptConfig = config.prompts[promptCode];
+  const isMac = utools.isMacOS();
+  const useNativeMacVibrancy = isMac;
   const isAlwaysOnTop = promptConfig?.isAlwaysOnTop ?? true;
   let channel = "window";
-  const backgroundColor = config.isDarkMode ? `rgba(33, 33, 33, 1)` : 'rgba(255, 255, 253, 1)';
+  const backgroundColor = useNativeMacVibrancy
+    ? '#00000000'
+    : (config.isDarkMode ? 'rgba(33, 33, 33, 1)' : 'rgba(255, 255, 253, 1)');
 
   // 为窗口生成唯一ID并添加到消息中
   const senderId = crypto.randomUUID();
@@ -943,7 +969,7 @@ async function openWindow(config, msg) {
   const windowOptions = {
     show: false,
     backgroundColor: backgroundColor,
-    title: "Anywhere",
+    title: isMac ? "" : "Sanft",
     width: width,
     height: height,
     minWidth: effectiveMinWidth,
@@ -951,9 +977,17 @@ async function openWindow(config, msg) {
     alwaysOnTop: isAlwaysOnTop,
     x: x,
     y: y,
-    frame: false,
-    transparent: false,
+    frame: !isMac,
+    ...(isMac ? { titleBarStyle: "hiddenInset" } : {}),
+    transparent: useNativeMacVibrancy,
     hasShadow: true,
+    ...(useNativeMacVibrancy
+      ? {
+          macOSVibrancy: 'under-window',
+          macOSVisualEffectState: 'active',
+          macOSVibrancyAnimationDuration: 120,
+        }
+      : {}),
     webPreferences: {
       preload: "./window_preload.js",
       devTools: utools.isDev()

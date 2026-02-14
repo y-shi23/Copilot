@@ -1,33 +1,48 @@
 <script setup>
-import { ref, watch, onMounted, provide, onBeforeUnmount, computed } from 'vue'
-import Chats from './components/Chats.vue'
-import Prompts from './components/Prompts.vue'
-import Mcp from './components/Mcp.vue'
-import Setting from './components/Setting.vue'
-import Providers from './components/Providers.vue'
-import Skills from './components/Skills.vue'
+import { ref, watch, onMounted, provide, onBeforeUnmount, computed, h, defineAsyncComponent } from 'vue'
 
 import { useI18n } from 'vue-i18n'
-import {
-  Bell,
-  ChatDotRound,
-  MagicStick,
-  Connection,
-  Collection,
-  Cloudy,
-  Setting as SettingIcon,
-  Document
-} from '@element-plus/icons-vue'
-import { marked } from 'marked';
+import { Bell, MessageCircle as ChatDotRound, WandSparkles as MagicStick, Library as Collection, Cloud as Cloudy, Settings as SettingIcon, FileText as Document } from 'lucide-vue-next';
 import { ElBadge } from 'element-plus'; // 确保引入 ElBadge
+
+const Chats = defineAsyncComponent(() => import('./components/Chats.vue'));
+const Prompts = defineAsyncComponent(() => import('./components/Prompts.vue'));
+const Mcp = defineAsyncComponent(() => import('./components/Mcp.vue'));
+const Setting = defineAsyncComponent(() => import('./components/Setting.vue'));
+const Providers = defineAsyncComponent(() => import('./components/Providers.vue'));
+const Skills = defineAsyncComponent(() => import('./components/Skills.vue'));
 
 const { t, locale } = useI18n()
 const tab = ref(0);
 const header_text = ref(t('app.header.chats'));
+
+const McpToolIcon = {
+  name: 'McpToolIcon',
+  render() {
+    return h(
+      'svg',
+      {
+        xmlns: 'http://www.w3.org/2000/svg',
+        viewBox: '0 0 24 24',
+        fill: 'none',
+        stroke: 'currentColor',
+        'stroke-width': '2',
+        'stroke-linecap': 'round',
+        'stroke-linejoin': 'round'
+      },
+      [
+        h('path', { d: 'm15 12-8.373 8.373a1 1 0 1 1-3-3L12 9' }),
+        h('path', { d: 'm18 15 4-4' }),
+        h('path', { d: 'm21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5' })
+      ]
+    );
+  }
+};
+
 const navItems = computed(() => ([
   { id: 0, label: t('app.tabs.chats'), icon: ChatDotRound },
   { id: 1, label: t('app.tabs.prompts'), icon: MagicStick },
-  { id: 2, label: t('app.tabs.mcp'), icon: Connection },
+  { id: 2, label: t('app.tabs.mcp'), icon: McpToolIcon },
   { id: 3, label: t('app.tabs.skills'), icon: Collection },
   { id: 4, label: t('app.tabs.providers'), icon: Cloudy },
   { id: 5, label: t('app.tabs.settings'), icon: SettingIcon }
@@ -36,6 +51,103 @@ const navItems = computed(() => ([
 const config = ref(null);
 const platformName = String(navigator.userAgentData?.platform || navigator.platform || '').toLowerCase();
 const isMacOS = computed(() => platformName.includes('mac'));
+
+const SIDEBAR_WIDTH_STORAGE_KEY = 'anywhere_main_sidebar_width_v1';
+const SIDEBAR_DEFAULT_WIDTH = 230;
+const SIDEBAR_MIN_WIDTH = 230; // About 15% wider than the previous 220px fixed width.
+const SIDEBAR_MAX_WIDTH = 480;
+const SIDEBAR_MOBILE_BREAKPOINT = 700;
+const SIDEBAR_KEYBOARD_STEP = 12;
+
+const viewportWidth = ref(window.innerWidth || 1200);
+const sidebarWidth = ref(SIDEBAR_DEFAULT_WIDTH);
+const isSidebarResizing = ref(false);
+
+const isSidebarResizable = computed(() => viewportWidth.value > SIDEBAR_MOBILE_BREAKPOINT);
+const sidebarMaxWidth = computed(() => {
+  const byViewport = Math.floor(viewportWidth.value * 0.46);
+  return Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, byViewport));
+});
+const rootInlineStyles = computed(() => ({
+  '--sidebar-region-width': isSidebarResizable.value ? `${sidebarWidth.value}px` : '100%',
+}));
+
+let sidebarResizeStartX = 0;
+let sidebarResizeStartWidth = SIDEBAR_DEFAULT_WIDTH;
+
+const clampSidebarWidth = (rawWidth) => {
+  const width = Number(rawWidth);
+  if (!Number.isFinite(width)) return SIDEBAR_MIN_WIDTH;
+  return Math.max(SIDEBAR_MIN_WIDTH, Math.min(Math.round(width), sidebarMaxWidth.value));
+};
+
+const persistSidebarWidth = () => {
+  try {
+    localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth.value));
+  } catch (_error) {
+    // ignore localStorage failures
+  }
+};
+
+const applySidebarWidth = (nextWidth, options = {}) => {
+  const persist = options.persist === true;
+  const clamped = clampSidebarWidth(nextWidth);
+  if (sidebarWidth.value !== clamped) {
+    sidebarWidth.value = clamped;
+  }
+  if (persist) {
+    persistSidebarWidth();
+  }
+};
+
+const handleSidebarResizeMove = (event) => {
+  if (!isSidebarResizing.value) return;
+  const deltaX = event.clientX - sidebarResizeStartX;
+  applySidebarWidth(sidebarResizeStartWidth + deltaX);
+};
+
+const stopSidebarResize = () => {
+  if (!isSidebarResizing.value) return;
+  isSidebarResizing.value = false;
+  document.body?.classList.remove('sidebar-resizing');
+  window.removeEventListener('mousemove', handleSidebarResizeMove);
+  window.removeEventListener('mouseup', stopSidebarResize);
+  persistSidebarWidth();
+};
+
+const startSidebarResize = (event) => {
+  if (!isSidebarResizable.value) return;
+  if (event.button !== 0) return;
+
+  isSidebarResizing.value = true;
+  sidebarResizeStartX = event.clientX;
+  sidebarResizeStartWidth = sidebarWidth.value;
+  document.body?.classList.add('sidebar-resizing');
+
+  window.addEventListener('mousemove', handleSidebarResizeMove);
+  window.addEventListener('mouseup', stopSidebarResize);
+  event.preventDefault();
+};
+
+const nudgeSidebarWidth = (delta) => {
+  if (!isSidebarResizable.value) return;
+  applySidebarWidth(sidebarWidth.value + delta, { persist: true });
+};
+
+const handleViewportResize = () => {
+  viewportWidth.value = window.innerWidth || 1200;
+  if (!isSidebarResizable.value) {
+    stopSidebarResize();
+    return;
+  }
+  applySidebarWidth(sidebarWidth.value);
+};
+
+const applyMainVibrancyBodyClass = () => {
+  const enableNativeVibrancy = isMacOS.value;
+  document.documentElement.classList.toggle('macos-vibrancy-main', enableNativeVibrancy);
+  document.body?.classList.toggle('macos-vibrancy-main', enableNativeVibrancy);
+};
 
 //将 config provide 给所有子组件
 provide('config', config);
@@ -135,6 +247,14 @@ const docList = ref([
 // 阅读状态管理
 const readStatusKey = 'anywhere_doc_last_read';
 const docReadMap = ref({});
+
+let markedParserPromise = null;
+const getMarkedParser = async () => {
+  if (!markedParserPromise) {
+    markedParserPromise = import('marked').then((module) => module.marked);
+  }
+  return markedParserPromise;
+};
 
 // 初始化读取状态
 const loadReadStatus = () => {
@@ -242,7 +362,8 @@ const fetchAndParseDoc = async (filename) => {
         return `![${alt}](${imgBaseUrl}${encodeURIComponent(filename)})`;
     });
 
-    currentDocContent.value = marked.parse(text);
+    const markedParser = await getMarkedParser();
+    currentDocContent.value = markedParser.parse(text);
   } catch (error) {
     console.error('Failed to load doc:', error);
     currentDocContent.value = `<h3>${t('doc.loadFailed')}</h3><p>${t('doc.checkNetwork')}</p>`;
@@ -305,6 +426,18 @@ const handleDocLinks = (event) => {
 };
 
 onMounted(async () => {
+  applyMainVibrancyBodyClass();
+  try {
+    const storedWidth = Number(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
+    if (Number.isFinite(storedWidth)) {
+      sidebarWidth.value = storedWidth;
+    }
+  } catch (_error) {
+    // ignore localStorage failures
+  }
+  handleViewportResize();
+  window.addEventListener('resize', handleViewportResize);
+
   // 异步获取文档更新时间，获取后会自动更新UI红点
   fetchAllDocsMetadata();
 
@@ -339,8 +472,13 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  stopSidebarResize();
+  window.removeEventListener('resize', handleViewportResize);
   window.removeEventListener('keydown', handleGlobalEsc, true);
   mediaQuery.removeEventListener('change', handleSystemThemeChange);
+  document.documentElement.classList.remove('macos-vibrancy-main');
+  document.body?.classList.remove('macos-vibrancy-main');
+  document.body?.classList.remove('sidebar-resizing');
 });
 
 function changeTab(newTab) {
@@ -366,7 +504,11 @@ watch(locale, () => {
 </script>
 
 <template>
-  <div class="window-root">
+  <div
+    class="window-root"
+    :class="{ 'native-vibrancy': isMacOS, 'fallback-vibrancy': !isMacOS }"
+    :style="rootInlineStyles"
+  >
     <el-container class="common-layout">
       <el-aside class="app-sidebar">
         <div class="sidebar-panel">
@@ -396,6 +538,21 @@ watch(locale, () => {
           </nav>
         </div>
       </el-aside>
+      <div
+        v-if="isSidebarResizable"
+        class="sidebar-resize-handle no-drag"
+        :class="{ 'is-resizing': isSidebarResizing }"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize sidebar width"
+        :aria-valuemin="SIDEBAR_MIN_WIDTH"
+        :aria-valuemax="sidebarMaxWidth"
+        :aria-valuenow="sidebarWidth"
+        tabindex="0"
+        @mousedown="startSidebarResize"
+        @keydown.left.prevent="nudgeSidebarWidth(-SIDEBAR_KEYBOARD_STEP)"
+        @keydown.right.prevent="nudgeSidebarWidth(SIDEBAR_KEYBOARD_STEP)"
+      ></div>
 
       <el-main class="workspace-main" v-if="config">
         <header class="workspace-header" :class="{ 'window-drag-region': isMacOS }">
@@ -412,7 +569,7 @@ watch(locale, () => {
       </el-main>
 
       <!-- 帮助文档弹窗 -->
-      <el-dialog v-model="showDocDialog" :title="t('doc.title')" width="80%" :lock-scroll="false" class="doc-dialog">
+      <el-dialog v-model="showDocDialog" :title="t('doc.title')" width="80%" :lock-scroll="false" class="doc-dialog" append-to-body>
         <div class="doc-container">
           <div class="doc-sidebar">
             <el-menu :default-active="activeDocIndex" @select="(index) => activeDocIndex = index" class="doc-menu">
@@ -438,12 +595,42 @@ watch(locale, () => {
 </template>
 
 <style scoped>
+:global(html.macos-vibrancy-main),
+:global(body.macos-vibrancy-main),
+:global(html.macos-vibrancy-main #app) {
+  background: transparent !important;
+}
+
+:global(body.sidebar-resizing),
+:global(body.sidebar-resizing *) {
+  user-select: none !important;
+  cursor: col-resize !important;
+}
+
 .window-root {
+  --layout-shell-bg: rgba(245, 244, 243, 0.9);
+  --workspace-surface-bg: #ffffff;
+  --workspace-edge-color: color-mix(in srgb, var(--border-primary) 55%, transparent);
+  --sidebar-vibrancy-tint: rgba(255, 255, 255, 0.1);
+  --sidebar-fallback-tint: rgba(247, 246, 244, 0.62);
+  --sidebar-vibrancy-divider: color-mix(in srgb, var(--border-primary) 62%, transparent);
+  --sidebar-region-width: 268px;
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background-color: var(--layout-shell-bg);
+}
+
+.window-root.native-vibrancy {
+  --layout-shell-bg: transparent;
+}
+
+.window-root.fallback-vibrancy {
+  --layout-shell-bg: #f1efec;
+  --workspace-surface-bg: #fcfcfb;
+  --sidebar-fallback-tint: rgba(238, 235, 231, 0.86);
 }
 
 .window-drag-region {
@@ -456,29 +643,52 @@ watch(locale, () => {
 
 .common-layout,
 .el-container {
+  position: relative;
   width: 100%;
   height: 100%;
   padding: 0;
   margin: 0;
   gap: 0;
   overflow: hidden;
-  background-color: transparent;
+  background-color: var(--layout-shell-bg);
   display: flex;
   flex-direction: row;
 }
 
+.window-root.native-vibrancy .common-layout::before,
+.window-root.fallback-vibrancy .common-layout::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: calc(var(--sidebar-region-width) + var(--radius-xl));
+  pointer-events: none;
+  z-index: 0;
+}
+
+.window-root.native-vibrancy .common-layout::before {
+  background-color: var(--sidebar-vibrancy-tint);
+  box-shadow: inset -1px 0 0 var(--sidebar-vibrancy-divider);
+}
+
+.window-root.fallback-vibrancy .common-layout::before {
+  background-color: var(--sidebar-fallback-tint);
+  backdrop-filter: blur(20px) saturate(125%);
+  -webkit-backdrop-filter: blur(20px) saturate(125%);
+  box-shadow: inset -1px 0 0 var(--sidebar-vibrancy-divider);
+}
+
 .app-sidebar {
-  --el-aside-width: 220px;
-  width: 220px;
-  min-width: 220px;
+  --el-aside-width: var(--sidebar-region-width);
+  width: var(--sidebar-region-width);
+  min-width: var(--sidebar-region-width);
   flex-shrink: 0;
   overflow: hidden;
   position: relative;
+  z-index: 1;
   margin-right: 0;
-  background-color: rgba(245, 244, 243, 0.86);
-  backdrop-filter: blur(10px) saturate(118%);
-  -webkit-backdrop-filter: blur(10px) saturate(118%);
-  border-right: 1px solid rgba(227, 224, 221, 0.9);
+  background-color: transparent;
 }
 
 .sidebar-panel {
@@ -487,6 +697,45 @@ watch(locale, () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  background-color: transparent;
+}
+
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--sidebar-region-width);
+  width: 12px;
+  transform: translateX(-50%);
+  z-index: 3;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: col-resize;
+}
+
+.sidebar-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background-color: color-mix(in srgb, var(--border-primary) 78%, transparent);
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sidebar-resize-handle:hover::before,
+.sidebar-resize-handle.is-resizing::before,
+.sidebar-resize-handle:focus-visible::before {
+  background-color: color-mix(in srgb, var(--text-accent) 74%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-accent) 16%, transparent);
+}
+
+.sidebar-resize-handle:focus-visible {
+  outline: none;
 }
 
 .brand-section {
@@ -550,9 +799,9 @@ watch(locale, () => {
 
 .nav-item.active-tab {
   color: var(--text-primary);
-  border-color: rgba(218, 214, 211, 0.9);
-  background-color: rgba(255, 255, 255, 0.85);
-  box-shadow: 0 6px 14px rgba(26, 24, 22, 0.06);
+  border-color: transparent;
+  background-color: #EAE9E8;
+  box-shadow: none;
 }
 
 .nav-item:focus-visible {
@@ -571,7 +820,7 @@ watch(locale, () => {
 
 .nav-label {
   font-size: 13px;
-  font-weight: 520;
+  font-weight: 500;
   letter-spacing: 0.01em;
 }
 
@@ -582,58 +831,101 @@ watch(locale, () => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  background-color: #ffffff;
+  position: relative;
+  z-index: 1;
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--workspace-edge-color);
+  border-left: none;
+  background-color: var(--workspace-surface-bg);
   box-shadow: none;
 }
 
 .workspace-header {
-  padding: 10px 12px 14px;
+  padding: 24px 24px 14px;
   flex-shrink: 0;
-  background-color: #ffffff;
+  background-color: var(--workspace-surface-bg);
 }
 
 .workspace-content {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 8px 0 0;
-  background-color: #ffffff;
+  padding: 10px 10px 10px;
+  background-color: var(--workspace-surface-bg);
 }
 
 html.dark .app-sidebar {
-  background-color: rgba(46, 47, 49, 0.78);
-  border-right-color: rgba(255, 255, 255, 0.12);
+  background-color: transparent;
+}
+
+html.dark .help-button {
+  color: #b9b7b4;
 }
 
 html.dark .help-button:hover {
+  color: #f0eeea;
   background-color: rgba(255, 255, 255, 0.1);
 }
 
+html.dark .nav-item {
+  color: #bfbcb8;
+}
+
 html.dark .nav-item:hover {
+  color: #efede9;
   background-color: rgba(255, 255, 255, 0.08);
 }
 
 html.dark .nav-item.active-tab {
-  border-color: rgba(255, 255, 255, 0.16);
-  background-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.24);
+  border-color: transparent;
+  color: #f7f4ef;
+  background-color: rgba(255, 255, 255, 0.14);
+  box-shadow: none;
 }
 
 html.dark .workspace-main {
-  background-color: #1f2022;
+  background-color: var(--workspace-surface-bg);
+  border-top-color: var(--workspace-edge-color);
+  border-right-color: var(--workspace-edge-color);
+  border-bottom-color: var(--workspace-edge-color);
 }
 
 html.dark .workspace-header {
-  background-color: #1f2022;
+  background-color: var(--workspace-surface-bg);
 }
 
 html.dark .workspace-content {
-  background-color: #1f2022;
+  background-color: var(--workspace-surface-bg);
+}
+
+html.dark .window-root {
+  --layout-shell-bg: #1a1b1d;
+  --workspace-surface-bg: #181818;
+  --sidebar-vibrancy-divider: rgba(255, 255, 255, 0.07);
+  --workspace-edge-color: rgba(6, 8, 11, 0.88);
+}
+
+html.dark .window-root.fallback-vibrancy {
+  --layout-shell-bg: #191b1e;
+  --workspace-surface-bg: #181818;
+  --sidebar-fallback-tint: rgba(44, 42, 42, 0.92);
+}
+
+html.dark .window-root.native-vibrancy {
+  --layout-shell-bg: transparent;
+}
+
+html.dark .window-root.native-vibrancy .common-layout::before {
+  background: linear-gradient(180deg, rgba(43, 41, 40, 0.58) 0%, rgba(34, 33, 35, 0.68) 100%);
+}
+
+html.dark .window-root.fallback-vibrancy .common-layout::before {
+  background: linear-gradient(180deg, rgba(44, 42, 42, 0.9) 0%, rgba(36, 35, 37, 0.94) 100%);
 }
 
 .header-title-text {
   font-size: 19px;
-  font-weight: 620;
+  font-weight: 600;
   color: var(--text-primary);
   letter-spacing: 0.01em;
 }
@@ -641,21 +933,20 @@ html.dark .workspace-content {
 .bell-badge :deep(.el-badge__content.is-fixed.is-dot) {
   right: 3px;
   top: 3px;
+  background-color: var(--text-accent);
 }
 
 .doc-container {
   display: flex;
   height: 60vh;
-  border: 1px solid var(--border-primary);
   border-radius: var(--radius-xl);
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
 }
 
 .doc-sidebar {
   width: 190px;
   border-right: 1px solid var(--border-primary);
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-secondary);
   flex-shrink: 0;
 }
 
@@ -678,8 +969,8 @@ html.dark .workspace-content {
 }
 
 .doc-menu :deep(.el-menu-item.is-active) {
-  color: var(--text-primary);
-  background-color: color-mix(in srgb, var(--bg-secondary) 78%, transparent);
+  color: var(--text-accent);
+  background-color: color-mix(in srgb, var(--text-accent) 12%, transparent);
   font-weight: 600;
   border-right: none;
 }
@@ -694,7 +985,7 @@ html.dark .workspace-content {
 .doc-update-dot {
   width: 6px;
   height: 6px;
-  background-color: var(--el-color-danger);
+  background-color: var(--text-accent);
   border-radius: 50%;
   margin-left: 8px;
   display: inline-block;
@@ -702,7 +993,7 @@ html.dark .workspace-content {
 
 .doc-content {
   flex: 1;
-  background-color: var(--bg-secondary);
+  background-color: var(--bg-primary);
   padding: 0;
   overflow: hidden;
 }
@@ -719,13 +1010,12 @@ html.dark .workspace-content {
 /* 标题样式优化 */
 .markdown-body :deep(h1), 
 .markdown-body :deep(h2) {
-  border-bottom: 1px solid var(--border-primary);
   padding-bottom: 0.4em;
   margin-top: 1.5em;
   margin-bottom: 1em;
   color: var(--text-primary);
-  font-weight: 700; /* 强制加粗 */
-  letter-spacing: -0.01em; /* 标题字间距微调 */
+  font-weight: 700;
+  letter-spacing: -0.01em;
   line-height: 1.3;
 }
 
@@ -767,14 +1057,12 @@ html.dark .workspace-content {
   background-color: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
-  /* 等宽字体栈 */
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   font-size: 0.85em;
-  color: var(--text-primary); /* 使用主题色，让代码更显眼 */
+  color: var(--text-primary);
   margin: 0 2px;
 }
 
-/* 多行代码块 */
 .markdown-body :deep(pre) {
   background-color: color-mix(in srgb, var(--bg-tertiary) 72%, transparent);
   padding: 16px;
@@ -782,7 +1070,6 @@ html.dark .workspace-content {
   overflow-x: auto;
   margin-bottom: 1.2em;
   line-height: 1.5;
-  border: 1px solid var(--border-primary);
 }
 
 .markdown-body :deep(pre code) {
@@ -794,28 +1081,24 @@ html.dark .workspace-content {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
-/* 引用块优化 */
 .markdown-body :deep(blockquote) {
   margin: 1.2em 0;
   padding: 8px 16px;
   color: var(--text-secondary);
-  border-left: 4px solid var(--border-accent); /* 使用主题色作为边框 */
-  background-color: var(--bg-tertiary); /* 改用浅色背景而不是纯灰 */
-  border-radius: 0 4px 4px 0;
+  border-left: 3px solid var(--text-accent);
+  background-color: color-mix(in srgb, var(--bg-tertiary) 50%, transparent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
 }
 
 .markdown-body :deep(blockquote p) {
-  margin-bottom: 0; /* 引用块内的段落去掉底部间距 */
+  margin-bottom: 0;
 }
 
-/* 图片优化 */
 .markdown-body :deep(img) {
   max-width: 100%;
   border-radius: var(--radius-md);
   margin: 12px 0;
-  border: 1px solid var(--border-primary);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05); /* 增加轻微阴影 */
-  display: block; /* 防止图片底部有空隙 */
+  display: block;
 }
 
 /* 链接优化 */
@@ -836,9 +1119,9 @@ html.dark .workspace-content {
   padding: 0 !important;
 }
 :deep(.doc-dialog .el-dialog__header) {
-  padding: 5px 15px 15px 15px !important;
+  padding: 12px 20px 8px 20px !important;
   margin-right: 0;
-  border-bottom: 1px solid var(--border-primary);
+  border-bottom: none;
 }
 
 @media (max-width: 860px) {
@@ -848,23 +1131,25 @@ html.dark .workspace-content {
     gap: 0;
   }
 
-  .app-sidebar {
-    --el-aside-width: 196px;
-    width: 196px;
-    min-width: 196px;
-    margin-right: 0;
-  }
-
   .workspace-header {
-    padding: 6px 4px 12px;
+    padding: 14px 14px 12px;
   }
 }
 
 @media (max-width: 700px) {
+  .window-root {
+    --sidebar-region-width: 100%;
+  }
+
   .common-layout,
   .el-container {
     flex-direction: column;
     padding: 0;
+  }
+
+  .window-root.native-vibrancy .common-layout::before,
+  .window-root.fallback-vibrancy .common-layout::before {
+    display: none;
   }
 
   .app-sidebar {
@@ -878,7 +1163,10 @@ html.dark .workspace-content {
   }
 
   .workspace-main {
+    border: none;
     border-top: none;
+    border-radius: 0;
+    box-shadow: none;
   }
 
   html.dark .app-sidebar {

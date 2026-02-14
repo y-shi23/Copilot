@@ -1,8 +1,7 @@
 <script setup>
 import { ref, onMounted, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { createClient } from "webdav/web";
-import { Refresh, Delete as DeleteIcon, ChatDotRound, Edit, Upload, Download, Switch, QuestionFilled, Brush } from '@element-plus/icons-vue'
+import { RefreshCw as Refresh, Trash2 as DeleteIcon, MessageCircle as ChatDotRound, Pencil as Edit, Upload, Download, Repeat as Switch, Info, BrushCleaning } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox, ElProgress, ElScrollbar } from 'element-plus'
 
 const { t } = useI18n();
@@ -27,6 +26,19 @@ const isSyncing = ref(false);
 const syncProgress = ref(0);
 const syncStatusText = ref('');
 const syncAbortController = ref(null);
+
+let createWebdavClientPromise = null;
+const getCreateWebdavClient = async () => {
+    if (!createWebdavClientPromise) {
+        createWebdavClientPromise = import('webdav/web').then(module => module.createClient);
+    }
+    return createWebdavClientPromise;
+};
+
+const createWebdavClient = async (url, username, password) => {
+    const createClient = await getCreateWebdavClient();
+    return createClient(url, { username, password });
+};
 
 // --- 自动清理功能状态 ---
 const showCleanDialog = ref(false);
@@ -121,7 +133,7 @@ async function fetchCloudFiles() {
     isTableLoading.value = true;
     try {
         const { url, username, password, data_path } = webdavConfig.value;
-        const client = createClient(url, { username, password });
+        const client = await createWebdavClient(url, username, password);
         const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
         if (!(await client.exists(remoteDir))) await client.createDirectory(remoteDir, { recursive: true });
         const response = await client.getDirectoryContents(remoteDir, { details: true });
@@ -148,7 +160,7 @@ async function startChat(file) {
             jsonString = await window.api.readLocalFile(file.path);
         } else {
             const { url, username, password, data_path } = webdavConfig.value;
-            const client = createClient(url, { username, password });
+            const client = await createWebdavClient(url, username, password);
             jsonString = await client.getFileContents(`${data_path.endsWith('/') ? data_path.slice(0, -1) : data_path}/${file.basename}`, { format: "text" });
         }
         await window.api.coderedirect(t('chats.alerts.restoreChat'), JSON.stringify({ sessionData: jsonString, filename: file.basename }));
@@ -172,12 +184,20 @@ async function renameFile(file) {
                     { type: 'info' }
                 ).catch(() => false);
                 if (confirm) {
-                    const client = createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password });
+                    const client = await createWebdavClient(
+                        webdavConfig.value.url,
+                        webdavConfig.value.username,
+                        webdavConfig.value.password
+                    );
                     await client.moveFile(`${webdavConfig.value.data_path}/${file.basename}`, `${webdavConfig.value.data_path}/${finalFilename}`);
                 }
             }
         } else { // cloud
-            const client = createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password });
+            const client = await createWebdavClient(
+                webdavConfig.value.url,
+                webdavConfig.value.username,
+                webdavConfig.value.password
+            );
             await client.moveFile(`${webdavConfig.value.data_path}/${file.basename}`, `${webdavConfig.value.data_path}/${finalFilename}`);
             if (localChatFiles.value.some(f => f.basename === file.basename)) {
                 const confirm = await ElMessageBox.confirm(
@@ -229,7 +249,13 @@ async function deleteFiles(filesToDelete) {
         }
 
         isTableLoading.value = true;
-        const client = isWebdavConfigValid.value ? createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password }) : null;
+        const client = isWebdavConfigValid.value
+            ? await createWebdavClient(
+                webdavConfig.value.url,
+                webdavConfig.value.username,
+                webdavConfig.value.password
+            )
+            : null;
 
         for (const file of filesToDelete) {
             if (activeView.value === 'local') {
@@ -370,7 +396,11 @@ async function executeSync(tasks, title) {
 async function forceSyncFile(basename, direction, signal) {
     singleFileSyncing.value[basename] = true;
     try {
-        const client = createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password });
+        const client = await createWebdavClient(
+            webdavConfig.value.url,
+            webdavConfig.value.username,
+            webdavConfig.value.password
+        );
         const remotePath = `${webdavConfig.value.data_path}/${basename}`;
         const localPath = `${localChatPath.value}/${basename}`;
 
@@ -443,7 +473,13 @@ async function executeAutoClean() {
     try {
         // 为了安全起见，批量清理仅删除当前视图的文件，不进行双向同步删除询问
         // 直接复用底层的删除 API
-        const client = isWebdavConfigValid.value ? createClient(webdavConfig.value.url, { username: webdavConfig.value.username, password: webdavConfig.value.password }) : null;
+        const client = isWebdavConfigValid.value
+            ? await createWebdavClient(
+                webdavConfig.value.url,
+                webdavConfig.value.username,
+                webdavConfig.value.password
+            )
+            : null;
 
         // 并发处理
         const tasks = filesToDelete.map(file => async () => {
@@ -481,42 +517,51 @@ async function executeAutoClean() {
 <template>
     <div class="chats-page-container">
         <div class="chats-content-wrapper">
-            <div class="info-button-container">
-                <el-popover placement="bottom-start" :title="t('chats.info.title')" :width="450" trigger="click">
-                    <template #reference>
-                        <el-button :icon="QuestionFilled" circle />
-                    </template>
-                    <div class="info-popover-content">
-                        <p v-html="t('chats.info.localDesc', { path: localChatPath || t('chats.info.pathNotSet') })">
-                        </p>
-                        <p v-html="t('chats.info.cloudDesc')"></p>
+            <div class="chats-toolbar">
+                <div class="toolbar-left">
+                    <div class="view-selector">
+                        <el-radio-group v-model="activeView" @change="currentPage = 1">
+                            <el-radio-button value="local">{{ t('chats.view.local') }}</el-radio-button>
+                            <el-radio-button value="cloud" :disabled="!isWebdavConfigValid">{{ t('chats.view.cloud')
+                                }}</el-radio-button>
+                        </el-radio-group>
                     </div>
-                </el-popover>
-                <el-tooltip :content="t('chats.clean.button')" placement="bottom">
-                    <el-button :icon="Brush" circle @click="openCleanDialog" />
-                </el-tooltip>
-            </div>
-            <div class="sync-buttons-container">
-                <el-tooltip :content="t('chats.tooltips.uploadChanges', { count: uploadableCount })" placement="bottom">
-                    <el-badge :value="uploadableCount" :hidden="uploadableCount === 0" type="primary">
-                        <el-button :icon="Upload" @click="intelligentUpload" circle
-                            :disabled="!isWebdavConfigValid || !localChatPath" />
-                    </el-badge>
-                </el-tooltip>
-                <el-tooltip :content="t('chats.tooltips.downloadChanges', { count: downloadableCount })"
-                    placement="bottom">
-                    <el-badge :value="downloadableCount" :hidden="downloadableCount === 0" type="success">
-                        <el-button :icon="Download" @click="intelligentDownload" circle
-                            :disabled="!isWebdavConfigValid || !localChatPath" />
-                    </el-badge>
-                </el-tooltip>
-            </div>
-            <div class="view-selector">
-                <el-radio-group v-model="activeView" @change="currentPage = 1">
-                    <el-radio-button value="local">{{ t('chats.view.local') }}</el-radio-button>
-                    <el-radio-button value="cloud" :disabled="!isWebdavConfigValid">{{ t('chats.view.cloud')
-                        }}</el-radio-button>
-                </el-radio-group>
+                </div>
+                <div class="toolbar-right">
+                    <div class="toolbar-btn-wrapper">
+                        <el-popover placement="bottom-end" :title="t('chats.info.title')" :width="450" trigger="click">
+                            <template #reference>
+                                <el-button class="rounded-action-btn" :icon="Info" circle />
+                            </template>
+                            <div class="info-popover-content">
+                                <p v-html="t('chats.info.localDesc', { path: localChatPath || t('chats.info.pathNotSet') })">
+                                </p>
+                                <p v-html="t('chats.info.cloudDesc')"></p>
+                            </div>
+                        </el-popover>
+                    </div>
+                    <div class="toolbar-btn-wrapper">
+                        <el-tooltip :content="t('chats.clean.button')" placement="bottom">
+                            <el-button class="rounded-action-btn" :icon="BrushCleaning" circle @click="openCleanDialog" />
+                        </el-tooltip>
+                    </div>
+                    <div class="toolbar-btn-wrapper">
+                        <el-tooltip :content="t('chats.tooltips.uploadChanges', { count: uploadableCount })" placement="bottom">
+                            <el-badge :value="uploadableCount" :hidden="uploadableCount === 0" type="primary">
+                                <el-button class="rounded-action-btn" :icon="Upload" @click="intelligentUpload" circle
+                                    :disabled="!isWebdavConfigValid || !localChatPath" />
+                            </el-badge>
+                        </el-tooltip>
+                    </div>
+                    <div class="toolbar-btn-wrapper">
+                        <el-tooltip :content="t('chats.tooltips.downloadChanges', { count: downloadableCount })" placement="bottom">
+                            <el-badge :value="downloadableCount" :hidden="downloadableCount === 0" type="success">
+                                <el-button class="rounded-action-btn" :icon="Download" @click="intelligentDownload" circle
+                                    :disabled="!isWebdavConfigValid || !localChatPath" />
+                            </el-badge>
+                        </el-tooltip>
+                    </div>
+                </div>
             </div>
 
             <div class="table-container">
@@ -541,10 +586,10 @@ async function executeAutoClean() {
                 </div>
 
                 <el-table v-else :data="paginatedFiles" v-loading="isTableLoading"
-                    @selection-change="handleSelectionChange" style="width: 100%" height="100%" border stripe>
+                    @selection-change="handleSelectionChange" class="history-table" style="width: 100%" height="100%">
                     <el-table-column type="selection" width="50" align="center" />
                     <el-table-column prop="basename" :label="t('chats.table.filename')" sortable show-overflow-tooltip
-                        min-width="120">
+                        min-width="200">
                         <template #default="scope">
                             <span class="filename-text">{{ scope.row.basename.endsWith('.json') ?
                                 scope.row.basename.slice(0, -5) : scope.row.basename }}</span>
@@ -557,53 +602,51 @@ async function executeAutoClean() {
                     <el-table-column prop="size" :label="t('chats.table.size')" width="90" sortable align="center">
                         <template #default="scope">{{ formatBytes(scope.row.size) }}</template>
                     </el-table-column>
-                    <el-table-column :label="t('chats.table.actions')" width="300" align="center">
+                    <el-table-column :label="t('chats.table.actions')" width="196" align="center">
                         <template #default="scope">
-                            <div class="action-buttons-container">
-                                <el-button link type="primary" :icon="ChatDotRound" @click="startChat(scope.row)">{{
-                                    t('chats.actions.chat') }}</el-button>
-                                <el-divider direction="vertical" />
+                            <div class="row-action-group">
+                                <el-tooltip :content="t('chats.actions.chat')" placement="top">
+                                    <el-button link class="row-action-btn" type="primary" :icon="ChatDotRound" circle
+                                        @click="startChat(scope.row)" />
+                                </el-tooltip>
                                 <el-tooltip
                                     :content="activeView === 'local' ? t('chats.tooltips.forceUpload') : t('chats.tooltips.forceDownload')"
                                     placement="top">
-                                    <el-button link type="primary" :icon="Switch"
+                                    <el-button link class="row-action-btn" type="primary" :icon="Switch" circle
                                         @click="forceSyncFile(scope.row.basename, activeView === 'local' ? 'upload' : 'download')"
-                                        :loading="singleFileSyncing[scope.row.basename]">
-                                        {{ t('chats.actions.forceSync') }}
-                                    </el-button>
+                                        :loading="singleFileSyncing[scope.row.basename]" />
                                 </el-tooltip>
-                                <el-divider direction="vertical" />
-                                <el-button link type="warning" :icon="Edit" @click="renameFile(scope.row)">{{
-                                    t('chats.actions.rename') }}</el-button>
-                                <el-divider direction="vertical" />
-                                <el-button link type="danger" :icon="DeleteIcon" @click="deleteFiles([scope.row])">{{
-                                    t('chats.actions.delete') }}</el-button>
+                                <el-tooltip :content="t('chats.actions.rename')" placement="top">
+                                    <el-button link class="row-action-btn" type="warning" :icon="Edit" circle
+                                        @click="renameFile(scope.row)" />
+                                </el-tooltip>
+                                <el-tooltip :content="t('chats.actions.delete')" placement="top">
+                                    <el-button link class="row-action-btn" type="danger" :icon="DeleteIcon" circle
+                                        @click="deleteFiles([scope.row])" />
+                                </el-tooltip>
                             </div>
                         </template>
                     </el-table-column>
                 </el-table>
             </div>
 
-            <div class="footer-bar">
-                <div class="footer-left">
-                    <el-button :icon="Refresh" @click="refreshData">{{ t('common.refresh') }}</el-button>
-                    <el-button type="danger" :icon="DeleteIcon" @click="deleteFiles(selectedFiles)"
-                        :disabled="selectedFiles.length === 0">
-                        {{ t('common.deleteSelected') }} ({{ selectedFiles.length }})
-                    </el-button>
-                </div>
-                <div class="footer-center">
-                    <el-pagination v-if="currentFiles.length > 0" v-model:current-page="currentPage"
-                        v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="currentFiles.length"
-                        layout="total, sizes, prev, pager, next, jumper" background size="small" />
-                </div>
-                <div class="footer-right">
-                </div>
+            <div class="pagination-bar">
+                <el-pagination v-if="currentFiles.length > 0" v-model:current-page="currentPage"
+                    v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="currentFiles.length"
+                    layout="total, sizes, prev, pager, next, jumper" background size="small" />
             </div>
+        </div>
+
+        <div class="bottom-actions-container">
+            <el-button class="action-btn" :icon="Refresh" @click="refreshData">{{ t('common.refresh') }}</el-button>
+            <el-button class="action-btn" type="danger" :icon="DeleteIcon" @click="deleteFiles(selectedFiles)"
+                :disabled="selectedFiles.length === 0">
+                {{ t('common.deleteSelected') }} ({{ selectedFiles.length }})
+            </el-button>
         </div>
     </div>
     <el-dialog v-model="isSyncing" :title="t('chats.alerts.syncInProgress')" :close-on-click-modal="false"
-        :show-close="false" :close-on-press-escape="false" width="400px" center>
+        :show-close="false" :close-on-press-escape="false" width="400px" center append-to-body>
         <div class="sync-progress-container">
             <el-progress :percentage="syncProgress" :stroke-width="10" striped striped-flow />
             <p class="sync-status-text">{{ syncStatusText }}</p>
@@ -658,63 +701,104 @@ async function executeAutoClean() {
 </template>
 
 <style scoped>
-.view-selector {
-    padding: 5px 15px 0px 0px;
-    text-align: center;
-}
-
 .chats-page-container {
     height: 100%;
     width: 100%;
     display: flex;
     flex-direction: column;
-    padding: 21px;
+    padding: 18px 20px 0;
     box-sizing: border-box;
     overflow: hidden;
     background-color: var(--bg-primary);
 }
 
-.config-prompt {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    flex-direction: column;
-    height: 100%;
-    text-align: center;
-    background-color: var(--bg-secondary);
-    border-radius: var(--radius-lg);
-    box-shadow: 0 0 0 1px var(--border-primary);
-}
-
-.config-prompt-title {
-    font-size: 18px;
-    color: var(--text-primary);
-    margin-top: 0;
-    margin-bottom: 8px;
-    font-weight: 600;
-}
-
-:deep(.el-empty__description p) {
-    color: var(--text-secondary);
-    font-size: 14px;
-}
-
 .chats-content-wrapper {
-    position: relative;
     display: flex;
     flex-direction: column;
     height: 100%;
     width: 100%;
+    padding: 14px 14px 0;
     background-color: var(--bg-secondary);
     border-radius: var(--radius-lg);
     box-shadow: 0 0 0 1px var(--border-primary), var(--shadow-sm);
     overflow: hidden;
 }
 
+.chats-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 0 0 8px;
+}
+
+.toolbar-left {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+.view-selector {
+    display: flex;
+    align-items: center;
+}
+
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.toolbar-right > * {
+    display: flex;
+    align-items: center;
+}
+
+.toolbar-right :deep(.el-popover__reference-wrapper) {
+    display: flex;
+    align-items: center;
+}
+
+.toolbar-right :deep(.el-badge) {
+    display: flex;
+    align-items: center;
+}
+
+.toolbar-right :deep(.el-badge__content) {
+    font-size: 10px;
+    padding: 0 5px;
+    height: 16px;
+    line-height: 16px;
+    min-width: 16px;
+    border-width: 1px;
+    transform: translateY(-45%) translateX(65%);
+}
+
+html.dark .toolbar-right :deep(.el-badge__content--primary) {
+    background-color: var(--el-color-primary);
+    color: var(--bg-primary);
+}
+
+html.dark .footer-action-btn.el-button--danger {
+    background-color: #B91C1C;
+}
+
+html.dark .footer-action-btn.el-button--danger.is-disabled {
+    background-color: #B91C1C;
+    opacity: 0.6;
+}
+
 .table-container {
     flex-grow: 1;
+    min-height: 0;
     overflow: hidden;
-    padding: 5px 10px 10px 10px;
+    padding: 0;
+    margin-top: 8px;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-lg);
+    background-color: color-mix(in srgb, var(--bg-primary) 65%, transparent);
 }
 
 .filename-text {
@@ -722,108 +806,90 @@ async function executeAutoClean() {
     color: var(--text-primary);
 }
 
-:deep(.el-table),
-:deep(.el-table__expanded-cell) {
+:deep(.history-table.el-table),
+:deep(.history-table .el-table__expanded-cell) {
     background-color: transparent;
 }
 
-:deep(.el-table .el-table__cell) {
+:deep(.history-table .el-table__inner-wrapper::before) {
+    display: none;
+}
+
+:deep(.history-table .el-table__header-wrapper th.el-table__cell) {
+    background-color: color-mix(in srgb, var(--bg-tertiary) 70%, transparent) !important;
     color: var(--text-secondary);
-}
-
-:deep(.el-table tr) {
-    background-color: transparent;
-    transition: background-color 0.2s;
-}
-
-:deep(.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell) {
-    background-color: var(--bg-primary);
-}
-
-:deep(.el-table--enable-row-hover .el-table__body tr:hover>td.el-table__cell) {
-    background-color: var(--bg-tertiary);
-}
-
-:deep(.el-table__header-wrapper th) {
-    background-color: var(--bg-primary) !important;
-    color: var(--text-secondary);
+    font-size: 12px;
     font-weight: 600;
-}
-
-:deep(.el-table__border-left-patch) {
-    border-left: 1px solid var(--border-primary);
-}
-
-:deep(.el-table__border-right-patch) {
-    border-left: 1px solid var(--border-primary);
-}
-
-:deep(.el-table--border .el-table__inner-wrapper::after),
-:deep(.el-table--border::after),
-:deep(.el-table--border::before),
-:deep(.el-table__inner-wrapper::before) {
-    background-color: var(--border-primary);
-}
-
-:deep(.el-table td.el-table__cell),
-:deep(.el-table th.el-table__cell.is-leaf) {
     border-bottom: 1px solid var(--border-primary);
+    padding-top: 8px;
+    padding-bottom: 8px;
+}
+
+:deep(.history-table td.el-table__cell) {
     color: var(--text-primary);
+    border-bottom: 1px solid color-mix(in srgb, var(--border-primary) 82%, transparent);
+    padding-top: 8px;
+    padding-bottom: 8px;
 }
 
-:deep(.el-table--border .el-table__cell) {
-    border-right: 1px solid var(--border-primary);
+:deep(.history-table .el-table__body tr:hover > td.el-table__cell) {
+    background-color: color-mix(in srgb, var(--bg-tertiary) 60%, transparent);
 }
 
-:deep(.el-table__empty-text) {
+:deep(.history-table .el-table__empty-text) {
     color: var(--text-tertiary);
 }
 
-.action-buttons-container {
-    display: flex;
-    justify-content: center;
+.row-action-group {
+    display: inline-flex;
     align-items: center;
-    gap: 0;
+    justify-content: center;
+    gap: 4px;
+    white-space: nowrap;
 }
 
-.action-buttons-container .el-button {
-    font-weight: 500;
+.row-action-btn {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+    min-height: 30px !important;
+    padding: 0;
+    border-radius: 9px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
 }
 
-.action-buttons-container .el-divider--vertical {
-    height: 1em;
-    border-left: 1px solid var(--border-primary);
-    margin: 0 8px;
+:deep(.row-action-btn:not(.is-disabled):hover) {
+    background-color: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
 }
 
-.footer-bar {
+.pagination-bar {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-end;
+    align-items: center;
+    width: 100%;
+    padding: 10px 0 8px;
+    flex-shrink: 0;
+}
+
+.bottom-actions-container {
+    display: flex;
+    justify-content: flex-start;
     align-items: center;
     width: 100%;
     flex-wrap: wrap;
     gap: 10px;
-    padding: 10px 15px;
-    border-top: 1px solid var(--border-primary);
-    background-color: var(--bg-primary);
+    padding: 12px 0 10px;
+    background-color: transparent;
     flex-shrink: 0;
 }
 
-.footer-left,
-.footer-right {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.footer-center {
-    flex-grow: 1;
-    display: flex;
-    justify-content: center;
-}
-
-.footer-right {
-    justify-content: flex-end;
+.bottom-actions-container .action-btn {
+    min-width: 0;
+    min-height: 34px;
+    font-weight: 500;
 }
 
 :deep(.el-pagination) {
@@ -851,6 +917,31 @@ async function executeAutoClean() {
     color: var(--text-accent);
 }
 
+.config-prompt {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    height: 100%;
+    text-align: center;
+    background-color: var(--bg-secondary);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 0 0 1px var(--border-primary);
+}
+
+.config-prompt-title {
+    font-size: 18px;
+    color: var(--text-primary);
+    margin-top: 0;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+:deep(.el-empty__description p) {
+    color: var(--text-secondary);
+    font-size: 14px;
+}
+
 .config-prompt-small {
     display: flex;
     justify-content: center;
@@ -868,50 +959,32 @@ async function executeAutoClean() {
     color: var(--text-secondary);
 }
 
-.sync-buttons-container {
-    position: absolute;
-    top: 8px;
-    /* 根据视觉效果微调 */
-    right: 20px;
-    z-index: 10;
-    /* 确保在表格之上 */
-    display: flex;
-    gap: 8px;
-}
+@media (max-width: 860px) {
+    .chats-page-container {
+        padding: 12px 12px 0;
+    }
 
-.sync-buttons-container .el-button {
-    width: 32px;
-    height: 32px;
-}
+    .chats-content-wrapper {
+        padding: 10px 10px 0;
+    }
 
-.sync-buttons-container :deep(.el-badge__content) {
-    font-size: 10px;
-    padding: 0 5px;
-    height: 16px;
-    line-height: 16px;
-    min-width: 16px;
-    border-width: 1px;
-    /* 调整位置 */
-    transform: translateY(-50%) translateX(70%);
-}
+    .chats-toolbar {
+        gap: 10px;
+    }
 
-/* 修复深色模式下 primary 徽章的颜色 */
-html.dark .sync-buttons-container :deep(.el-badge__content--primary) {
-    background-color: var(--el-color-primary);
-    color: var(--bg-primary);
-    /* 使用深色背景作为文字颜色 */
-}
+    .toolbar-left,
+    .toolbar-right {
+        width: 100%;
+    }
 
-.info-button-container {
-    position: absolute;
-    top: 8px;
-    left: 20px;
-    z-index: 10;
-}
+    .toolbar-right {
+        justify-content: flex-start;
+    }
 
-.info-button-container .el-button {
-    width: 32px;
-    height: 32px;
+    .pagination-bar {
+        justify-content: flex-start;
+        width: 100%;
+    }
 }
 
 /* 弹出框内容的样式 */

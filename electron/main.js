@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, globalShortcut, ipcMain, Notification, screen } = require('electron');
+const { app, BrowserWindow, dialog, globalShortcut, ipcMain, Notification, screen, nativeTheme } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -18,9 +18,9 @@ const DEFAULT_LAUNCHER_SETTINGS = {
 };
 
 const SUPPORTED_PROMPT_TYPES = new Set(['general', 'over', 'img', 'files']);
-const LAUNCHER_WIDTH = 680;
+const LAUNCHER_WIDTH = 640;
 const LAUNCHER_HEIGHT = 56;
-const LAUNCHER_MAX_HEIGHT = 420;
+const LAUNCHER_MAX_HEIGHT = 440;
 
 function resolveAppFile(...parts) {
   return path.join(app.getAppPath(), ...parts);
@@ -36,6 +36,18 @@ function resolveMainPreloadPath() {
 function resolveMainEntryUrl() {
   if (IS_RUNTIME_DEV_SERVER) return DEV_MAIN_URL;
   return pathToFileURL(resolveAppFile('runtime', 'main', 'index.html')).toString();
+}
+
+function resolveLauncherEntryUrl() {
+  if (IS_RUNTIME_DEV_SERVER) {
+    try {
+      return new URL('launcher.html', DEV_MAIN_URL).toString();
+    } catch (_error) {
+      const base = DEV_MAIN_URL.endsWith('/') ? DEV_MAIN_URL : `${DEV_MAIN_URL}/`;
+      return `${base}launcher.html`;
+    }
+  }
+  return pathToFileURL(resolveAppFile('runtime', 'main', 'launcher.html')).toString();
 }
 
 function normalizeWebPreferences(webPreferences = {}, baseDir) {
@@ -114,6 +126,37 @@ function readStoredLauncherSettings() {
   return { launcherEnabled, launcherHotkey: normalizedHotkey };
 }
 
+function readStoredThemeSettings() {
+  const docs = readShimDocuments();
+  return docs?.config?.data?.config || {};
+}
+
+function resolveThemeSource(settings = {}) {
+  const mode = typeof settings.themeMode === 'string'
+    ? settings.themeMode.trim().toLowerCase()
+    : '';
+
+  if (mode === 'dark' || mode === 'light' || mode === 'system') {
+    return mode;
+  }
+
+  if (typeof settings.isDarkMode === 'boolean') {
+    return settings.isDarkMode ? 'dark' : 'light';
+  }
+
+  return 'system';
+}
+
+function applyNativeThemeSource(settings = {}) {
+  if (process.platform !== 'darwin') return 'system';
+
+  const source = resolveThemeSource(settings);
+  if (nativeTheme.themeSource !== source) {
+    nativeTheme.themeSource = source;
+  }
+  return source;
+}
+
 function readStoredPrompts() {
   const docs = readShimDocuments();
   const promptsData = docs?.prompts?.data;
@@ -145,6 +188,32 @@ function registerManagedWindow(win) {
   });
 }
 
+function applyMacVibrancy(win, options = {}) {
+  if (process.platform !== 'darwin') return;
+  if (!win || win.isDestroyed()) return;
+
+  const material = typeof options.vibrancy === 'string' ? options.vibrancy.trim() : '';
+  if (!material) return;
+
+  try {
+    if (typeof win.setVisualEffectState === 'function') {
+      const visualEffectState = typeof options.visualEffectState === 'string'
+        ? options.visualEffectState
+        : 'active';
+      win.setVisualEffectState(visualEffectState);
+    }
+
+    const duration = Number(options.animationDuration);
+    if (Number.isFinite(duration) && duration >= 0) {
+      win.setVibrancy(material, { animationDuration: Math.round(duration) });
+      return;
+    }
+    win.setVibrancy(material);
+  } catch (error) {
+    console.warn(`[Vibrancy] Failed to apply vibrancy "${material}":`, error);
+  }
+}
+
 function getLauncherBounds() {
   const width = LAUNCHER_WIDTH;
   const height = LAUNCHER_HEIGHT;
@@ -165,7 +234,6 @@ function createLauncherWindow() {
   if (launcherWindow && !launcherWindow.isDestroyed()) return launcherWindow;
 
   const launcherPreload = resolveAppFile('electron', 'launcher_preload.js');
-  const launcherHtml = resolveAppFile('electron', 'launcher.html');
 
   launcherWindow = new BrowserWindow({
     width: LAUNCHER_WIDTH,
@@ -180,6 +248,7 @@ function createLauncherWindow() {
     alwaysOnTop: true,
     skipTaskbar: true,
     backgroundColor: '#00000000',
+    roundedCorners: false,
     webPreferences: {
       preload: launcherPreload,
       contextIsolation: false,
@@ -204,7 +273,7 @@ function createLauncherWindow() {
     launcherWindow = null;
   });
 
-  launcherWindow.loadURL(pathToFileURL(launcherHtml).toString());
+  launcherWindow.loadURL(resolveLauncherEntryUrl());
   return launcherWindow;
 }
 
@@ -337,12 +406,14 @@ function createMainWindow() {
     height: 820,
     minWidth: 1000,
     minHeight: 680,
-    backgroundColor: '#f7f7f5',
+    show: false,
+    backgroundColor: isMac ? '#00000000' : '#f7f7f5',
     autoHideMenuBar: true,
-    title: isMac ? '' : 'Anywhere',
+    title: isMac ? '' : 'Sanft',
     ...(isMac
       ? {
           titleBarStyle: 'hiddenInset',
+          transparent: true,
         }
       : {}),
     webPreferences: {
@@ -361,7 +432,17 @@ function createMainWindow() {
     mainWindow = null;
   });
 
+  mainWindow.once('ready-to-show', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    mainWindow.show();
+  });
+
   mainWindow.loadURL(resolveMainEntryUrl());
+  applyMacVibrancy(mainWindow, {
+    vibrancy: 'sidebar',
+    visualEffectState: 'active',
+    animationDuration: 120,
+  });
 }
 
 function ensureBuildArtifacts() {
@@ -372,6 +453,9 @@ function ensureBuildArtifacts() {
       preloadPath,
       path.join(preloadDir, 'window_preload.js'),
       path.join(preloadDir, 'fast_window_preload.js'),
+      path.join(preloadDir, 'runtime', 'file_runtime.js'),
+      path.join(preloadDir, 'runtime', 'mcp_runtime.js'),
+      path.join(preloadDir, 'runtime', 'skill_runtime.js'),
     ];
     const missing = requiredPaths.filter((file) => !fs.existsSync(file));
     if (missing.length === 0) return;
@@ -382,16 +466,20 @@ function ensureBuildArtifacts() {
       '',
       ...missing.map((item) => `- ${item}`),
     ].join('\n');
-    dialog.showErrorBox('Anywhere Dev Resources Missing', message);
+    dialog.showErrorBox('Sanft Dev Resources Missing', message);
     app.quit();
     return;
   }
 
   const requiredPaths = [
     resolveAppFile('runtime', 'main', 'index.html'),
+    resolveAppFile('runtime', 'main', 'launcher.html'),
     resolveAppFile('runtime', 'preload.js'),
     resolveAppFile('runtime', 'window_preload.js'),
     resolveAppFile('runtime', 'fast_window_preload.js'),
+    resolveAppFile('runtime', 'runtime', 'file_runtime.js'),
+    resolveAppFile('runtime', 'runtime', 'mcp_runtime.js'),
+    resolveAppFile('runtime', 'runtime', 'skill_runtime.js'),
   ];
 
   const missing = requiredPaths.filter((file) => !fs.existsSync(file));
@@ -404,7 +492,7 @@ function ensureBuildArtifacts() {
     ...missing.map((item) => `- ${item}`),
   ].join('\n');
 
-  dialog.showErrorBox('Anywhere Build Missing', message);
+  dialog.showErrorBox('Sanft Build Missing', message);
   app.quit();
 }
 
@@ -433,6 +521,26 @@ ipcMain.on('utools:get-cursor-screen-point', (event) => {
   event.returnValue = screen.getCursorScreenPoint();
 });
 
+ipcMain.on('utools:sync-native-theme', (_event, payload = {}) => {
+  if (process.platform !== 'darwin') return;
+
+  applyNativeThemeSource(payload);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    applyMacVibrancy(mainWindow, {
+      vibrancy: 'sidebar',
+      visualEffectState: 'active',
+      animationDuration: 0,
+    });
+  }
+  if (launcherWindow && !launcherWindow.isDestroyed()) {
+    applyMacVibrancy(launcherWindow, {
+      vibrancy: 'sidebar',
+      visualEffectState: 'active',
+      animationDuration: 0,
+    });
+  }
+});
+
 ipcMain.on('utools:create-browser-window', (event, payload = {}) => {
   const entryPath = payload.entryPath || '';
   const rawOptions = payload.options || {};
@@ -445,7 +553,25 @@ ipcMain.on('utools:create-browser-window', (event, payload = {}) => {
     webPreferences: normalizeWebPreferences(rawOptions.webPreferences || {}, baseDir),
   };
 
+  const windowVibrancy = typeof normalizedOptions.macOSVibrancy === 'string'
+    ? normalizedOptions.macOSVibrancy
+    : (typeof normalizedOptions.vibrancy === 'string' ? normalizedOptions.vibrancy : '');
+  const windowVisualEffectState = typeof normalizedOptions.macOSVisualEffectState === 'string'
+    ? normalizedOptions.macOSVisualEffectState
+    : 'active';
+  const windowVibrancyAnimationDuration = normalizedOptions.macOSVibrancyAnimationDuration;
+
+  delete normalizedOptions.macOSVibrancy;
+  delete normalizedOptions.macOSVisualEffectState;
+  delete normalizedOptions.macOSVibrancyAnimationDuration;
+  delete normalizedOptions.vibrancy;
+
   const win = new BrowserWindow(normalizedOptions);
+  applyMacVibrancy(win, {
+    vibrancy: windowVibrancy,
+    visualEffectState: windowVisualEffectState,
+    animationDuration: windowVibrancyAnimationDuration,
+  });
   registerManagedWindow(win);
 
   const readyChannel = `utools:window-ready:${win.id}`;
@@ -549,7 +675,7 @@ ipcMain.on('utools:show-open-dialog', (event, options = {}) => {
 });
 
 ipcMain.on('utools:show-notification', (_event, payload = {}) => {
-  const title = payload.title || 'Anywhere';
+  const title = payload.title || 'Sanft';
   const body = payload.body || '';
   if (Notification.isSupported()) {
     new Notification({ title, body }).show();
@@ -671,6 +797,7 @@ ipcMain.on('launcher:execute', (_event, action = {}) => {
 
 app.whenReady().then(() => {
   ensureBuildArtifacts();
+  applyNativeThemeSource(readStoredThemeSettings());
   createMainWindow();
 
   const launcherResult = registerLauncherHotkey(readStoredLauncherSettings());

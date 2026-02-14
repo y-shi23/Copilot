@@ -1,11 +1,11 @@
 {
-  "name": "anywhere-backend",
+  "name": "sanft-backend",
   "version": "1.0.0",
   "description": "Bundler for Utools plugin preload scripts",
   "main": "index.js",
   "scripts": {
-    "build": "esbuild src/preload.js src/window_preload.js src/fast_window_preload.js --bundle --minify --platform=node --outdir=./public --format=cjs --external:electron --legal-comments=none",
-    "watch": "esbuild src/preload.js src/window_preload.js src/fast_window_preload.js --bundle --platform=node --outdir=./public --format=cjs --external:electron --watch"
+    "build": "esbuild src/preload.js src/window_preload.js src/fast_window_preload.js src/runtime/file_runtime.js src/runtime/mcp_runtime.js src/runtime/skill_runtime.js --bundle --minify --platform=node --outdir=./public --outbase=src --format=cjs --external:electron --legal-comments=none",
+    "watch": "esbuild src/preload.js src/window_preload.js src/fast_window_preload.js src/runtime/file_runtime.js src/runtime/mcp_runtime.js src/runtime/skill_runtime.js --bundle --platform=node --outdir=./public --outbase=src --format=cjs --external:electron --watch"
   },
   "keywords": [],
   "author": "",

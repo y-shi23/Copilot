@@ -19,7 +19,7 @@
     }
   },
   "doc": {
-    "title": "Anywhere 使用指南",
+    "title": "Sanft 使用指南",
     "loading": "文档加载中...",
     "loadFailed": "文档加载失败，请检查网络连接。",
     "checkNetwork": "请确保您能访问 GitHub 或其镜像站点。",
@@ -443,8 +443,11 @@
   "providers": {
     "addProviderBtn": "添加服务商",
     "noProviders": "暂无服务商",
-    "statusOff": "关闭",
+    "statusOff": "OFF",
+    "statusOn": "ON",
     "unnamedProvider": "未命名服务商",
+    "rename": "重命名",
+    "delete": "删除",
     "editNameTooltip": "编辑名称",
     "moveUpTooltip": "上移",
     "moveDownTooltip": "下移",
@@ -473,30 +476,28 @@
       "ownedBy": "所有者",
       "action": "操作"
     },
-    "folders": {
-      "createSuccess": "目录创建成功",
-      "renameSuccess": "目录重命名成功",
-      "deleteSuccess": "目录已删除",
-      "deleteConfirmTitle": "删除确认",
-      "deleteConfirmMessage": "确定要删除此目录吗？内部的服务商将移动到根目录。",
-      "floder_label": "目录",
-      "root": "根目录",
-      "empty": "(空)",
-      "newFolderTitle": "新建目录",
-      "renameFolderTitle": "重命名目录",
-      "folderNameLabel": "目录名称",
-      "folderNamePlaceholder": "请输入名称"
-    },
     "noModelsFoundError": "未找到模型或 API 错误",
     "noModelsMatchSearch": "未找到匹配的模型",
     "addModelTooltip": "添加模型",
     "removeModelTooltip": "移除模型",
+    "modelCapabilitySettingsTooltip": "设置模型属性",
+    "modelCapabilityDialogTitle": "模型属性设置",
+    "modelCapabilityDialogTip": "手动设置优先于自动识别结果",
+    "modelCapabilityResetToAuto": "恢复自动识别",
+    "capabilities": {
+      "vision": "视觉",
+      "web": "联网",
+      "reasoning": "推理",
+      "tools": "工具",
+      "embedding": "嵌入"
+    },
     "alerts": {
       "providerUrlNotSet": "服务商 URL 未设置",
       "fetchModelsError": "错误 {status}: {message}",
       "fetchModelsFailedDefault": "获取模型失败",
       "configSaveFailed": "保存配置失败",
-      "saveFailed": "保存失败"
+      "saveFailed": "保存失败",
+      "modelMetadataLoadFailed": "模型元数据加载失败，将使用默认展示。"
     }
   },
   "setting": {
@@ -585,9 +586,9 @@
       "password": "WebDAV 密码",
       "passwordPlaceholder": "WebDAV 密码",
       "path": "WebDAV 配置路径",
-      "pathPlaceholder": "/anywhere",
+      "pathPlaceholder": "/sanft",
       "dataPath": "WebDAV 数据路径",
-      "dataPathPlaceholder": "/anywhere_data",
+      "dataPathPlaceholder": "/sanft_data",
       "backupRestoreTitle": "配置备份与恢复",
       "backupButton": "备份到 WebDAV",
       "restoreButton": "管理备份",

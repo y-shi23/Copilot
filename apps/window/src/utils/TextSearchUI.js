@@ -1,7 +1,5 @@
 // ./apps/window/src/utils/TextSearchUI.js
-import { __iconNode as chevronUpIconNode } from 'lucide-react/dist/esm/icons/chevron-up.js';
-import { __iconNode as chevronDownIconNode } from 'lucide-react/dist/esm/icons/chevron-down.js';
-import { __iconNode as xIconNode } from 'lucide-react/dist/esm/icons/x.js';
+import { ChevronUp, ChevronDown, X } from 'lucide-vue-next';
 import { renderLucideSvg } from './lucideSvg.js';
 
 export default class TextSearchUI {
@@ -168,9 +166,9 @@ export default class TextSearchUI {
     this.container = document.createElement('div');
     this.container.className = 'text-search-container hidden';
 
-    const prevIconSvg = renderLucideSvg(chevronUpIconNode, { size: 16, strokeWidth: 2 });
-    const nextIconSvg = renderLucideSvg(chevronDownIconNode, { size: 16, strokeWidth: 2 });
-    const closeIconSvg = renderLucideSvg(xIconNode, { size: 16, strokeWidth: 2 });
+    const prevIconSvg = renderLucideSvg(ChevronUp, { size: 16, strokeWidth: 2 });
+    const nextIconSvg = renderLucideSvg(ChevronDown, { size: 16, strokeWidth: 2 });
+    const closeIconSvg = renderLucideSvg(X, { size: 16, strokeWidth: 2 });
     
     this.container.innerHTML = `
       <div class="text-search-drag-handle">⋮⋮</div>

@@ -1,10 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { ElHeader, ElTooltip } from 'element-plus';
-import { __iconNode as chevronsUpDownIconNode } from 'lucide-react/dist/esm/icons/chevrons-up-down.js';
-import { __iconNode as pencilIconNode } from 'lucide-react/dist/esm/icons/pencil.js';
-import { __iconNode as searchIconNode } from 'lucide-react/dist/esm/icons/search.js';
-import LucideIcon from './LucideIcon.vue';
+import { ChevronsUpDown, Pencil, Search } from 'lucide-vue-next';
 
 const props = defineProps({
   modelMap: Object,
@@ -71,7 +68,7 @@ const logoColor = computed(() => {
               {{ isMcpLoading ? 'MCP工具加载中...' : (modelMap[model] || model || '选择模型') }}
             </span>
             
-            <LucideIcon :icon-node="chevronsUpDownIconNode" :size="12" class="arrow-icon" />
+            <ChevronsUpDown :size="12" class="arrow-icon" />
           </div>
         </div>
 
@@ -80,7 +77,7 @@ const logoColor = computed(() => {
 
         <!-- 2. 系统提示词展示/编辑 -->
         <div class="model-pill prompt-pill" @click="emit('show-system-prompt')">
-          <LucideIcon :icon-node="pencilIconNode" :size="14" class="prompt-icon" />
+          <Pencil :size="14" class="prompt-icon" />
           <span v-if="systemPrompt" class="model-text prompt-text">{{ systemPrompt }}</span>
           <span v-else class="model-text prompt-text placeholder">系统提示词</span>
         </div>
@@ -88,7 +85,7 @@ const logoColor = computed(() => {
         <!-- 3. [新增] 搜索按钮 -->
         <el-tooltip content="搜索内容 (Ctrl/Cmd+F)" placement="bottom" :show-after="500">
           <div class="model-pill icon-pill" @click="emit('open-search')">
-            <LucideIcon :icon-node="searchIconNode" :size="14" class="header-icon" />
+            <Search :size="14" class="header-icon" />
           </div>
         </el-tooltip>
 

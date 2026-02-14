@@ -19,7 +19,7 @@
     }
   },
   "doc": {
-    "title": "Anywhere User Guide",
+    "title": "Sanft User Guide",
     "loading": "Loading documentation...",
     "loadFailed": "Failed to load documentation. Please check your network connection.",
     "checkNetwork": "Please ensure you can access GitHub or its mirrors.",
@@ -443,8 +443,11 @@
   "providers": {
     "addProviderBtn": "Add Provider",
     "noProviders": "No providers yet.",
-    "statusOff": "Off",
+    "statusOff": "OFF",
+    "statusOn": "ON",
     "unnamedProvider": "Unnamed Provider",
+    "rename": "Rename",
+    "delete": "Delete",
     "editNameTooltip": "Edit Name",
     "moveUpTooltip": "Move Up",
     "moveDownTooltip": "Move Down",
@@ -473,30 +476,28 @@
       "ownedBy": "Owned By",
       "action": "Action"
     },
-    "folders": {
-      "createSuccess": "Directory created successfully",
-      "renameSuccess": "Directory renamed successfully",
-      "deleteSuccess": "Directory deleted",
-      "deleteConfirmTitle": "Confirm Deletion",
-      "deleteConfirmMessage": "Are you sure you want to delete this directory? Providers inside will move to root.",
-      "floder_label": "Folder",
-      "root": "Root",
-      "empty": "(Empty)",
-      "newFolderTitle": "New Directory",
-      "renameFolderTitle": "Rename Directory",
-      "folderNameLabel": "Directory Name",
-      "folderNamePlaceholder": "Enter name"
-    },
     "noModelsFoundError": "No models found or API error.",
     "noModelsMatchSearch": "No models match search.",
     "addModelTooltip": "Add Model",
     "removeModelTooltip": "Remove Model",
+    "modelCapabilitySettingsTooltip": "Configure Model Capabilities",
+    "modelCapabilityDialogTitle": "Model Capability Settings",
+    "modelCapabilityDialogTip": "Manual settings take priority over automatic detection.",
+    "modelCapabilityResetToAuto": "Reset to Auto Detection",
+    "capabilities": {
+      "vision": "Vision",
+      "web": "Web",
+      "reasoning": "Reasoning",
+      "tools": "Tools",
+      "embedding": "Embedding"
+    },
     "alerts": {
       "providerUrlNotSet": "Provider URL is not set.",
       "fetchModelsError": "Error {status}: {message}",
       "fetchModelsFailedDefault": "Failed to fetch models.",
       "configSaveFailed": "Failed to save configuration.",
-      "saveFailed": "Save failed"
+      "saveFailed": "Save failed",
+      "modelMetadataLoadFailed": "Failed to load model metadata. Falling back to default display."
     }
   },
   "setting": {
@@ -585,9 +586,9 @@
       "password": "WebDAV Password",
       "passwordPlaceholder": "WebDAV Password",
       "path": "WebDAV Config Path",
-      "pathPlaceholder": "/anywhere",
+      "pathPlaceholder": "/sanft",
       "dataPath": "WebDAV Data Path",
-      "dataPathPlaceholder": "/anywhere_data",
+      "dataPathPlaceholder": "/sanft_data",
       "backupRestoreTitle": "Config Backup & Restore",
       "backupButton": "Backup to WebDAV",
       "restoreButton": "Manage Backups",

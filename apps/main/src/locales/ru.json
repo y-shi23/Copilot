@@ -19,7 +19,7 @@
     }
   },
   "doc": {
-    "title": "Руководство пользователя Anywhere",
+    "title": "Руководство пользователя Sanft",
     "loading": "Загрузка документации...",
     "loadFailed": "Не удалось загрузить документацию. Пожалуйста, проверьте подключение к интернету.",
     "checkNetwork": "Убедитесь, что у вас есть доступ к GitHub или его зеркалам.",
@@ -443,8 +443,11 @@
   "providers": {
     "addProviderBtn": "Добавить провайдера",
     "noProviders": "Провайдеры пока отсутствуют.",
-    "statusOff": "Откл.",
+    "statusOff": "OFF",
+    "statusOn": "ON",
     "unnamedProvider": "Безымянный провайдер",
+    "rename": "Переименовать",
+    "delete": "Удалить",
     "editNameTooltip": "Редактировать имя",
     "moveUpTooltip": "Переместить вверх",
     "moveDownTooltip": "Переместить вниз",
@@ -473,30 +476,28 @@
       "ownedBy": "Владелец",
       "action": "Действие"
     },
-    "folders": {
-      "createSuccess": "Папка успешно создана",
-      "renameSuccess": "Папка успешно переименована",
-      "deleteSuccess": "Папка удалена",
-      "deleteConfirmTitle": "Подтверждение удаления",
-      "deleteConfirmMessage": "Вы уверены, что хотите удалить эту папку? Находящиеся в ней поставщики услуг будут перемещены в корневой каталог.",
-      "floder_label": "Папка",
-      "root": "Корневой каталог",
-      "empty": "(пусто)",
-      "newFolderTitle": "Новая папка",
-      "renameFolderTitle": "Переименовать папку",
-      "folderNameLabel": "Имя папки",
-      "folderNamePlaceholder": "Введите имя"
-    },
     "noModelsFoundError": "Модели не найдены или ошибка API.",
     "noModelsMatchSearch": "Соответствующие модели не найдены.",
     "addModelTooltip": "Добавить модель",
     "removeModelTooltip": "Удалить модель",
+    "modelCapabilitySettingsTooltip": "Настроить свойства модели",
+    "modelCapabilityDialogTitle": "Настройки свойств модели",
+    "modelCapabilityDialogTip": "Ручные настройки имеют приоритет над автоопределением.",
+    "modelCapabilityResetToAuto": "Сбросить к автоопределению",
+    "capabilities": {
+      "vision": "Зрение",
+      "web": "Интернет",
+      "reasoning": "Рассуждение",
+      "tools": "Инструменты",
+      "embedding": "Эмбеддинги"
+    },
     "alerts": {
       "providerUrlNotSet": "URL провайдера не установлен.",
       "fetchModelsError": "Ошибка {status}: {message}",
       "fetchModelsFailedDefault": "Не удалось получить модели.",
       "configSaveFailed": "Не удалось сохранить конфигурацию.",
-      "saveFailed": "Ошибка сохранения"
+      "saveFailed": "Ошибка сохранения",
+      "modelMetadataLoadFailed": "Не удалось загрузить метаданные моделей. Используется отображение по умолчанию."
     }
   },
   "setting": {
@@ -585,9 +586,9 @@
       "password": "Пароль WebDAV",
       "passwordPlaceholder": "Пароль WebDAV",
       "path": "Путь конфигурации WebDAV",
-      "pathPlaceholder": "/anywhere",
+      "pathPlaceholder": "/sanft",
       "dataPath": "Путь к данным WebDAV",
-      "dataPathPlaceholder": "/anywhere_data",
+      "dataPathPlaceholder": "/sanft_data",
       "backupRestoreTitle": "Резервное копирование и восстановление",
       "backupButton": "Копировать в WebDAV",
       "restoreButton": "Управление копиями",

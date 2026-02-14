@@ -1,6 +1,6 @@
 <script setup>
 import { ref, reactive, computed, inject, watch, nextTick, onMounted } from 'vue';
-import { Plus, Delete, Close, ChatLineRound, UploadFilled, Position, QuestionFilled, Switch, Refresh, Edit, Download, Search } from '@element-plus/icons-vue';
+import { Plus, Trash2 as Delete, X as Close, MessageSquareText as ChatLineRound, Upload as UploadFilled, MapPin as Position, CircleQuestionMark as QuestionFilled, Repeat as Switch, RefreshCw as Refresh, Pencil as Edit, Download, Search, MessageSquareShare } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 
@@ -704,6 +704,17 @@ function formatDescription(text) {
   return singleLineText;
 }
 
+function getTypeDisplay(type) {
+  if (!type) return '';
+  switch (type) {
+    case 'general': return t('prompts.typeOptions.general');
+    case 'over': return t('prompts.typeOptions.text');
+    case 'img': return t('prompts.typeOptions.image');
+    case 'files': return t('prompts.typeOptions.files');
+    default: return type;
+  }
+}
+
 const handleIconUpload = (file) => {
   const isImage = file.type.startsWith('image/');
   if (!isImage) {
@@ -789,60 +800,57 @@ async function refreshPromptsConfig() {
 
 <template>
   <div class="page-container">
-    <!-- 搜索框容器 - 移到顶部,与 MCP 页面保持一致 -->
-    <div class="search-input-container">
-      <el-input v-model="searchQueries[activeTabName]" :placeholder="t('prompts.searchPlaceholder')" :prefix-icon="Search" clearable />
-    </div>
-
-    <!-- 标签行 -->
-    <div class="prompts-header">
-      <div class="custom-all-tab" :class="{ 'is-active': activeTabName === '__ALL_PROMPTS__' }"
-        @click="activeTabName = '__ALL_PROMPTS__'">
-        <div class="tab-label-multiline">
-          <span class="tab-name">{{ t('prompts.allPrompts') }}</span>
-          <span class="tab-count">({{ allEnabledPromptsCount }} / {{ allPromptsCount }})</span>
-        </div>
-      </div>
-
-      <el-tabs v-model="activeTabName" ref="tabsContainerRef" class="tags-tabs-container">
-        <el-tab-pane v-for="tagName in sortedTagNames" :key="tagName" :name="tagName">
-          <template #label>
-            <div class="tab-label-multiline">
-              <span class="tab-name">{{ tagName }}</span>
-              <span class="tab-count">({{ tagEabledPromptsCount(tagName) }} / {{ currentConfig.tags[tagName]?.length ||
-                0 }})</span>
-            </div>
-          </template>
-        </el-tab-pane>
-      </el-tabs>
-
-      <!-- 右侧操作按钮区域，顺序和禁用逻辑已调整 -->
-      <div class="tab-actions">
-        <el-tooltip v-if="activeTabName === '__ALL_PROMPTS__'"
-          :content="areAllPromptsEnabled ? t('prompts.disableAll') : t('prompts.enableAll')">
-          <el-switch :model-value="areAllPromptsEnabled" @change="(value) => toggleAllPrompts(value)"
-            class="tag-enable-toggle" />
-        </el-tooltip>
-        <el-tooltip v-else
-          :content="areAllPromptsInTagEnabled(activeTabName) ? t('prompts.disableAll') : t('prompts.enableAll')">
-          <el-switch :model-value="areAllPromptsInTagEnabled(activeTabName)"
-            @change="(value) => toggleAllPromptsInTag(activeTabName, value)" class="tag-enable-toggle"
-            :disabled="!currentConfig.tags[activeTabName] || currentConfig.tags[activeTabName].length === 0" />
-        </el-tooltip>
-
-        <el-tooltip :content="t('prompts.addExistingPrompt')" placement="top">
-          <el-button class="add-existing-prompt-btn" plain size="small" :icon="Plus" circle
-            @click="openAssignPromptDialog(activeTabName)"
-            :disabled="activeTabName === '__ALL_PROMPTS__' || !promptsAvailableToAssign(activeTabName) || promptsAvailableToAssign(activeTabName).length === 0" />
-        </el-tooltip>
-
-        <el-button type="danger" :icon="Delete" circle plain size="small" @click.stop="deleteTag(activeTabName)"
-          class="delete-tag-btn" :disabled="activeTabName === '__ALL_PROMPTS__'" />
-      </div>
-    </div>
-
     <el-scrollbar class="main-content-scrollbar">
       <div class="content-wrapper">
+        <div class="search-bar-container">
+          <el-input v-model="searchQueries[activeTabName]" :placeholder="t('prompts.searchPlaceholder')" :prefix-icon="Search" clearable />
+        </div>
+
+        <div class="prompts-header">
+          <div class="custom-all-tab" :class="{ 'is-active': activeTabName === '__ALL_PROMPTS__' }"
+            @click="activeTabName = '__ALL_PROMPTS__'">
+            <div class="tab-label-multiline">
+              <span class="tab-name">{{ t('prompts.allPrompts') }}</span>
+              <span class="tab-count">({{ allEnabledPromptsCount }} / {{ allPromptsCount }})</span>
+            </div>
+          </div>
+
+          <el-tabs v-model="activeTabName" ref="tabsContainerRef" class="tags-tabs-container">
+            <el-tab-pane v-for="tagName in sortedTagNames" :key="tagName" :name="tagName">
+              <template #label>
+                <div class="tab-label-multiline">
+                  <span class="tab-name">{{ tagName }}</span>
+                  <span class="tab-count">({{ tagEabledPromptsCount(tagName) }} / {{ currentConfig.tags[tagName]?.length ||
+                    0 }})</span>
+                </div>
+              </template>
+            </el-tab-pane>
+          </el-tabs>
+
+          <div class="tab-actions">
+            <el-tooltip v-if="activeTabName === '__ALL_PROMPTS__'"
+              :content="areAllPromptsEnabled ? t('prompts.disableAll') : t('prompts.enableAll')">
+              <el-switch :model-value="areAllPromptsEnabled" @change="(value) => toggleAllPrompts(value)"
+                class="tag-enable-toggle" />
+            </el-tooltip>
+            <el-tooltip v-else
+              :content="areAllPromptsInTagEnabled(activeTabName) ? t('prompts.disableAll') : t('prompts.enableAll')">
+              <el-switch :model-value="areAllPromptsInTagEnabled(activeTabName)"
+                @change="(value) => toggleAllPromptsInTag(activeTabName, value)" class="tag-enable-toggle"
+                :disabled="!currentConfig.tags[activeTabName] || currentConfig.tags[activeTabName].length === 0" />
+            </el-tooltip>
+
+            <el-tooltip :content="t('prompts.addExistingPrompt')" placement="top">
+              <el-button class="circle-action-btn" size="small" :icon="Plus" circle
+                @click="openAssignPromptDialog(activeTabName)"
+                :disabled="activeTabName === '__ALL_PROMPTS__' || !promptsAvailableToAssign(activeTabName) || promptsAvailableToAssign(activeTabName).length === 0" />
+            </el-tooltip>
+
+            <el-button :icon="Delete" circle size="small" @click.stop="deleteTag(activeTabName)"
+              class="circle-action-btn" :disabled="activeTabName === '__ALL_PROMPTS__'" />
+          </div>
+        </div>
+
         <div class="prompts-grid-container">
           <div v-if="!activeTabPrompts.length" class="empty-tag-message">
             <el-text type="info" size="small">{{ activeTabName === '__ALL_PROMPTS__' ? t('prompts.noPrompts') :
@@ -851,30 +859,40 @@ async function refreshPromptsConfig() {
           <div v-for="item in getFilteredPrompts(activeTabPrompts, searchQueries[activeTabName])" :key="item.key"
             class="prompt-card">
             <div class="prompt-card-header">
-              <el-avatar v-if="item.icon" :src="item.icon" shape="square" :size="28" class="prompt-card-icon" />
-              <el-icon v-else :size="28" class="prompt-card-icon-default">
+              <el-avatar v-if="item.icon" :src="item.icon" shape="square" :size="32" class="prompt-card-icon" />
+              <el-icon v-else :size="20" class="prompt-card-icon-default">
                 <Position />
               </el-icon>
-              <el-tooltip :content="item.key" placement="top">
+              <div class="prompt-card-title-group">
                 <span class="prompt-name" @click="prepareEditPrompt(item.key, activeTabName)">{{ item.key }}</span>
-              </el-tooltip>
-              <el-tooltip v-if="item.showMode === 'window' && item.enable" :content="t('prompts.openWindow')"
-                placement="top">
-                <el-button :icon="ChatLineRound" circle text @click.stop="openPromptWindow(item.key)"
-                  class="open-prompt-btn" />
-              </el-tooltip>
-              <div class="prompt-card-tag-actions">
+              </div>
+              <div class="prompt-card-header-actions">
+                <el-tooltip v-if="item.showMode === 'window' && item.enable" :content="t('prompts.openWindow')"
+                  placement="top">
+                  <el-button :icon="MessageSquareShare" circle text @click.stop="openPromptWindow(item.key)"
+                    class="action-btn-compact" />
+                </el-tooltip>
                 <el-switch v-model="item.enable" @change="(value) => handlePromptEnableChange(item.key, value)"
                   size="small" class="prompt-enable-toggle" />
-                <el-button v-if="activeTabName !== '__ALL_PROMPTS__'" type="danger" :icon="Close" circle plain
-                  size="small" @click="removePromptFromTag(activeTabName, item.key)"
-                  :title="t('prompts.tooltips.removeFromTag')" />
-                <el-button v-else type="danger" :icon="Delete" circle plain size="small" @click="deletePrompt(item.key)"
-                  :title="t('prompts.deletePrompt')" />
               </div>
             </div>
-            <div class="prompt-description-container" @click="prepareEditPrompt(item.key, activeTabName)"
-              v-html="formatDescription(item.prompt)"></div>
+            <div class="prompt-card-body">
+              <p class="prompt-description" @click="prepareEditPrompt(item.key, activeTabName)">{{ formatDescription(item.prompt) }}</p>
+            </div>
+            <div class="prompt-card-footer">
+              <div class="prompt-tags">
+                <el-tag v-if="item.type" size="small" type="info">{{ getTypeDisplay(item.type) }}</el-tag>
+                <el-tag v-if="item.showMode === 'window'" size="small">{{ t('prompts.showModeOptions.window') }}</el-tag>
+                <el-tag v-if="item.showMode === 'fastinput'" size="small">{{ t('prompts.showModeOptions.fastinput') }}</el-tag>
+              </div>
+              <div class="prompt-actions">
+                <el-button v-if="activeTabName !== '__ALL_PROMPTS__'" :icon="Close" text circle
+                  size="small" @click="removePromptFromTag(activeTabName, item.key)"
+                  :title="t('prompts.tooltips.removeFromTag')" class="action-btn-compact" />
+                <el-button v-else :icon="Delete" text circle size="small" @click="deletePrompt(item.key)"
+                  :title="t('prompts.deletePrompt')" class="action-btn-compact" />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -890,11 +908,11 @@ async function refreshPromptsConfig() {
       <el-button class="action-btn" @click="prepareReplaceModels" :icon="Switch">
         {{ t('prompts.replaceModels') }}
       </el-button>
-      <el-button class="refresh-fab-button" :icon="Refresh" type="primary" circle @click="refreshPromptsConfig" />
+      <el-button class="refresh-fab-button circle-action-btn" :icon="Refresh" circle @click="refreshPromptsConfig" />
     </div>
 
     <el-dialog v-model="showPromptEditDialog" :title="isNewPrompt ? t('prompts.addNewPrompt') : t('prompts.editPrompt')"
-      width="700px" :close-on-click-modal="false" top="5vh" custom-class="edit-prompt-dialog">
+      width="700px" :close-on-click-modal="false" top="5vh" custom-class="edit-prompt-dialog" append-to-body>
       <el-scrollbar max-height="60vh" class="prompt-dialog-scrollbar">
         <el-form :model="editingPrompt" @submit.prevent="savePrompt" class="edit-prompt-form">
           <div class="top-section-grid">
@@ -1237,7 +1255,7 @@ async function refreshPromptsConfig() {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="showAddTagDialog" :title="t('prompts.addNewTag')" width="400px" :close-on-click-modal="false">
+    <el-dialog v-model="showAddTagDialog" :title="t('prompts.addNewTag')" width="400px" :close-on-click-modal="false" append-to-body>
       <el-form @submit.prevent="addTag">
         <el-form-item :label="t('prompts.tagNameLabel')" required>
           <el-input v-model="newTagName" />
@@ -1251,7 +1269,7 @@ async function refreshPromptsConfig() {
 
     <el-dialog v-model="showAssignPromptDialog"
       :title="t('prompts.assignPromptsToTag', { tagName: assignPromptForm.targetTagName })" width="600px"
-      :close-on-click-modal="false">
+      :close-on-click-modal="false" append-to-body>
       <el-form :model="assignPromptForm" label-position="top">
         <el-form-item :label="t('prompts.selectPromptsToAddLabel')">
           <el-alert v-if="!promptsAvailableToAssign(assignPromptForm.targetTagName).length"
@@ -1271,7 +1289,7 @@ async function refreshPromptsConfig() {
     </el-dialog>
 
     <el-dialog v-model="showReplaceModelDialog" :title="t('prompts.replaceModelsDialog.title')" width="600px"
-      :close-on-click-modal="false">
+      :close-on-click-modal="false" append-to-body>
       <el-form :model="replaceModelForm" label-position="top">
         <el-row :gutter="20">
           <el-col :span="12">
@@ -1309,6 +1327,41 @@ async function refreshPromptsConfig() {
   background-color: var(--bg-primary);
 }
 
+.main-content-scrollbar {
+  flex-grow: 1;
+}
+
+html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb) {
+  background-color: var(--text-tertiary);
+}
+
+html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
+  background-color: var(--text-secondary);
+}
+
+.content-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0px 24px 20px 24px;
+}
+
+.search-bar-container {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background-color: var(--bg-primary);
+  padding: 8px 0px 8px 0px;
+  margin: 0px 0px 5px 0px;
+}
+
+.search-bar-container :deep(.el-input__wrapper) {
+  box-shadow: 0 0 0 1px var(--border-primary) inset !important;
+}
+
+.search-bar-container :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 0 0 1px var(--text-accent) inset !important;
+}
+
 .prompts-header {
   display: flex;
   align-items: center;
@@ -1316,9 +1369,12 @@ async function refreshPromptsConfig() {
   padding: 0 12px;
   background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-primary);
-  position: relative;
-  z-index: 10;
+  position: sticky;
+  top: 48px;
+  z-index: 9;
   gap: 16px;
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
 }
 
 .custom-all-tab {
@@ -1345,11 +1401,11 @@ async function refreshPromptsConfig() {
 .tags-tabs-container {
   flex-grow: 1;
   min-width: 0;
-  height: 60px;
+  height: 45px;
 }
 
 .tags-tabs-container :deep(.el-tabs__header) {
-  height: 60px;
+  height: 45px;
   margin-bottom: 0;
 }
 
@@ -1359,7 +1415,6 @@ async function refreshPromptsConfig() {
   margin-bottom: -8px;
 }
 
-/* 美化滚动条 (Webkit) */
 .tags-tabs-container :deep(.el-tabs__nav-wrap::-webkit-scrollbar) {
   height: 6px;
 }
@@ -1377,7 +1432,6 @@ async function refreshPromptsConfig() {
   background-color: var(--text-tertiary);
 }
 
-/* 美化滚动条 (Firefox) */
 .tags-tabs-container :deep(.el-tabs__nav-wrap) {
   scrollbar-width: thin;
   scrollbar-color: var(--border-primary) transparent;
@@ -1395,7 +1449,7 @@ async function refreshPromptsConfig() {
 .tags-tabs-container :deep(.el-tabs__item) {
   flex-shrink: 0;
   padding: 0 12px;
-  height: 60px;
+  height: 45px;
   color: var(--text-secondary);
 }
 
@@ -1418,19 +1472,19 @@ async function refreshPromptsConfig() {
   justify-content: center;
   line-height: 1.3;
   text-align: center;
-  padding: 8px 0;
+  padding: 4px 0;
   width: 100%;
 }
 
 .tab-name {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .tab-count {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-tertiary);
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .tab-actions {
@@ -1444,57 +1498,20 @@ async function refreshPromptsConfig() {
   margin-left: 0 !important;
 }
 
-.main-content-scrollbar {
-  flex-grow: 1;
-  height: 0;
-  width: 100%;
-}
-
-.main-content-scrollbar :deep(.el-scrollbar__thumb) {
-  background-color: var(--text-tertiary);
-}
-
-.main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
-  background-color: var(--text-secondary);
-}
-
-.content-wrapper {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0px 24px 20px 24px;
-}
-
-.search-input-container {
-  position: relative;
-  z-index: 10;
-  background-color: var(--bg-primary);
-  padding: 8px 24px 8px 24px;
-}
-
-.search-input-container :deep(.el-input__wrapper) {
-  box-shadow: 0 0 0 1px var(--border-primary) inset !important;
-}
-
-.search-input-container :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--text-accent) inset !important;
-}
-
 .prompts-grid-container {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 15px;
-  padding-top: 4px;
 }
 
 .prompt-card {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-secondary);
-  border-radius: var(--radius-md);
-  padding: 10px 16px 10px 16px;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  border-radius: var(--radius-lg);
+  padding: 8px 16px 4px 16px;
   display: flex;
   flex-direction: column;
-  height: 104px;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .prompt-card:hover {
@@ -1505,13 +1522,13 @@ async function refreshPromptsConfig() {
 .prompt-card-header {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
   gap: 12px;
+  margin-bottom: 12px;
 }
 
 .prompt-card-icon {
   flex-shrink: 0;
-  border-radius: var(--radius-sm);
+  background-color: var(--bg-tertiary);
 }
 
 .prompt-card-icon-default {
@@ -1526,47 +1543,93 @@ async function refreshPromptsConfig() {
   height: 32px;
 }
 
+.prompt-card-title-group {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.prompt-card-header-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .prompt-name {
   font-weight: 600;
   color: var(--text-primary);
-  cursor: pointer;
-  font-size: 15px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex-grow: 1;
-  min-width: 0;
+  cursor: pointer;
 }
 
 .prompt-name:hover {
   color: var(--text-accent);
 }
 
-.prompt-card-tag-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-  margin-left: auto;
+.prompt-enable-toggle {
+  margin-left: 4px;
 }
 
-.prompt-description-container {
-  padding: 0;
+.prompt-card-body {
+  flex-grow: 1;
+}
+
+.prompt-description {
   font-size: 13px;
   color: var(--text-secondary);
-  flex-grow: 1;
-  cursor: pointer;
-  overflow: hidden;
-  word-break: break-word;
+  margin: 0;
   line-height: 1.6;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
   display: -webkit-box;
   -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  cursor: pointer;
 }
 
-.prompt-enable-toggle {
-  margin-left: 8px;
+.prompt-card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0px;
+  margin-bottom: 0px;
+  gap: 12px;
+}
+
+.prompt-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex-grow: 1;
+  min-width: 0;
+  margin-top: 0px;
+  padding-top: 0px;
+}
+
+.prompt-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.action-btn-compact {
+  padding: 6px;
+  margin-left: 0 !important;
+}
+
+.prompt-actions .el-button {
+  color: var(--text-tertiary);
+}
+
+.prompt-actions .el-button:hover {
+  color: var(--text-accent);
+  background-color: var(--bg-tertiary);
 }
 
 .empty-tag-message {
@@ -1586,7 +1649,6 @@ async function refreshPromptsConfig() {
   background-color: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  border-top: 1px solid var(--border-primary);
 }
 
 .bottom-actions-container .action-btn {
@@ -1915,6 +1977,15 @@ html.dark .canvas-wrapper {
 
 .prompt-dialog-scrollbar :deep(.el-scrollbar__view) {
   padding: 5px 20px 5px 5px;
+  overflow-x: hidden;
+}
+
+.prompt-dialog-scrollbar :deep(.el-scrollbar__bar.is-horizontal) {
+  display: none;
+}
+
+.prompt-dialog-scrollbar :deep(.el-scrollbar__bar.is-vertical) {
+  display: none;
 }
 
 .prompt-textarea-scrollbar {

@@ -1,8 +1,8 @@
 <script setup>
-import { ref, reactive, computed, inject } from 'vue';
+import { ref, reactive, computed, inject, onMounted, nextTick, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox, ElScrollbar, ElAlert } from 'element-plus';
-import { Plus, Delete, Edit, CopyDocument, Tools, Search, Refresh, QuestionFilled, Link, CaretRight, CaretBottom } from '@element-plus/icons-vue';
+import { Plus, Trash2 as Delete, Pencil as Edit, Copy as CopyDocument, Wrench as Tools, Search, RefreshCw as Refresh, CircleQuestionMark as QuestionFilled, Link, ChevronRight as CaretRight, ChevronDown as CaretBottom, Zap, ChevronRight } from 'lucide-vue-next';
 const { t } = useI18n();
 const currentConfig = inject('config');
 
@@ -12,6 +12,18 @@ const isNewServer = ref(false);
 const jsonEditorContent = ref('');
 const searchQuery = ref('');
 const advancedCollapse = ref([]);
+
+const tagsOverflowState = ref({});
+const tagsContainerRefs = ref({});
+
+function checkTagsOverflow(serverId) {
+    nextTick(() => {
+        const container = tagsContainerRefs.value[serverId];
+        if (container) {
+            tagsOverflowState.value[serverId] = container.scrollWidth > container.clientWidth;
+        }
+    });
+}
 
 // 测试相关状态
 const activeTestTab = ref('list');
@@ -132,6 +144,22 @@ const filteredMcpServersList = computed(() => {
         (server.type && getDisplayTypeName(server.type).toLowerCase().includes(lowerCaseQuery))
     );
 });
+
+function initAllTagsOverflow() {
+    nextTick(() => {
+        filteredMcpServersList.value.forEach(server => {
+            checkTagsOverflow(server.id);
+        });
+    });
+}
+
+onMounted(() => {
+    window.addEventListener('resize', initAllTagsOverflow);
+});
+
+watch(filteredMcpServersList, () => {
+    initAllTagsOverflow();
+}, { deep: true });
 
 function getDisplayTypeName(type) {
     if (!type) return '';
@@ -549,7 +577,13 @@ async function triggerConnectionTest(server) {
         <el-scrollbar class="main-content-scrollbar">
             <div class="content-wrapper">
                 <div v-if="mcpServersList.length === 0" class="empty-state">
-                    <el-empty :description="t('mcp.noServers')" />
+                    <el-empty :description="t('mcp.noServers')">
+                        <template #image>
+                            <el-icon :size="50" color="#909399">
+                                <Tools />
+                            </el-icon>
+                        </template>
+                    </el-empty>
                 </div>
                 <div v-else>
                     <div class="search-bar-container">
@@ -557,7 +591,13 @@ async function triggerConnectionTest(server) {
                             clearable />
                     </div>
                     <div v-if="filteredMcpServersList.length === 0" class="empty-state">
-                        <el-empty :description="t('mcp.noMatch')" />
+                        <el-empty :description="t('mcp.noMatch')">
+                            <template #image>
+                                <el-icon :size="50" color="#909399">
+                                    <Tools />
+                                </el-icon>
+                            </template>
+                        </el-empty>
                     </div>
                     <div v-else class="mcp-grid-container">
                         <div v-for="server in filteredMcpServersList" :key="server.id" class="mcp-card">
@@ -582,11 +622,7 @@ async function triggerConnectionTest(server) {
                                             @click.stop="handleSwitchChange(server.id, 'isPersistent', !server.isPersistent)"
                                             class="persistent-btn-header">
                                             <el-icon :size="14">
-                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                                                    stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                                    stroke-linejoin="round">
-                                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
-                                                </svg>
+                                                <Zap />
                                             </el-icon>
                                         </el-button>
                                     </el-tooltip>
@@ -600,10 +636,15 @@ async function triggerConnectionTest(server) {
                                 <p class="mcp-description">{{ server.description }}</p>
                             </div>
                             <div class="mcp-card-footer">
-                                <div class="mcp-tags">
-                                    <el-tag v-if="server.type" size="small" type="info">{{
-                                        getDisplayTypeName(server.type) }}</el-tag>
-                                    <el-tag v-for="tag in server.tags" :key="tag" size="small">{{ tag }}</el-tag>
+                                <div class="mcp-tags-wrapper">
+                                    <div class="mcp-tags-scroll" :ref="el => tagsContainerRefs[server.id] = el">
+                                        <el-tag v-if="server.type" size="small" type="info">{{
+                                            getDisplayTypeName(server.type) }}</el-tag>
+                                        <el-tag v-for="tag in server.tags" :key="tag" size="small">{{ tag }}</el-tag>
+                                    </div>
+                                    <div v-if="tagsOverflowState[server.id]" class="mcp-tags-overflow-hint">
+                                        <ChevronRight :size="14" />
+                                    </div>
                                 </div>
                                 <div class="mcp-actions">
                                     <el-tooltip :content="t('mcp.testConnectionTooltip')" placement="top">
@@ -632,110 +673,98 @@ async function triggerConnectionTest(server) {
                 {{ t('mcp.editJson') }}
             </el-button>
             <el-tooltip :content="t('mcp.refreshConfig')" placement="top">
-                <el-button class="refresh-fab-button" :icon="Refresh" circle @click="refreshMcpConfig" />
+                <el-button class="refresh-fab-button circle-action-btn" :icon="Refresh" circle @click="refreshMcpConfig" />
             </el-tooltip>
         </div>
 
         <!-- 编辑弹窗 (保持不变) -->
         <el-dialog v-model="showEditDialog" :title="isNewServer ? t('mcp.addServerTitle') : t('mcp.editServerTitle')"
-            width="700px" :close-on-click-modal="false">
-            <el-scrollbar max-height="50vh" class="mcp-dialog-scrollbar">
-                <el-form :model="editingServer" label-position="top" @submit.prevent="saveServer">
-                    <el-row :gutter="20">
-                        <el-col :span="12">
-                            <el-form-item :label="t('mcp.nameLabel')" required>
-                                <el-input v-model="editingServer.name" />
-                            </el-form-item>
-                        </el-col>
-                        <el-col :span="6">
-                            <el-form-item :label="t('mcp.typeLabel')">
-                                <el-select v-model="normalizedEditingServerType" style="width: 100%;">
-                                    <el-option :label="t('mcp.typeOptions.sse')" value="sse" />
-                                    <el-option :label="t('mcp.typeOptions.http')" value="http" />
-                                    <el-option :label="t('mcp.typeOptions.stdio')" value="stdio" />
-                                </el-select>
-                            </el-form-item>
-                        </el-col>
-                        <el-col :span="6" class="switches-container">
-                            <el-form-item :label="t('mcp.activeLabel')" class="compact-form-item">
-                                <el-switch v-model="editingServer.isActive" />
-                            </el-form-item>
-                            <el-form-item class="compact-form-item">
-                                <template #label>
-                                    <span>{{ t('mcp.persistent.label') }}</span>
-                                    <el-tooltip :content="t('mcp.persistent.tooltip')" placement="top">
-                                        <el-icon style="margin-left: 4px; cursor: help; vertical-align: middle;">
-                                            <QuestionFilled />
-                                        </el-icon>
-                                    </el-tooltip>
-                                </template>
-                                <el-switch v-model="editingServer.isPersistent"
-                                    style="--el-switch-on-color: #67C23A;" />
-                            </el-form-item>
-                        </el-col>
-                    </el-row>
-                    <el-form-item :label="t('mcp.descriptionLabel')">
-                        <el-scrollbar max-height="100px" class="item-scrollbar">
-                            <el-input v-model="editingServer.description" type="textarea" :autosize="{ minRows: 2 }"
-                                resize="none" />
-                        </el-scrollbar>
+            width="700px" :close-on-click-modal="false" append-to-body class="mcp-edit-dialog">
+            <el-form :model="editingServer" label-position="top" @submit.prevent="saveServer">
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item :label="t('mcp.nameLabel')" required>
+                            <el-input v-model="editingServer.name" />
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6">
+                        <el-form-item :label="t('mcp.typeLabel')">
+                            <el-select v-model="normalizedEditingServerType" style="width: 100%;">
+                                <el-option :label="t('mcp.typeOptions.sse')" value="sse" />
+                                <el-option :label="t('mcp.typeOptions.http')" value="http" />
+                                <el-option :label="t('mcp.typeOptions.stdio')" value="stdio" />
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="6" class="switches-container">
+                        <el-form-item :label="t('mcp.activeLabel')" class="compact-form-item">
+                            <el-switch v-model="editingServer.isActive" />
+                        </el-form-item>
+                        <el-form-item class="compact-form-item">
+                            <template #label>
+                                <span>{{ t('mcp.persistent.label') }}</span>
+                                <el-tooltip :content="t('mcp.persistent.tooltip')" placement="top">
+                                    <el-icon style="margin-left: 4px; cursor: help; vertical-align: middle;">
+                                        <QuestionFilled />
+                                    </el-icon>
+                                </el-tooltip>
+                            </template>
+                            <el-switch v-model="editingServer.isPersistent"
+                                style="--el-switch-on-color: #67C23A;" />
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-form-item :label="t('mcp.descriptionLabel')">
+                    <el-input v-model="editingServer.description" type="textarea" :autosize="{ minRows: 2, maxRows: 4 }"
+                        resize="none" />
+                </el-form-item>
+
+                <el-divider content-position="left"></el-divider>
+
+                <template v-if="normalizedEditingServerType === 'http' || normalizedEditingServerType === 'sse'">
+                    <el-form-item :label="t('mcp.http.url')"><el-input
+                            v-model="editingServer.baseUrl" /></el-form-item>
+                    <el-form-item :label="t('mcp.http.headers')">
+                        <el-input v-model="editingServer.headers" type="textarea" :autosize="{ minRows: 2, maxRows: 4 }"
+                            resize="none" :placeholder="t('mcp.headersPlaceholder')" />
                     </el-form-item>
+                </template>
 
-                    <el-divider content-position="left"></el-divider>
+                <template v-if="editingServer.type === 'stdio'">
+                    <el-form-item :label="t('mcp.stdio.command')">
+                        <el-input v-model="editingServer.command" />
+                    </el-form-item>
+                    <el-form-item :label="t('mcp.stdio.args')">
+                        <el-input v-model="editingServer.args" type="textarea" :autosize="{ minRows: 1, maxRows: 4 }"
+                            resize="none" :placeholder="t('mcp.argsPlaceholder')" />
+                    </el-form-item>
+                    <el-form-item :label="t('mcp.stdio.env')">
+                        <el-input v-model="editingServer.env" type="textarea" :autosize="{ minRows: 2, maxRows: 4 }"
+                            resize="none" :placeholder="t('mcp.envPlaceholder')" />
+                    </el-form-item>
+                </template>
 
-                    <template v-if="normalizedEditingServerType === 'http' || normalizedEditingServerType === 'sse'">
-                        <el-form-item :label="t('mcp.http.url')"><el-input
-                                v-model="editingServer.baseUrl" /></el-form-item>
-                        <el-form-item :label="t('mcp.http.headers')">
-                            <el-scrollbar max-height="80px" class="item-scrollbar">
-                                <el-input v-model="editingServer.headers" type="textarea" :autosize="{ minRows: 2 }"
-                                    resize="none" :placeholder="t('mcp.headersPlaceholder')" />
-                            </el-scrollbar>
-                        </el-form-item>
-                    </template>
-
-                    <template v-if="editingServer.type === 'stdio'">
-                        <el-form-item :label="t('mcp.stdio.command')">
-                            <el-scrollbar class="item-scrollbar">
-                                <el-input v-model="editingServer.command" />
-                            </el-scrollbar>
-                        </el-form-item>
-                        <el-form-item :label="t('mcp.stdio.args')">
-                            <el-scrollbar max-height="80px" class="item-scrollbar">
-                                <el-input v-model="editingServer.args" type="textarea" :autosize="{ minRows: 1 }"
-                                    resize="none" :placeholder="t('mcp.argsPlaceholder')" />
-                            </el-scrollbar>
-                        </el-form-item>
-                        <el-form-item :label="t('mcp.stdio.env')">
-                            <el-scrollbar max-height="80px" class="item-scrollbar">
-                                <el-input v-model="editingServer.env" type="textarea" :autosize="{ minRows: 2 }"
-                                    resize="none" :placeholder="t('mcp.envPlaceholder')" />
-                            </el-scrollbar>
-                        </el-form-item>
-                    </template>
-
-                    <el-collapse v-model="advancedCollapse" class="advanced-collapse">
-                        <el-collapse-item :title="t('mcp.advanced')" name="1">
-                            <el-row :gutter="20">
-                                <el-col :span="12">
-                                    <el-form-item :label="t('mcp.providerName')">
-                                        <el-input v-model="editingServer.provider" />
-                                    </el-form-item>
-                                </el-col>
-                                <el-col :span="12">
-                                    <el-form-item :label="t('mcp.logoUrl')">
-                                        <el-input v-model="editingServer.logoUrl" />
-                                    </el-form-item>
-                                </el-col>
-                            </el-row>
-                            <el-form-item :label="t('mcp.providerUrl')"><el-input
-                                    v-model="editingServer.providerUrl" /></el-form-item>
-                            <el-form-item :label="t('mcp.tags')"><el-input v-model="editingServer.tags"
-                                    :placeholder="t('mcp.tagsPlaceholder')" /></el-form-item>
-                        </el-collapse-item>
-                    </el-collapse>
-                </el-form>
-            </el-scrollbar>
+                <el-collapse v-model="advancedCollapse" class="advanced-collapse">
+                    <el-collapse-item :title="t('mcp.advanced')" name="1">
+                        <el-row :gutter="20">
+                            <el-col :span="12">
+                                <el-form-item :label="t('mcp.providerName')">
+                                    <el-input v-model="editingServer.provider" />
+                                </el-form-item>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-form-item :label="t('mcp.logoUrl')">
+                                    <el-input v-model="editingServer.logoUrl" />
+                                </el-form-item>
+                            </el-col>
+                        </el-row>
+                        <el-form-item :label="t('mcp.providerUrl')"><el-input
+                                v-model="editingServer.providerUrl" /></el-form-item>
+                        <el-form-item :label="t('mcp.tags')"><el-input v-model="editingServer.tags"
+                                :placeholder="t('mcp.tagsPlaceholder')" /></el-form-item>
+                    </el-collapse-item>
+                </el-collapse>
+            </el-form>
             <template #footer>
                 <el-button @click="showEditDialog = false">{{ t('common.cancel') }}</el-button>
                 <el-button type="primary" @click="saveServer">{{ t('common.confirm') }}</el-button>
@@ -744,7 +773,7 @@ async function triggerConnectionTest(server) {
 
         <!-- JSON 编辑弹窗 (保持不变) -->
         <el-dialog v-model="showJsonDialog" :title="t('mcp.jsonDialog.title')" width="700px"
-            :close-on-click-modal="false" custom-class="mcp-json-dialog">
+            :close-on-click-modal="false" custom-class="mcp-json-dialog" append-to-body>
             <el-alert :title="t('mcp.jsonDialog.description')" type="warning" show-icon :closable="false"
                 style="margin-bottom: 15px;" />
             <el-scrollbar max-height="50vh" class="json-editor-scrollbar">
@@ -922,7 +951,13 @@ async function triggerConnectionTest(server) {
                     </el-tabs>
 
                 </div>
-                <el-empty v-else-if="testResult.success" :description="t('mcp.noToolsProvided')" :image-size="60" />
+                <el-empty v-else-if="testResult.success" :description="t('mcp.noToolsProvided')" :image-size="60">
+                    <template #image>
+                        <el-icon :size="50" color="#909399">
+                            <Tools />
+                        </el-icon>
+                    </template>
+                </el-empty>
             </div>
 
             <template #footer>
@@ -939,10 +974,20 @@ async function triggerConnectionTest(server) {
     line-height: 1.4;
 }
 
-/* 针对结果框内部的原生滚动条美化 */
 .result-content-static pre::-webkit-scrollbar {
     width: 6px;
     height: 6px;
+}
+
+.mcp-edit-dialog .el-dialog__body {
+    height: 55vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.mcp-edit-dialog .el-dialog__body::-webkit-scrollbar {
+    width: 0;
+    display: none;
 }
 </style>
 
@@ -1091,14 +1136,39 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
     gap: 12px;
 }
 
-.mcp-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+.mcp-tags-wrapper {
+    position: relative;
     flex-grow: 1;
     min-width: 0;
-    margin-top: 0px;
-    padding-top: 0px;
+    display: flex;
+    align-items: center;
+}
+
+.mcp-tags-scroll {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-grow: 1;
+    min-width: 0;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.mcp-tags-scroll::-webkit-scrollbar {
+    display: none;
+}
+
+.mcp-tags-overflow-hint {
+    flex-shrink: 0;
+    margin-left: 4px;
+    color: var(--text-tertiary);
+    opacity: 0.4;
+    display: flex;
+    align-items: center;
+    pointer-events: none;
 }
 
 .persistent-btn-header {
@@ -1152,7 +1222,6 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
     background-color: transparent;
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    border-top: 1px solid var(--border-primary);
 }
 
 .bottom-actions-container .action-btn {
@@ -1211,8 +1280,54 @@ html.dark .advanced-collapse :deep(.el-collapse-item__wrap) {
     background-color: transparent;
 }
 
-.mcp-dialog-scrollbar :deep(.el-scrollbar__view) {
-    padding: 5px 20px 5px 5px;
+.advanced-collapse {
+    border-top: none;
+    border-bottom: none;
+    padding-left: 15px;
+    padding-right: 15px;
+    margin: 15px 0 0 0;
+}
+
+.advanced-collapse :deep(.el-collapse-item__header) {
+    border-bottom: 1px solid var(--border-primary);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    line-height: 1;
+    height: 36px;
+    background-color: transparent;
+}
+
+.advanced-collapse :deep(.el-collapse-item__header.is-active) {
+    border-bottom-style: dashed;
+}
+
+.advanced-collapse :deep(.el-collapse-item__wrap) {
+    border-bottom: none;
+    padding-top: 20px;
+    background-color: transparent;
+}
+
+.advanced-collapse :deep(.el-collapse-item__content) {
+    padding-bottom: 0;
+}
+
+html.dark .advanced-collapse {
+    background-color: var(--bg-primary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-primary);
+}
+
+html.dark .advanced-collapse :deep(.el-collapse-item__header) {
+    border-bottom-color: var(--border-primary);
+}
+
+html.dark .advanced-collapse :deep(.el-collapse-item__header.is-active) {
+    border-bottom-color: var(--border-accent);
+}
+
+html.dark .advanced-collapse :deep(.el-collapse-item__wrap) {
+    background-color: transparent;
 }
 
 .json-editor-scrollbar {

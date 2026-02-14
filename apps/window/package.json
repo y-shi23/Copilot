@@ -1,5 +1,5 @@
 {
-  "name": "anywhere-window",
+  "name": "sanft-window",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "element-plus": "^2.9.7",
     "highlight.js": "^11.11.1",
     "katex": "^0.16.22",
-    "lucide-react": "^0.563.0",
+    "lucide-vue-next": "^0.564.0",
     "marked": "^17.0.0",
     "mermaid": "^11.12.2",
     "openai": "^6.3.0",

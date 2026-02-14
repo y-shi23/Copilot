@@ -1,31 +1,13 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, nextTick, watch, h, computed, defineAsyncComponent } from 'vue';
 import { ElContainer, ElMain, ElDialog, ElImageViewer, ElMessage, ElMessageBox, ElInput, ElButton, ElCheckbox, ElButtonGroup, ElTag, ElTooltip, ElAvatar, ElSwitch } from 'element-plus';
-import { createClient } from "webdav/web";
-import { __iconNode as copyIconNode } from 'lucide-react/dist/esm/icons/copy.js';
-import { __iconNode as chevronsUpIconNode } from 'lucide-react/dist/esm/icons/chevrons-up.js';
-import { __iconNode as arrowUpIconNode } from 'lucide-react/dist/esm/icons/arrow-up.js';
-import { __iconNode as arrowDownIconNode } from 'lucide-react/dist/esm/icons/arrow-down.js';
-import { __iconNode as chevronsDownIconNode } from 'lucide-react/dist/esm/icons/chevrons-down.js';
-import { __iconNode as downloadIconNode } from 'lucide-react/dist/esm/icons/download.js';
-import { __iconNode as wrenchIconNode } from 'lucide-react/dist/esm/icons/wrench.js';
-import { __iconNode as zapIconNode } from 'lucide-react/dist/esm/icons/zap.js';
-import { __iconNode as chevronRightIconNode } from 'lucide-react/dist/esm/icons/chevron-right.js';
-import { __iconNode as searchIconNode } from 'lucide-react/dist/esm/icons/search.js';
-import { __iconNode as circleHelpIconNode } from 'lucide-react/dist/esm/icons/circle-question-mark.js';
-import { __iconNode as folderIconNode } from 'lucide-react/dist/esm/icons/folder.js';
-import { __iconNode as cpuIconNode } from 'lucide-react/dist/esm/icons/cpu.js';
-import { __iconNode as triangleAlertIconNode } from 'lucide-react/dist/esm/icons/triangle-alert.js';
+import { Copy, ChevronsUp, ArrowUp, ArrowDown, ChevronsDown, Download, Wrench, Zap, ChevronRight, Search, CircleQuestionMark as CircleHelp, Folder, Cpu, TriangleAlert } from 'lucide-vue-next';
 
 import TitleBar from './components/TitleBar.vue';
 import ChatHeader from './components/ChatHeader.vue';
 const ChatMessage = defineAsyncComponent(() => import('./components/ChatMessage.vue'));
 import ChatInput from './components/ChatInput.vue';
 import ModelSelectionDialog from './components/ModelSelectionDialog.vue';
-import LucideIcon from './components/LucideIcon.vue';
-
-import DOMPurify from 'dompurify';
-import { marked } from 'marked';
 
 import TextSearchUI from './utils/TextSearchUI.js';
 import { formatTimestamp, sanitizeToolArgs } from './utils/formatters.js';
@@ -56,6 +38,33 @@ showDismissibleMessage.error = (message) => showDismissibleMessage({ message, ty
 showDismissibleMessage.info = (message) => showDismissibleMessage({ message, type: 'info' });
 showDismissibleMessage.warning = (message) => showDismissibleMessage({ message, type: 'warning' });
 
+let createWebdavClientPromise = null;
+const getCreateWebdavClient = async () => {
+  if (!createWebdavClientPromise) {
+    createWebdavClientPromise = import('webdav/web').then((module) => module.createClient);
+  }
+  return createWebdavClientPromise;
+};
+
+const createWebdavClient = async (url, username, password) => {
+  const createClient = await getCreateWebdavClient();
+  return createClient(url, { username, password });
+};
+
+let markdownRuntimePromise = null;
+const getMarkdownRuntime = async () => {
+  if (!markdownRuntimePromise) {
+    markdownRuntimePromise = Promise.all([
+      import('marked'),
+      import('dompurify'),
+    ]).then(([markedModule, domPurifyModule]) => ({
+      marked: markedModule.marked,
+      DOMPurify: domPurifyModule.default || domPurifyModule,
+    }));
+  }
+  return markdownRuntimePromise;
+};
+
 const handleMinimize = () => window.api.windowControl('minimize-window');
 const handleMaximize = () => window.api.windowControl('maximize-window');
 const handleCloseWindow = () => closePage();
@@ -73,8 +82,21 @@ const focusedMessageIndex = ref(null);
 // 核心状态：是否粘滞在底部
 const isSticky = ref(true);
 let chatObserver = null;    // DOM 观察器实例
+let observerFlushFrame = 0;
+let shouldFlushStickyScroll = false;
+let shouldFlushCodeBlockScan = false;
+let codeBlockScanFrame = 0;
+let isCodeBlockScanQueued = false;
 
 let autoSaveInterval = null;
+let autoSaveDebounceTimer = null;
+let autoSaveInFlight = false;
+let autoSaveQueued = false;
+let autoSaveInFlightPromise = null;
+const isSessionDirty = ref(false);
+const hasSessionInitialized = ref(false);
+const AUTO_SAVE_DEBOUNCE_MS = 1800;
+const AUTO_SAVE_FALLBACK_MS = 60000;
 
 let textSearchInstance = null;
 
@@ -114,7 +136,19 @@ const modelList = ref([]);
 const modelMap = ref({});
 const model = ref("");
 const isAlwaysOnTop = ref(true);
-const currentOS = ref('win');
+const platformName = String(navigator.userAgentData?.platform || navigator.platform || '').toLowerCase();
+const currentOS = ref(platformName.includes('mac') ? 'macos' : (platformName.includes('win') ? 'win' : 'linux'));
+const isNativeMacVibrancy = computed(() => currentOS.value === 'macos');
+
+const applyWindowVibrancyBodyClass = () => {
+  const enableNativeVibrancy = isNativeMacVibrancy.value;
+  document.documentElement.classList.toggle('mac-native-vibrancy', enableNativeVibrancy);
+  document.body?.classList.toggle('mac-native-vibrancy', enableNativeVibrancy);
+};
+
+watch(isNativeMacVibrancy, () => {
+  applyWindowVibrancyBodyClass();
+}, { immediate: true });
 
 const currentProviderID = ref(defaultConfig.config.providerOrder[0]);
 const base_url = ref("");
@@ -639,7 +673,7 @@ const addCopyButtonsToCodeBlocks = async () => {
     const codeElement = pre.querySelector('code'); if (!codeElement) return;
     const wrapper = document.createElement('div'); wrapper.className = 'code-block-wrapper'; pre.parentNode.insertBefore(wrapper, pre); wrapper.appendChild(pre);
     const codeText = codeElement.textContent || ''; const lines = codeText.trimEnd().split('\n'); const lineCount = lines.length;
-    const copyButtonSVG = renderLucideSvg(copyIconNode, { size: 14, strokeWidth: 2 });
+    const copyButtonSVG = renderLucideSvg(Copy, { size: 14, strokeWidth: 2 });
     const createButton = (positionClass) => {
       const button = document.createElement('button'); button.className = `code-block-copy-button ${positionClass}`; button.innerHTML = copyButtonSVG; button.title = 'Copy code';
       button.addEventListener('click', async (event) => {
@@ -655,6 +689,33 @@ const addCopyButtonsToCodeBlocks = async () => {
     createButton('code-block-copy-button-bottom');
     if (lineCount > 3) createButton('code-block-copy-button-top');
   });
+};
+
+const scheduleCodeBlockEnhancement = () => {
+  if (isCodeBlockScanQueued) return;
+  isCodeBlockScanQueued = true;
+  codeBlockScanFrame = window.requestAnimationFrame(async () => {
+    codeBlockScanFrame = 0;
+    isCodeBlockScanQueued = false;
+    await addCopyButtonsToCodeBlocks();
+  });
+};
+
+const flushObservedDomUpdates = () => {
+  observerFlushFrame = 0;
+  const chatMainElement = chatContainerRef.value?.$el;
+  if (!chatMainElement) return;
+
+  if (shouldFlushStickyScroll && isSticky.value) {
+    chatMainElement.scrollTop = chatMainElement.scrollHeight;
+  }
+
+  if (shouldFlushCodeBlockScan) {
+    scheduleCodeBlockEnhancement();
+  }
+
+  shouldFlushStickyScroll = false;
+  shouldFlushCodeBlockScan = false;
 };
 
 const handleMarkdownImageClick = (event) => {
@@ -920,6 +981,9 @@ const handleEditMessage = (index, newContent) => {
   } else {
     console.error("错误：无法将 chat_show 索引映射到 history 索引。下次API请求可能会使用旧数据。");
   }
+
+  markSessionDirty();
+  scheduleCodeBlockEnhancement();
 };
 
 const handleEditStart = async (index) => {
@@ -1032,7 +1096,7 @@ const closePage = async () => {
   // 条件：配置了本地存储路径 且 当前对话已有名称
   if (currentConfig.value?.webdav?.localChatPath && defaultConversationName.value) {
     try {
-      await autoSaveSession();
+      await flushAutoSave(true);
     } catch (e) {
       console.error("关闭时自动保存失败:", e);
     }
@@ -1047,12 +1111,134 @@ const handlePickFileStart = () => {
   isFilePickerOpen.value = true;
 };
 
+const summarizeTextForSignature = (value) => {
+  const text = String(value || '');
+  return `${text.length}:${text.slice(-48)}`;
+};
+
+const summarizeContentForSignature = (content) => {
+  if (!content) return 'null';
+  if (typeof content === 'string') return `str:${summarizeTextForSignature(content)}`;
+  if (!Array.isArray(content)) {
+    let serialized = '';
+    try {
+      serialized = JSON.stringify(content);
+    } catch (_error) {
+      serialized = String(content);
+    }
+    return `obj:${summarizeTextForSignature(serialized)}`;
+  }
+
+  return content.map((part) => {
+    if (part.type === 'text') {
+      return `text:${summarizeTextForSignature(part.text)}`;
+    }
+    if (part.type === 'image_url') {
+      return `img:${summarizeTextForSignature(part.image_url?.url)}`;
+    }
+    if (part.type === 'file') {
+      return `file:${part.file?.filename || ''}`;
+    }
+    if (part.type === 'input_audio') {
+      return `audio:${part.input_audio?.format || ''}:${(part.input_audio?.data || '').length}`;
+    }
+    return `other:${part.type || 'unknown'}`;
+  }).join('|');
+};
+
+const summarizeToolCallsForSignature = (toolCalls) => {
+  if (!Array.isArray(toolCalls) || toolCalls.length === 0) return '';
+  return toolCalls.map((tool) => {
+    return [
+      tool.id || '',
+      tool.name || '',
+      tool.approvalStatus || '',
+      summarizeTextForSignature(tool.result || ''),
+    ].join(':');
+  }).join('|');
+};
+
+const lastMessageSignature = computed(() => {
+  const lastMessage = chat_show.value[chat_show.value.length - 1];
+  if (!lastMessage) return '';
+
+  return [
+    lastMessage.id || '',
+    lastMessage.role || '',
+    lastMessage.status || '',
+    summarizeTextForSignature(lastMessage.reasoning_content || ''),
+    summarizeToolCallsForSignature(lastMessage.tool_calls),
+    summarizeContentForSignature(lastMessage.content),
+  ].join('~');
+});
+
+const scheduleAutoSave = (options = {}) => {
+  const immediate = options.immediate === true;
+  if (autoSaveDebounceTimer) {
+    clearTimeout(autoSaveDebounceTimer);
+    autoSaveDebounceTimer = null;
+  }
+
+  if (immediate) {
+    void flushAutoSave(options.force === true);
+    return;
+  }
+
+  autoSaveDebounceTimer = setTimeout(() => {
+    autoSaveDebounceTimer = null;
+    void flushAutoSave();
+  }, AUTO_SAVE_DEBOUNCE_MS);
+};
+
+const markSessionDirty = () => {
+  if (!hasSessionInitialized.value) return;
+  isSessionDirty.value = true;
+  scheduleAutoSave();
+};
+
+const flushAutoSave = async (force = false) => {
+  if (autoSaveInFlight) {
+    autoSaveQueued = true;
+    if (force && autoSaveInFlightPromise) {
+      await autoSaveInFlightPromise;
+      if (isSessionDirty.value) {
+        await flushAutoSave(true);
+      }
+    }
+    return;
+  }
+
+  if (!force && !isSessionDirty.value) return;
+
+  autoSaveInFlight = true;
+  autoSaveInFlightPromise = autoSaveSession({ force });
+  try {
+    await autoSaveInFlightPromise;
+  } finally {
+    autoSaveInFlight = false;
+    autoSaveInFlightPromise = null;
+    if (autoSaveQueued) {
+      autoSaveQueued = false;
+      if (isSessionDirty.value) {
+        scheduleAutoSave({ immediate: true });
+      }
+    }
+  }
+};
+
 watch(zoomLevel, (newZoom) => {
   if (window.api && typeof window.api.setZoomFactor === 'function') window.api.setZoomFactor(newZoom);
 });
-watch(chat_show, async () => {
-  await addCopyButtonsToCodeBlocks();
-}, { deep: true, flush: 'post' });
+watch(() => chat_show.value.length, () => {
+  if (!hasSessionInitialized.value) return;
+  markSessionDirty();
+  scheduleCodeBlockEnhancement();
+}, { flush: 'post' });
+watch(lastMessageSignature, () => {
+  if (!hasSessionInitialized.value) return;
+  markSessionDirty();
+  scheduleCodeBlockEnhancement();
+}, { flush: 'post' });
 watch(() => currentConfig.value?.isDarkMode, (isDark) => {
   if (isDark) {
     document.documentElement.classList.add('dark');
@@ -1088,10 +1274,10 @@ onMounted(async () => {
     chatMainElement.addEventListener('click', handleMarkdownImageClick);
 
     chatObserver = new MutationObserver(() => {
-      // 只要处于粘滞状态，任何 DOM 变化（文字生成、元素高度变化）
-      // 都立即将 scrollTop 设为最大值。这在浏览器重绘前发生，因此视觉上是“内容上推”。
-      if (isSticky.value) {
-        chatMainElement.scrollTop = chatMainElement.scrollHeight;
+      shouldFlushStickyScroll = true;
+      shouldFlushCodeBlockScan = true;
+      if (!observerFlushFrame) {
+        observerFlushFrame = window.requestAnimationFrame(flushObservedDomUpdates);
       }
     });
 
@@ -1104,6 +1290,8 @@ onMounted(async () => {
   }
 
   const initializeWindow = async (data = null) => {
+    hasSessionInitialized.value = false;
+    isSessionDirty.value = false;
     try {
       const configData = await window.api.getConfig();
       currentConfig.value = configData.config;
@@ -1278,7 +1466,9 @@ onMounted(async () => {
       else await askAI(true);
     }
 
-    await addCopyButtonsToCodeBlocks();
+    scheduleCodeBlockEnhancement();
+    isSessionDirty.value = false;
+    hasSessionInitialized.value = true;
     setTimeout(() => {
       chatInputRef.value?.focus({ cursor: 'end' });
     }, 100);
@@ -1297,7 +1487,11 @@ onMounted(async () => {
     await initializeWindow(data);
   }
   if (autoSaveInterval) clearInterval(autoSaveInterval);
-  autoSaveInterval = setInterval(autoSaveSession, 15000);
+  autoSaveInterval = setInterval(() => {
+    if (isSessionDirty.value) {
+      void flushAutoSave();
+    }
+  }, AUTO_SAVE_FALLBACK_MS);
   window.addEventListener('error', handleGlobalImageError, true);
   window.addEventListener('keydown', handleGlobalKeyDown);
 
@@ -1313,8 +1507,12 @@ onMounted(async () => {
   }
 });
 
-const autoSaveSession = async () => {
-  if (loading.value || !currentConfig.value?.webdav?.localChatPath) {
+const autoSaveSession = async ({ force = false } = {}) => {
+  if ((!force && loading.value) || !currentConfig.value?.webdav?.localChatPath) {
+    return;
+  }
+
+  if (!force && !isSessionDirty.value) {
     return;
   }
 
@@ -1375,12 +1573,31 @@ const autoSaveSession = async () => {
     const jsonString = JSON.stringify(sessionData, null, 2);
     const filePath = `${currentConfig.value.webdav.localChatPath}/${defaultConversationName.value}.json`;
     await window.api.writeLocalFile(filePath, jsonString);
+    isSessionDirty.value = false;
   } catch (error) {
     console.error('Auto-save failed:', error);
   }
 };
 
 onBeforeUnmount(async () => {
+  if (autoSaveInterval) {
+    clearInterval(autoSaveInterval);
+    autoSaveInterval = null;
+  }
+  if (autoSaveDebounceTimer) {
+    clearTimeout(autoSaveDebounceTimer);
+    autoSaveDebounceTimer = null;
+  }
+  autoSaveInFlightPromise = null;
+  if (observerFlushFrame) {
+    window.cancelAnimationFrame(observerFlushFrame);
+    observerFlushFrame = 0;
+  }
+  if (codeBlockScanFrame) {
+    window.cancelAnimationFrame(codeBlockScanFrame);
+    codeBlockScanFrame = 0;
+  }
+
   window.removeEventListener('wheel', handleWheel);
   window.removeEventListener('focus', handleWindowFocus);
   window.removeEventListener('blur', handleWindowBlur);
@@ -1396,6 +1613,9 @@ onBeforeUnmount(async () => {
     chatObserver.disconnect();
     chatObserver = null;
   }
+
+  document.documentElement.classList.remove('mac-native-vibrancy');
+  document.body?.classList.remove('mac-native-vibrancy');
 });
 
 const saveWindowSize = async () => {
@@ -1488,7 +1708,7 @@ const saveSessionToCloud = async () => {
             const sessionData = getSessionDataAsObject();
             const jsonString = JSON.stringify(sessionData, null, 2);
             const { url, username, password, data_path } = currentConfig.value.webdav;
-            const client = createClient(url, { username, password });
+            const client = await createWebdavClient(url, username, password);
             const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
             const remoteFilePath = `${remoteDir}/${filename}`;
             if (!(await client.exists(remoteDir))) await client.createDirectory(remoteDir, { recursive: true });
@@ -1632,7 +1852,8 @@ const saveSessionAsHtml = async () => {
 
   const defaultAiSvg = `<svg width="200" height="200" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#FDA5A5" /><g stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"><rect x="25" y="32" width="50" height="42" rx="8" /><line x1="40" y1="63" x2="60" y2="63" /><line x1="35" y1="32" x2="32" y2="22" /><line x1="65" y1="32" x2="68" y2="22" /></g><g fill="white" stroke="none"><circle cx="40" cy="48" r="3.5" /><circle cx="60" cy="48" r="3.5" /><circle cx="32" cy="20" r="3" /><circle cx="68" cy="20" r="3" /></g></svg>`;
 
-  const generateHtmlContent = () => {
+  const generateHtmlContent = async () => {
+    const { marked, DOMPurify } = await getMarkdownRuntime();
     let bodyContent = '';
     let tocContent = '';
 
@@ -1997,7 +2218,7 @@ const saveSessionAsHtml = async () => {
           const finalFilename = finalBasename + '.html';
           instance.confirmButtonLoading = true;
           try {
-            const htmlContent = generateHtmlContent();
+            const htmlContent = await generateHtmlContent();
             await window.api.saveFile({ title: '保存为 HTML', defaultPath: finalFilename, buttonLabel: '保存', filters: [{ name: 'HTML 文件', extensions: ['html'] }, { name: '所有文件', extensions: ['*'] }], fileContent: htmlContent });
             defaultConversationName.value = finalBasename;
             showDismissibleMessage.success('会话已成功保存为 HTML！');
@@ -2145,7 +2366,7 @@ const handleRenameSession = async () => {
     const { url, username, password, data_path } = currentConfig.value.webdav || {};
     if (url && data_path) {
       try {
-        const client = createClient(url, { username, password });
+        const client = await createWebdavClient(url, username, password);
         const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
         const oldRemotePath = `${remoteDir}/${oldFilename}`;
         const newRemotePath = `${remoteDir}/${newFilename}`;
@@ -2233,6 +2454,8 @@ const handleSaveAction = async () => {
 
 const loadSession = async (jsonData) => {
   loading.value = true;
+  hasSessionInitialized.value = false;
+  isSessionDirty.value = false;
   collapsedMessages.value.clear();
   messageRefs.clear();
   focusedMessageIndex.value = null;
@@ -2371,10 +2594,14 @@ const loadSession = async (jsonData) => {
       applyMcpTools(false);
     }
 
+    isSessionDirty.value = false;
+    hasSessionInitialized.value = true;
+
   } catch (error) {
     console.error("加载会话失败:", error);
     showDismissibleMessage.error(`加载会话失败: ${error.message}`);
     loading.value = false;
+    hasSessionInitialized.value = true;
   }
 };
 
@@ -2647,8 +2874,7 @@ const askAI = async (forceSend = false) => {
           : userContentList;
         history.value.push({ role: "user", content: contentForHistory });
         chat_show.value.push({ id: messageIdCounter.value++, role: "user", content: userContentList, timestamp: userTimestamp });
-
-        autoSaveSession();
+        markSessionDirty();
 
       } else return;
     } else return;
@@ -3172,7 +3398,8 @@ const askAI = async (forceSend = false) => {
     }
     await nextTick();
     chatInputRef.value?.focus({ cursor: 'end' });
-    autoSaveSession();
+    markSessionDirty();
+    scheduleAutoSave({ immediate: true });
   }
 };
 
@@ -3304,6 +3531,7 @@ const clearHistory = () => {
   messageRefs.clear();
   focusedMessageIndex.value = null;
   defaultConversationName.value = "";
+  isSessionDirty.value = false;
   chatInputRef.value?.focus({ cursor: 'end' });
   showDismissibleMessage.success('历史记录已清除');
 };
@@ -3548,7 +3776,7 @@ const scrollToMessageByIndex = (index) => {
 </script>
 
 <template>
-  <main>
+  <main :class="{ 'native-vibrancy': isNativeMacVibrancy, 'fallback-vibrancy': !isNativeMacVibrancy }">
     <div v-if="windowBackgroundImage" class="window-bg-base"></div>
     <div class="window-bg-layer" :class="{ 'is-visible': !!windowBackgroundImage }" :style="{
       backgroundImage: windowBackgroundImage ? `url('${windowBackgroundImage}')` : 'none',
@@ -3556,7 +3784,11 @@ const scrollToMessageByIndex = (index) => {
       filter: `blur(${windowBackgroundBlur}px)`
     }">
     </div>
-    <el-container class="app-container" :class="{ 'has-bg': !!windowBackgroundImage }">
+    <el-container class="app-container" :class="{
+      'has-bg': !!windowBackgroundImage,
+      'native-vibrancy': isNativeMacVibrancy,
+      'fallback-vibrancy': !isNativeMacVibrancy
+    }">
       <TitleBar :favicon="favicon" :promptName="CODE" :conversationName="defaultConversationName"
         :isAlwaysOnTop="isAlwaysOnTop" :autoCloseOnBlur="autoCloseOnBlur" :isDarkMode="currentConfig.isDarkMode"
         :os="currentOS" @save-window-size="handleSaveWindowSize" @save-session="handleSaveSession"
@@ -3586,12 +3818,12 @@ const scrollToMessageByIndex = (index) => {
           <div class="nav-group top">
             <el-tooltip content="回到顶部" placement="left" :show-after="500">
               <div class="nav-mini-btn" @click="scrollToTop">
-                <LucideIcon :icon-node="chevronsUpIconNode" :size="16" />
+                <ChevronsUp :size="16" />
               </div>
             </el-tooltip>
             <el-tooltip content="上一条消息" placement="left" :show-after="500">
               <div class="nav-mini-btn" @click="navigateToPreviousMessage">
-                <LucideIcon :icon-node="arrowUpIconNode" :size="16" />
+                <ArrowUp :size="16" />
               </div>
             </el-tooltip>
           </div>
@@ -3627,7 +3859,7 @@ const scrollToMessageByIndex = (index) => {
           <div class="nav-group bottom">
             <el-tooltip :content="nextButtonTooltip" placement="left" :show-after="500">
               <div class="nav-mini-btn" @click="navigateToNextMessage">
-                <LucideIcon :icon-node="arrowDownIconNode" :size="16" />
+                <ArrowDown :size="16" />
               </div>
             </el-tooltip>
             
@@ -3635,7 +3867,7 @@ const scrollToMessageByIndex = (index) => {
               <div class="nav-mini-btn" 
                    :class="{ 'highlight-bottom': showScrollToBottomButton }" 
                    @click="forceScrollToBottom">
-                <LucideIcon :icon-node="chevronsDownIconNode" :size="16" />
+                <ChevronsDown :size="16" />
               </div>
             </el-tooltip>
           </div>
@@ -3675,10 +3907,10 @@ const scrollToMessageByIndex = (index) => {
     @close="imageViewerVisible = false" :hide-on-click-modal="true" teleported />
   <div v-if="imageViewerVisible" class="custom-viewer-actions">
     <el-button type="primary" circle @click="handleCopyImageFromViewer(imageViewerSrcList[0])" title="复制图片">
-      <LucideIcon :icon-node="copyIconNode" :size="16" />
+      <Copy :size="16" />
     </el-button>
     <el-button type="primary" circle @click="handleDownloadImageFromViewer(imageViewerSrcList[0])" title="下载图片">
-      <LucideIcon :icon-node="downloadIconNode" :size="16" />
+      <Download :size="16" />
     </el-button>
   </div>
 
@@ -3714,7 +3946,7 @@ const scrollToMessageByIndex = (index) => {
                   @change="() => toggleMcpServerSelection(server.id)" @click.stop class="header-checkbox" />
 
                 <el-avatar :src="server.logoUrl" shape="square" :size="20" class="mcp-server-icon">
-                  <LucideIcon :icon-node="wrenchIconNode" :size="12" />
+                  <Wrench :size="12" />
                 </el-avatar>
                 <span class="mcp-server-name">
                   {{ server.name }}
@@ -3728,7 +3960,7 @@ const scrollToMessageByIndex = (index) => {
                   <el-tooltip :content="server.isPersistent ? '持久连接已开启' : '持久连接已关闭'" placement="top">
                     <el-button text circle :class="{ 'is-persistent-active': server.isPersistent }"
                       @click.stop="toggleMcpPersistence(server.id, !server.isPersistent)" class="persistent-btn">
-                      <LucideIcon :icon-node="zapIconNode" :size="16" />
+                      <Zap :size="16" />
                     </el-button>
                   </el-tooltip>
 
@@ -3746,7 +3978,7 @@ const scrollToMessageByIndex = (index) => {
               <!-- 第二行：折叠按钮 | 描述 -->
               <div class="mcp-server-body-row">
                 <div class="mcp-tools-toggle" @click.stop="toggleMcpServerExpansion(server.id)">
-                  <LucideIcon :icon-node="chevronRightIconNode" :size="10" class="mcp-tools-toggle-icon"
+                  <ChevronRight :size="10" class="mcp-tools-toggle-icon"
                     :class="{ 'is-expanded': expandedMcpServers.has(server.id) }" />
                   <span>{{ expandedMcpServers.has(server.id) ? '收起' : '工具' }}</span>
                 </div>
@@ -3778,7 +4010,7 @@ const scrollToMessageByIndex = (index) => {
       <div class="mcp-dialog-footer-search">
         <el-input v-model="mcpSearchQuery" placeholder="搜索工具名称或描述..." clearable>
           <template #prefix>
-            <LucideIcon :icon-node="searchIconNode" :size="14" />
+            <Search :size="14" />
           </template>
         </el-input>
       </div>
@@ -3793,7 +4025,7 @@ const scrollToMessageByIndex = (index) => {
                 持久连接各占1个名额<br>
                 所有临时连接共占1个名额
               </template>
-              <LucideIcon :icon-node="circleHelpIconNode" :size="14"
+              <CircleHelp :size="14"
                 style="vertical-align: middle; margin-left: 4px; cursor: help;" />
             </el-tooltip>
           </span>
@@ -3845,7 +4077,7 @@ const scrollToMessageByIndex = (index) => {
 
               <el-avatar shape="square" :size="20" class="mcp-server-icon"
                 style="background:transparent; color: var(--el-text-color-primary); flex-shrink: 0;">
-                <LucideIcon :icon-node="folderIconNode" :size="16" />
+                <Folder :size="16" />
               </el-avatar>
 
               <span class="mcp-server-name skill-name-fixed">{{ skill.name }}</span>
@@ -3859,7 +4091,7 @@ const scrollToMessageByIndex = (index) => {
                 <el-tooltip :content="skill.context === 'fork' ? 'Sub-Agent 模式已开启' : 'Sub-Agent 模式已关闭'" placement="top">
                   <div class="subagent-toggle-btn-small" :class="{ 'is-active': skill.context === 'fork' }"
                     @click.stop="handleSkillForkToggle(skill)">
-                    <LucideIcon :icon-node="cpuIconNode" :size="14" />
+                    <Cpu :size="14" />
                   </div>
                 </el-tooltip>
               </div>
@@ -3873,7 +4105,7 @@ const scrollToMessageByIndex = (index) => {
       <div class="mcp-dialog-footer-search">
         <el-input v-model="skillSearchQuery" placeholder="搜索技能名称或描述..." clearable>
           <template #prefix>
-            <LucideIcon :icon-node="searchIconNode" :size="14" />
+            <Search :size="14" />
           </template>
         </el-input>
       </div>
@@ -3889,7 +4121,7 @@ const scrollToMessageByIndex = (index) => {
           </span>
           <!-- Warning 提示 -->
           <span class="mcp-limit-hint warning" style="display: inline-flex; align-items: center; opacity: 0.8;">
-            <LucideIcon :icon-node="triangleAlertIconNode" :size="14" style="margin-right: 4px;" />
+            <TriangleAlert :size="14" style="margin-right: 4px;" />
             Skill 依赖内置 MCP 服务，请勿禁用
           </span>
         </div>
@@ -3976,7 +4208,7 @@ html.dark {
   --text-primary: #ececec;
   --text-secondary: #aeaeae;
   --text-tertiary: #8f8f8f;
-  --text-on-accent: #1f2124;
+  --text-on-accent: #f7f7f3;
 
   --el-bg-color-page: #1d1f22;
   --el-bg-color: #25282d;
@@ -3985,7 +4217,7 @@ html.dark {
   --el-bg-color-userbubble: #30343b;
 
   --el-fill-color: #2d3137;
-  --el-fill-color-light: #32363d;
+  --el-fill-color-light: #212121;
   --el-fill-color-lighter: #2d3137;
   --el-fill-color-dark: #393e46;
   --el-fill-color-darker: #434953;
@@ -4003,13 +4235,13 @@ html.dark {
   --el-text-color-placeholder: var(--text-tertiary);
   --el-text-color-disabled: #7b7b7b;
 
-  --el-color-primary: #d2dae3;
-  --el-color-primary-light-3: #e0e6ec;
-  --el-color-primary-light-5: #edf1f5;
-  --el-color-primary-light-7: #3a3e45;
-  --el-color-primary-light-8: #343840;
-  --el-color-primary-light-9: #2f333a;
-  --el-color-primary-dark-2: #bdc8d3;
+  --el-color-primary: #14B8A6;
+  --el-color-primary-light-3: #2DD4BF;
+  --el-color-primary-light-5: #5EEAD4;
+  --el-color-primary-light-7: #0D9488;
+  --el-color-primary-light-8: #0F766E;
+  --el-color-primary-light-9: #115E59;
+  --el-color-primary-dark-2: #0F766E;
 
   --el-box-shadow: 0 16px 44px rgba(8, 8, 8, 0.34);
   --el-box-shadow-light: 0 10px 24px rgba(8, 8, 8, 0.28);
@@ -4019,6 +4251,11 @@ html.dark {
 
 html.dark body {
   background: radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.06), transparent 40%), #1d1f22;
+}
+
+html.mac-native-vibrancy,
+html.mac-native-vibrancy body {
+  background: transparent !important;
 }
 
 .el-dialog,
@@ -4508,6 +4745,24 @@ main > .app-container {
 
 html.dark .app-container {
   background-color: color-mix(in srgb, var(--el-bg-color-page) 80%, transparent);
+}
+
+main.native-vibrancy .app-container.native-vibrancy {
+  background-color: rgba(255, 255, 255, 0.26);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow: 0 14px 32px rgba(32, 32, 32, 0.16);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html.dark main.native-vibrancy .app-container.native-vibrancy {
+  background-color: rgba(18, 19, 21, 0.32);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+main.fallback-vibrancy .app-container.fallback-vibrancy {
+  backdrop-filter: blur(12px) saturate(120%);
+  -webkit-backdrop-filter: blur(12px) saturate(120%);
 }
 
 .app-container :deep(.title-bar),

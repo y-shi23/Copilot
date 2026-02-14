@@ -2,11 +2,7 @@
 import { ref, reactive, onMounted, computed, inject, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import {
-  FolderOpened, Refresh, Edit, Delete, Plus,
-  Document, UploadFilled, QuestionFilled, Search,
-  Collection, Folder, FolderAdd, Cpu, Warning, Close, Download
-} from '@element-plus/icons-vue';
+import { FolderOpen as FolderOpened, RefreshCw as Refresh, Pencil as Edit, Trash2 as Delete, Plus, FileText as Document, Upload as UploadFilled, CircleQuestionMark as QuestionFilled, Search, Library as Collection, Folder, FolderPlus as FolderAdd, Cpu, TriangleAlert as Warning, X as Close, Download } from 'lucide-vue-next';
 
 const { t } = useI18n();
 const currentConfig = inject('config');
@@ -510,6 +506,11 @@ async function handleExportSkills() {
 
         <div v-if="!skillPath" class="empty-state">
           <el-empty :description="t('skills.pathNotSet')">
+            <template #image>
+              <el-icon :size="50" color="#909399">
+                <FolderOpened />
+              </el-icon>
+            </template>
             <el-button type="primary" :icon="FolderOpened" @click="selectSkillPath">
               {{ t('skills.setPathBtn') }}
             </el-button>
@@ -517,7 +518,13 @@ async function handleExportSkills() {
         </div>
 
         <div v-else-if="filteredSkills.length === 0" class="empty-state">
-          <el-empty :description="t('skills.noSkills')" />
+          <el-empty :description="t('skills.noSkills')">
+            <template #image>
+              <el-icon :size="50" color="#909399">
+                <Collection />
+              </el-icon>
+            </template>
+          </el-empty>
         </div>
 
         <div v-else class="skills-grid-container">
@@ -585,12 +592,12 @@ async function handleExportSkills() {
         {{ t('skills.setPathBtn') }}
       </el-button>
       <el-tooltip :content="t('skills.tooltips.refresh')" placement="top">
-        <el-button class="refresh-fab-button" :icon="Refresh" circle @click="refreshSkills" />
+        <el-button class="refresh-fab-button circle-action-btn" :icon="Refresh" circle @click="refreshSkills" />
       </el-tooltip>
     </div>
 
     <!-- 编辑弹窗 -->
-    <el-dialog v-model="showEditDialog" width="650px" :close-on-click-modal="false" class="skill-edit-dialog">
+    <el-dialog v-model="showEditDialog" width="650px" :close-on-click-modal="false" class="skill-edit-dialog" append-to-body>
       <template #header>
         <div class="dialog-header-row" style="justify-content: space-between; width: 100%; padding-right: 30px;">
           <!-- 左侧：标题 -->
@@ -723,7 +730,7 @@ async function handleExportSkills() {
         <el-button type="primary" @click="saveEditDialog">{{ t('common.save') }}</el-button>
       </template>
     </el-dialog>
-    <el-dialog v-model="showExportDialog" :title="t('skills.export.title')" width="500px" :close-on-click-modal="false">
+    <el-dialog v-model="showExportDialog" :title="t('skills.export.title')" width="500px" :close-on-click-modal="false" append-to-body>
       <div class="export-dialog-content">
         <p style="margin-top:0; color:var(--el-text-color-secondary); font-size:13px;">
           {{ t('skills.export.hint') }}
@@ -958,7 +965,6 @@ async function handleExportSkills() {
   background-color: transparent;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  border-top: 1px solid var(--border-primary);
 }
 
 .action-btn {
@@ -1030,6 +1036,18 @@ async function handleExportSkills() {
 
 .dialog-form-scrollbar {
   width: 100%;
+}
+
+.dialog-form-scrollbar :deep(.el-scrollbar__view) {
+  overflow-x: hidden;
+}
+
+.dialog-form-scrollbar :deep(.el-scrollbar__bar.is-horizontal) {
+  display: none;
+}
+
+.dialog-form-scrollbar :deep(.el-scrollbar__bar.is-vertical) {
+  display: none;
 }
 
 :deep(.dialog-form-view) {

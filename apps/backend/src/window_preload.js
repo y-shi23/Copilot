@@ -1,6 +1,7 @@
 global.utools = require('./utools_shim.js');
 
 const { ipcRenderer } = require('electron');
+const path = require('path');
 
 const {
     getRandomItem,
@@ -22,34 +23,53 @@ const {
     cacheBackgroundImage,
 } = require('./data.js');
 
-const {
-    handleFilePath,
-    saveFile,
-    writeLocalFile,
-    isFileTypeSupported,
-    parseFileObject,
-    renameLocalFile,
-    listJsonFiles,
-} = require('./file.js');
+const loadRuntimeModule = (moduleFileName) => {
+    return require(path.join(__dirname, 'runtime', moduleFileName));
+};
 
-const { 
-  invokeBuiltinTool,
-} = require('./mcp_builtin.js');
+let fileRuntimeCache = null;
+const getFileRuntime = () => {
+    if (!fileRuntimeCache) {
+        fileRuntimeCache = loadRuntimeModule('file_runtime.js');
+    }
+    return fileRuntimeCache;
+};
 
-const { 
-  initializeMcpClient, 
-  invokeMcpTool,
-  closeMcpClient,
-} = require('./mcp.js');
+let mcpRuntimeCache = null;
+const getMcpRuntime = () => {
+    if (!mcpRuntimeCache) {
+        mcpRuntimeCache = loadRuntimeModule('mcp_runtime.js');
+    }
+    return mcpRuntimeCache;
+};
 
-const {
-    listSkills,
-    getSkillDetails,
-    generateSkillToolDefinition,
-    resolveSkillInvocation,
-    saveSkill,
-    deleteSkill
-} = require('./skill.js');
+let skillRuntimeCache = null;
+const getSkillRuntime = () => {
+    if (!skillRuntimeCache) {
+        skillRuntimeCache = loadRuntimeModule('skill_runtime.js');
+    }
+    return skillRuntimeCache;
+};
+
+const handleFilePath = (...args) => getFileRuntime().handleFilePath(...args);
+const saveFile = (...args) => getFileRuntime().saveFile(...args);
+const writeLocalFile = (...args) => getFileRuntime().writeLocalFile(...args);
+const isFileTypeSupported = (...args) => getFileRuntime().isFileTypeSupported(...args);
+const parseFileObject = (...args) => getFileRuntime().parseFileObject(...args);
+const renameLocalFile = (...args) => getFileRuntime().renameLocalFile(...args);
+const listJsonFiles = (...args) => getFileRuntime().listJsonFiles(...args);
+
+const invokeBuiltinTool = (...args) => getMcpRuntime().invokeBuiltinTool(...args);
+const initializeMcpClient = (...args) => getMcpRuntime().initializeMcpClient(...args);
+const invokeMcpTool = (...args) => getMcpRuntime().invokeMcpTool(...args);
+const closeMcpClient = (...args) => getMcpRuntime().closeMcpClient(...args);
+
+const listSkills = (...args) => getSkillRuntime().listSkills(...args);
+const getSkillDetails = (...args) => getSkillRuntime().getSkillDetails(...args);
+const generateSkillToolDefinition = (...args) => getSkillRuntime().generateSkillToolDefinition(...args);
+const resolveSkillInvocation = (...args) => getSkillRuntime().resolveSkillInvocation(...args);
+const saveSkill = (...args) => getSkillRuntime().saveSkill(...args);
+const deleteSkill = (...args) => getSkillRuntime().deleteSkill(...args);
 
 const channel = "window";
 let senderId = null; // [新增] 用于存储当前窗口的唯一ID
