@@ -163,6 +163,49 @@ html.dark .settings-select-popper .el-select-dropdown__item:hover {
   background: color-mix(in srgb, var(--bg-tertiary) 80%, transparent);
 }
 
+.app-dropdown-surface {
+  border: none;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-primary);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 6px;
+  background-color: color-mix(in srgb, var(--bg-secondary) 92%, transparent);
+  overflow: hidden;
+}
+
+.app-dropdown-item {
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  margin: 0;
+  padding: 0 12px;
+  height: 32px;
+  line-height: 32px;
+  display: flex;
+  align-items: center;
+  transition: background-color 0.15s ease;
+  background: transparent;
+  color: var(--text-primary);
+}
+
+.app-dropdown-item + .app-dropdown-item {
+  margin-top: 2px;
+}
+
+.app-dropdown-item:hover {
+  background-color: #eeeeee;
+}
+
+html.dark .app-dropdown-item:hover {
+  background-color: #3d3d3d;
+}
+
+.app-dropdown-item.is-selected {
+  background-color: var(--bg-tertiary);
+  font-weight: 500;
+}
+
 .circle-action-btn {
   background-color: #EBEBEF !important;
   border: none !important;

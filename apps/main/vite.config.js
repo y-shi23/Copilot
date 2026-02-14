@@ -18,6 +18,10 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        launcher: fileURLToPath(new URL('./launcher.html', import.meta.url)),
+      },
       output: {
         manualChunks(id) {
           if (id.includes('/src/components/Chats.vue')) return 'tab-chats'

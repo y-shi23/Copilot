@@ -18,9 +18,9 @@ const DEFAULT_LAUNCHER_SETTINGS = {
 };
 
 const SUPPORTED_PROMPT_TYPES = new Set(['general', 'over', 'img', 'files']);
-const LAUNCHER_WIDTH = 680;
+const LAUNCHER_WIDTH = 640;
 const LAUNCHER_HEIGHT = 56;
-const LAUNCHER_MAX_HEIGHT = 420;
+const LAUNCHER_MAX_HEIGHT = 440;
 
 function resolveAppFile(...parts) {
   return path.join(app.getAppPath(), ...parts);
@@ -36,6 +36,18 @@ function resolveMainPreloadPath() {
 function resolveMainEntryUrl() {
   if (IS_RUNTIME_DEV_SERVER) return DEV_MAIN_URL;
   return pathToFileURL(resolveAppFile('runtime', 'main', 'index.html')).toString();
+}
+
+function resolveLauncherEntryUrl() {
+  if (IS_RUNTIME_DEV_SERVER) {
+    try {
+      return new URL('launcher.html', DEV_MAIN_URL).toString();
+    } catch (_error) {
+      const base = DEV_MAIN_URL.endsWith('/') ? DEV_MAIN_URL : `${DEV_MAIN_URL}/`;
+      return `${base}launcher.html`;
+    }
+  }
+  return pathToFileURL(resolveAppFile('runtime', 'main', 'launcher.html')).toString();
 }
 
 function normalizeWebPreferences(webPreferences = {}, baseDir) {
@@ -222,7 +234,6 @@ function createLauncherWindow() {
   if (launcherWindow && !launcherWindow.isDestroyed()) return launcherWindow;
 
   const launcherPreload = resolveAppFile('electron', 'launcher_preload.js');
-  const launcherHtml = resolveAppFile('electron', 'launcher.html');
 
   launcherWindow = new BrowserWindow({
     width: LAUNCHER_WIDTH,
@@ -261,7 +272,13 @@ function createLauncherWindow() {
     launcherWindow = null;
   });
 
-  launcherWindow.loadURL(pathToFileURL(launcherHtml).toString());
+  applyMacVibrancy(launcherWindow, {
+    vibrancy: 'sidebar',
+    visualEffectState: 'active',
+    animationDuration: 120,
+  });
+
+  launcherWindow.loadURL(resolveLauncherEntryUrl());
   return launcherWindow;
 }
 
@@ -273,6 +290,11 @@ function hideLauncherWindow() {
 function showLauncherWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const launcher = createLauncherWindow();
+  applyMacVibrancy(launcher, {
+    vibrancy: 'sidebar',
+    visualEffectState: 'active',
+    animationDuration: 0,
+  });
   const bounds = getLauncherBounds();
   launcher.setBounds(bounds, false);
   launcher.show();
@@ -461,6 +483,7 @@ function ensureBuildArtifacts() {
 
   const requiredPaths = [
     resolveAppFile('runtime', 'main', 'index.html'),
+    resolveAppFile('runtime', 'main', 'launcher.html'),
     resolveAppFile('runtime', 'preload.js'),
     resolveAppFile('runtime', 'window_preload.js'),
     resolveAppFile('runtime', 'fast_window_preload.js'),
@@ -514,6 +537,13 @@ ipcMain.on('utools:sync-native-theme', (_event, payload = {}) => {
   applyNativeThemeSource(payload);
   if (mainWindow && !mainWindow.isDestroyed()) {
     applyMacVibrancy(mainWindow, {
+      vibrancy: 'sidebar',
+      visualEffectState: 'active',
+      animationDuration: 0,
+    });
+  }
+  if (launcherWindow && !launcherWindow.isDestroyed()) {
+    applyMacVibrancy(launcherWindow, {
       vibrancy: 'sidebar',
       visualEffectState: 'active',
       animationDuration: 0,
