@@ -276,6 +276,76 @@ const isEditable = computed(() => {
   return false;
 });
 
+const assistantResponseMetrics = computed(() => {
+  if (props.message.role !== 'assistant') return null;
+  const metrics = props.message?.metrics;
+  if (!metrics || typeof metrics !== 'object') return null;
+
+  const toCount = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) && num >= 0 ? Math.round(num) : null;
+  };
+  const toMs = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) && num >= 0 ? num : null;
+  };
+
+  const completionTokens = toCount(metrics.completion_tokens);
+  const promptTokens = toCount(metrics.prompt_tokens);
+  const totalTokens = toCount(metrics.total_tokens);
+  if (completionTokens === null && promptTokens === null && totalTokens === null) return null;
+
+  const safePromptTokens = promptTokens ?? 0;
+  const safeCompletionTokens = completionTokens ?? 0;
+  const safeTotalTokens = totalTokens ?? safePromptTokens + safeCompletionTokens;
+  const timeFirstTokenMs = toMs(metrics.time_first_token_millsec);
+  const timeCompletionMs = toMs(metrics.time_completion_millsec);
+  const directTokenSpeed = Number(metrics.token_speed);
+  const fallbackTokenSpeed =
+    timeCompletionMs && safeCompletionTokens >= 0
+      ? safeCompletionTokens / (timeCompletionMs / 1000)
+      : null;
+  const tokenSpeed =
+    Number.isFinite(directTokenSpeed) && directTokenSpeed >= 0
+      ? directTokenSpeed
+      : fallbackTokenSpeed;
+
+  return {
+    completionTokens: safeCompletionTokens,
+    promptTokens: safePromptTokens,
+    totalTokens: safeTotalTokens,
+    timeFirstTokenMs,
+    tokenSpeed,
+    isEstimated: Boolean(metrics.is_estimated),
+  };
+});
+
+const assistantResponseTokensDisplay = computed(() => {
+  const metrics = assistantResponseMetrics.value;
+  if (!metrics) return '';
+  return `${metrics.isEstimated ? '~' : ''}总 ${metrics.totalTokens} · 上 ${metrics.promptTokens} / 下 ${metrics.completionTokens}`;
+});
+
+const assistantResponseTokensTitle = computed(() => {
+  const metrics = assistantResponseMetrics.value;
+  if (!metrics) return '';
+  return metrics.isEstimated
+    ? '本次响应 Tokens（总/上行/下行，估算值）'
+    : '本次响应 Tokens（总/上行/下行）';
+});
+
+const assistantFirstTokenLatencyDisplay = computed(() => {
+  const metrics = assistantResponseMetrics.value;
+  if (!metrics || metrics.timeFirstTokenMs === null) return '-';
+  return `${Math.round(metrics.timeFirstTokenMs)} ms`;
+});
+
+const assistantTokenSpeedDisplay = computed(() => {
+  const metrics = assistantResponseMetrics.value;
+  if (!metrics || !Number.isFinite(metrics.tokenSpeed) || metrics.tokenSpeed < 0) return '-';
+  return `${metrics.tokenSpeed.toFixed(1)} tok/s`;
+});
+
 const switchToEditMode = () => {
   editedContent.value = formatMessageText(props.message.content);
   isEditing.value = true;
@@ -801,7 +871,7 @@ onBeforeUnmount(() => {
           </div>
         </template>
         <template #footer>
-          <div class="message-footer">
+          <div class="message-footer ai-footer">
             <div class="footer-actions">
               <button
                 class="footer-action-btn"
@@ -860,6 +930,28 @@ onBeforeUnmount(() => {
                 <Trash2 class="footer-action-icon" />
               </button>
             </div>
+            <el-tooltip
+              v-if="assistantResponseTokensDisplay"
+              placement="top-end"
+              effect="light"
+              popper-class="token-metrics-tooltip"
+            >
+              <template #content>
+                <div class="token-tooltip-content">
+                  <div class="token-tooltip-row">
+                    <span>首字时延</span>
+                    <span>{{ assistantFirstTokenLatencyDisplay }}</span>
+                  </div>
+                  <div class="token-tooltip-row">
+                    <span>每秒 Tokens</span>
+                    <span>{{ assistantTokenSpeedDisplay }}</span>
+                  </div>
+                </div>
+              </template>
+              <div class="footer-token-metrics" :title="assistantResponseTokensTitle">
+                {{ assistantResponseTokensDisplay }}
+              </div>
+            </el-tooltip>
           </div>
         </template>
       </Bubble>
@@ -1668,6 +1760,18 @@ html.dark .ai-name {
   min-height: 20px;
 }
 
+.ai-footer {
+  justify-content: flex-start;
+}
+
+.ai-bubble .ai-footer .footer-actions {
+  margin-right: 0;
+}
+
+.ai-footer .footer-token-metrics {
+  margin-left: auto;
+}
+
 .footer-actions {
   display: flex;
   align-items: center;
@@ -1734,6 +1838,72 @@ html.dark .ai-name {
   height: 15px;
 }
 
+.footer-token-metrics {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--el-text-color-secondary);
+  font-size: 12px;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    color 0.16s ease,
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    background-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.message-wrapper:hover .footer-token-metrics,
+.message-wrapper:focus-within .footer-token-metrics {
+  opacity: 0.82;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.footer-token-metrics:hover {
+  color: var(--el-text-color-primary);
+  opacity: 1;
+  background-color: var(--el-color-primary-light-9);
+  box-shadow: 0 5px 10px -7px color-mix(in srgb, var(--el-color-primary) 36%, transparent);
+}
+
+:deep(.token-metrics-tooltip) {
+  padding: 8px 10px !important;
+}
+
+:deep(.token-metrics-tooltip .token-tooltip-content) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 150px;
+}
+
+:deep(.token-metrics-tooltip .token-tooltip-row) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+:deep(.token-metrics-tooltip .token-tooltip-row > span:first-child) {
+  color: var(--el-text-color-secondary);
+}
+
+:deep(.token-metrics-tooltip .token-tooltip-row > span:last-child) {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
 .copy-icon-swap-enter-active,
 .copy-icon-swap-leave-active {
   transition:
@@ -1750,6 +1920,12 @@ html.dark .ai-name {
 @media (hover: none) {
   .footer-actions {
     opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .footer-token-metrics {
+    opacity: 0.82;
     visibility: visible;
     pointer-events: auto;
   }

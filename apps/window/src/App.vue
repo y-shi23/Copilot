@@ -3251,6 +3251,199 @@ Here are the rules you should always follow to solve your task:
 `;
 };
 
+const getCompletionTextFromMessageContent = (content) => {
+  if (!content) return '';
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .filter((item) => item?.type === 'text' && typeof item.text === 'string')
+    .map((item) => item.text)
+    .join('');
+};
+
+const safeStringifyForMetrics = (value) => {
+  try {
+    return JSON.stringify(value);
+  } catch (_error) {
+    return '';
+  }
+};
+
+const estimateTextTokens = (text) => {
+  if (!text || typeof text !== 'string') return 0;
+  const trimmed = text.trim();
+  if (!trimmed) return 0;
+
+  const chars = Array.from(trimmed);
+  const cjkCount = chars.filter((char) =>
+    /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/.test(char),
+  ).length;
+  const nonCjkCount = chars.length - cjkCount;
+
+  const estimated = cjkCount / 2 + nonCjkCount / 4;
+  return Math.max(1, Math.ceil(estimated));
+};
+
+const estimateContentTokens = (content) => {
+  if (!content) return 0;
+  if (typeof content === 'string') return estimateTextTokens(content);
+
+  if (Array.isArray(content)) {
+    return content.reduce((sum, part) => {
+      if (!part) return sum;
+      if (typeof part === 'string') return sum + estimateTextTokens(part);
+      if (part.type === 'text' && typeof part.text === 'string') {
+        return sum + estimateTextTokens(part.text);
+      }
+      if (part.type === 'image_url') return sum + 85;
+      if (part.type === 'input_audio') return sum + 120;
+      if (part.type === 'input_file' || part.type === 'file') return sum + 120;
+      return sum + estimateTextTokens(safeStringifyForMetrics(part));
+    }, 0);
+  }
+
+  if (typeof content === 'object') {
+    if (typeof content.text === 'string') return estimateTextTokens(content.text);
+    if (typeof content.content === 'string') return estimateTextTokens(content.content);
+    return estimateTextTokens(safeStringifyForMetrics(content));
+  }
+
+  return 0;
+};
+
+const estimatePromptTokensForMessages = (messages) => {
+  if (!Array.isArray(messages) || messages.length === 0) return 0;
+
+  let total = 3;
+  messages.forEach((message) => {
+    total += 4;
+    total += estimateContentTokens(message?.content);
+
+    if (typeof message?.name === 'string') {
+      total += estimateTextTokens(message.name);
+    }
+
+    if (Array.isArray(message?.tool_calls)) {
+      message.tool_calls.forEach((toolCall) => {
+        const fn = toolCall?.function;
+        if (typeof fn?.name === 'string') total += estimateTextTokens(fn.name);
+        if (typeof fn?.arguments === 'string') total += estimateTextTokens(fn.arguments);
+      });
+    }
+  });
+
+  return Math.max(0, Math.ceil(total));
+};
+
+const normalizeUsageMetrics = (usage) => {
+  if (!usage || typeof usage !== 'object') return null;
+
+  const parseCount = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) && num >= 0 ? Math.floor(num) : undefined;
+  };
+
+  const completion_tokens = parseCount(usage.completion_tokens ?? usage.output_tokens);
+  const prompt_tokens = parseCount(usage.prompt_tokens ?? usage.input_tokens);
+  const total_tokens = parseCount(usage.total_tokens ?? usage.totalTokens);
+
+  if (
+    completion_tokens === undefined &&
+    prompt_tokens === undefined &&
+    total_tokens === undefined
+  ) {
+    return null;
+  }
+
+  return {
+    completion_tokens,
+    prompt_tokens,
+    total_tokens,
+  };
+};
+
+const mergeUsageMetrics = (currentUsage, incomingUsage) => {
+  if (!incomingUsage) return currentUsage;
+  return {
+    completion_tokens: incomingUsage.completion_tokens ?? currentUsage?.completion_tokens,
+    prompt_tokens: incomingUsage.prompt_tokens ?? currentUsage?.prompt_tokens,
+    total_tokens: incomingUsage.total_tokens ?? currentUsage?.total_tokens,
+  };
+};
+
+const buildAssistantResponseMetrics = (
+  content,
+  usage,
+  timingMetrics = null,
+  fallbackPromptTokens = 0,
+) => {
+  const completionText = getCompletionTextFromMessageContent(content);
+  const estimatedCompletion = estimateTextTokens(completionText);
+  const normalizedUsage = normalizeUsageMetrics(usage);
+  const normalizedFallbackPromptTokens = Number.isFinite(fallbackPromptTokens)
+    ? Math.max(0, Math.round(fallbackPromptTokens))
+    : 0;
+
+  const completion_tokens = normalizedUsage?.completion_tokens ?? estimatedCompletion;
+  const prompt_tokens = normalizedUsage?.prompt_tokens ?? normalizedFallbackPromptTokens;
+  const total_tokens =
+    normalizedUsage?.total_tokens ??
+    (prompt_tokens !== undefined && completion_tokens !== undefined
+      ? prompt_tokens + completion_tokens
+      : undefined);
+
+  if (completion_tokens <= 0 && total_tokens <= 0) {
+    return null;
+  }
+
+  const time_first_token_millsec =
+    timingMetrics &&
+    Number.isFinite(timingMetrics.time_first_token_millsec) &&
+    timingMetrics.time_first_token_millsec >= 0
+      ? Math.round(timingMetrics.time_first_token_millsec)
+      : undefined;
+
+  const time_completion_millsec =
+    timingMetrics &&
+    Number.isFinite(timingMetrics.time_completion_millsec) &&
+    timingMetrics.time_completion_millsec > 0
+      ? Math.round(timingMetrics.time_completion_millsec)
+      : undefined;
+
+  const token_speed =
+    time_completion_millsec && completion_tokens >= 0
+      ? Number((completion_tokens / (time_completion_millsec / 1000)).toFixed(2))
+      : undefined;
+
+  return {
+    completion_tokens,
+    prompt_tokens,
+    total_tokens,
+    is_estimated:
+      normalizedUsage?.completion_tokens === undefined ||
+      normalizedUsage?.prompt_tokens === undefined,
+    time_first_token_millsec,
+    time_completion_millsec,
+    token_speed,
+  };
+};
+
+const updateAssistantBubbleMetrics = (
+  assistantIndex,
+  content,
+  usage,
+  timingMetrics = null,
+  fallbackPromptTokens = 0,
+) => {
+  if (assistantIndex < 0 || assistantIndex >= chat_show.value.length) return;
+  chat_show.value[assistantIndex].metrics = buildAssistantResponseMetrics(
+    content,
+    usage,
+    timingMetrics,
+    fallbackPromptTokens,
+  );
+};
+
 const askAI = async (forceSend = false) => {
   if (loading.value) return;
   if (isMcpLoading.value) {
@@ -3366,7 +3559,6 @@ const askAI = async (forceSend = false) => {
           }
         });
       }
-
       // 准备 System Prompt 和 MCP 规则
       let mcpSystemPromptStr = '';
       if (openaiFormattedTools.value.length > 0 || sessionSkillIds.value.length > 0) {
@@ -3380,6 +3572,7 @@ const askAI = async (forceSend = false) => {
           messagesForThisRequest.unshift({ role: 'system', content: mcpSystemPromptStr });
         }
       }
+      const estimatedPromptTokens = estimatePromptTokensForMessages(messagesForThisRequest);
 
       const payload = {
         model: model.value.split('|')[1],
@@ -3426,6 +3619,7 @@ const askAI = async (forceSend = false) => {
         id: assistantMessageId,
         role: 'assistant',
         content: [],
+        metrics: null,
         reasoning_content: '',
         status: '',
         aiName: modelMap.value[model.value] || model.value.split('|')[1],
@@ -3437,6 +3631,26 @@ const askAI = async (forceSend = false) => {
       if (isAtBottom.value) scrollToBottom('auto');
 
       let responseMessage;
+      let finalUsageMetrics = null;
+      const requestStartTimestamp = performance.now();
+      let firstTokenTimestamp = null;
+      let requestCompletionTimestamp = null;
+      const markFirstTokenTimestamp = () => {
+        if (firstTokenTimestamp === null) {
+          firstTokenTimestamp = performance.now();
+        }
+      };
+      const buildTimingMetricsSnapshot = () => {
+        const completionBase =
+          requestCompletionTimestamp !== null ? requestCompletionTimestamp : performance.now();
+        return {
+          time_first_token_millsec:
+            firstTokenTimestamp !== null
+              ? Math.max(0, firstTokenTimestamp - requestStartTimestamp)
+              : undefined,
+          time_completion_millsec: Math.max(0, completionBase - requestStartTimestamp),
+        };
+      };
 
       if (useStream) {
         const stream = await openai.chat.completions.create(payload, {
@@ -3451,6 +3665,10 @@ const askAI = async (forceSend = false) => {
         let lastUpdateTime = Date.now();
 
         for await (const part of stream) {
+          finalUsageMetrics = mergeUsageMetrics(
+            finalUsageMetrics,
+            normalizeUsageMetrics(part.usage),
+          );
           const delta = part.choices?.[0]?.delta;
 
           if (!delta) continue;
@@ -3465,6 +3683,7 @@ const askAI = async (forceSend = false) => {
           }
 
           if (delta.reasoning_content) {
+            markFirstTokenTimestamp();
             aggregatedReasoningContent += delta.reasoning_content;
             if (chat_show.value[currentAssistantChatShowIndex].status !== 'thinking') {
               chat_show.value[currentAssistantChatShowIndex].status = 'thinking';
@@ -3479,6 +3698,7 @@ const askAI = async (forceSend = false) => {
 
           // 处理 content (支持 string 和 array)
           if (delta.content) {
+            markFirstTokenTimestamp();
             if (typeof delta.content === 'string') {
               aggregatedContent += delta.content;
             } else if (Array.isArray(delta.content)) {
@@ -3505,11 +3725,19 @@ const askAI = async (forceSend = false) => {
               if (aggregatedMedia.length > 0) currentDisplayContent.push(...aggregatedMedia);
 
               chat_show.value[currentAssistantChatShowIndex].content = currentDisplayContent;
+              updateAssistantBubbleMetrics(
+                currentAssistantChatShowIndex,
+                currentDisplayContent,
+                finalUsageMetrics,
+                buildTimingMetricsSnapshot(),
+                estimatedPromptTokens,
+              );
               lastUpdateTime = Date.now();
             }
           }
 
           if (delta.tool_calls) {
+            markFirstTokenTimestamp();
             for (const toolCallChunk of delta.tool_calls) {
               const index = toolCallChunk.index ?? aggregatedToolCalls.length;
               if (!aggregatedToolCalls[index]) {
@@ -3535,6 +3763,16 @@ const askAI = async (forceSend = false) => {
             }
           }
         }
+        requestCompletionTimestamp = performance.now();
+        if (
+          firstTokenTimestamp === null &&
+          (aggregatedReasoningContent ||
+            aggregatedContent ||
+            aggregatedMedia.length > 0 ||
+            aggregatedToolCalls.length > 0)
+        ) {
+          firstTokenTimestamp = requestCompletionTimestamp;
+        }
 
         // 构建最终历史消息内容
         let finalContentForHistory = null;
@@ -3546,6 +3784,14 @@ const askAI = async (forceSend = false) => {
         } else {
           finalContentForHistory = aggregatedContent || null;
         }
+
+        updateAssistantBubbleMetrics(
+          currentAssistantChatShowIndex,
+          finalContentForHistory,
+          finalUsageMetrics,
+          buildTimingMetricsSnapshot(),
+          estimatedPromptTokens,
+        );
 
         responseMessage = {
           role: 'assistant',
@@ -3563,6 +3809,9 @@ const askAI = async (forceSend = false) => {
         const response = await openai.chat.completions.create(payload, {
           signal: signalController.value.signal,
         });
+        requestCompletionTimestamp = performance.now();
+        markFirstTokenTimestamp();
+        finalUsageMetrics = normalizeUsageMetrics(response.usage);
         responseMessage = response.choices[0].message;
       }
 
@@ -3590,6 +3839,13 @@ const askAI = async (forceSend = false) => {
         currentBubble.reasoning_content = responseMessage.reasoning_content;
         currentBubble.status = 'end';
       }
+      updateAssistantBubbleMetrics(
+        currentAssistantChatShowIndex,
+        currentBubble.content,
+        finalUsageMetrics,
+        buildTimingMetricsSnapshot(),
+        estimatedPromptTokens,
+      );
 
       if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
         tool_calls_count++;
@@ -3786,6 +4042,13 @@ const askAI = async (forceSend = false) => {
               format: 'wav',
             },
           });
+          updateAssistantBubbleMetrics(
+            currentAssistantChatShowIndex,
+            currentBubble.content,
+            finalUsageMetrics,
+            buildTimingMetricsSnapshot(),
+            estimatedPromptTokens,
+          );
         }
         break;
       }
