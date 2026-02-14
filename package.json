@@ -5,23 +5,49 @@
   "description": "Sanft - AI Chat Desktop App powered by Electron.",
   "main": "electron/main.js",
   "scripts": {
+    "prepare": "husky",
     "dev": "./dev.sh",
     "install:all": "pnpm --dir apps/main install && pnpm --dir apps/window install && pnpm --dir apps/backend install",
     "build:web": "pnpm --dir apps/main build && pnpm --dir apps/window build",
     "build:backend": "pnpm --dir apps/backend build",
+    "build:electron": "esbuild electron-src/main.ts electron-src/launcher_preload.ts --bundle --platform=node --format=cjs --external:electron --outdir=electron",
+    "build:fast-window": "esbuild apps/fast-window/src/fast_input.ts --bundle --platform=browser --format=iife --target=es2020 --outfile=apps/fast-window/fast_input.js",
     "sync:assets": "node scripts/sync-assets.cjs",
-    "build": "pnpm build:web && pnpm build:backend && pnpm sync:assets",
+    "build": "pnpm build:electron && pnpm build:fast-window && pnpm build:web && pnpm build:backend && pnpm sync:assets",
     "dev:main": "pnpm --dir apps/main dev",
     "dev:window": "pnpm --dir apps/window dev",
     "dev:backend": "pnpm --dir apps/backend watch",
-    "start": "node scripts/run-electron.cjs",
+    "start": "pnpm build:electron && pnpm build:fast-window && node scripts/run-electron.cjs",
     "start:built": "pnpm build && node scripts/run-electron.cjs",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "pnpm --dir apps/main typecheck && pnpm --dir apps/window typecheck && pnpm --dir apps/backend typecheck && pnpm typecheck:electron",
+    "typecheck:electron": "tsc -p electron-src/tsconfig.json --noEmit",
+    "test": "vitest run",
+    "check:no-js-source": "node scripts/check-no-js-source.cjs",
+    "check:no-inline-js": "node scripts/check-no-inline-js.cjs",
+    "check": "pnpm check:no-js-source && pnpm check:no-inline-js",
+    "ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm check && pnpm build",
     "pack": "pnpm build && electron-builder --dir",
     "dist": "pnpm build && electron-builder"
   },
   "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "@types/node": "^22.13.10",
     "electron": "30.5.1",
-    "electron-builder": "^24.13.3"
+    "electron-builder": "^24.13.3",
+    "esbuild": "^0.25.2",
+    "eslint": "^9.20.1",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-vue": "^9.32.0",
+    "globals": "^15.15.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "prettier": "^3.5.2",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.24.1",
+    "vitest": "^3.0.8",
+    "vue-eslint-parser": "^10.4.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -61,5 +87,13 @@
       ],
       "icon": "build"
     }
+  },
+  "lint-staged": {
+    "*.{ts,tsx,vue,js,cjs,mjs,json,css,md,html}": [
+      "prettier --write"
+    ],
+    "*.{ts,tsx,vue,js,cjs,mjs}": [
+      "eslint --fix"
+    ]
   }
 }

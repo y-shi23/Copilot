@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": true,
+    "tsBuildInfoFile": "../node_modules/.cache/tsconfig.electron.tsbuildinfo",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "target": "ES2022",
+    "types": ["node"],
+    "allowJs": false,
+    "rootDir": "."
+  },
+  "include": ["./**/*.ts"],
+  "exclude": ["../node_modules"]
+}

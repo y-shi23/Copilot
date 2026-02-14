@@ -1,14 +1,22 @@
-<script setup>
-import { ref, onMounted, computed, inject, h } from 'vue'
-import { useI18n } from 'vue-i18n'
-import { Upload, FolderOpen as FolderOpened, Folder, RefreshCw as Refresh, Trash2 as DeleteIcon, Download, Plus } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox, ElInput } from 'element-plus'
+<script setup lang="ts">
+// -nocheck
+import { ref, onMounted, computed, inject, h } from 'vue';
+import { useI18n } from 'vue-i18n';
+import {
+  Upload,
+  FolderOpen as FolderOpened,
+  Folder,
+  RefreshCw as Refresh,
+  Trash2 as DeleteIcon,
+  Download,
+  Plus,
+} from 'lucide-vue-next';
+import { ElMessage, ElMessageBox, ElInput } from 'element-plus';
 
-const { t, locale } = useI18n()
+const { t, locale } = useI18n();
 
 const currentConfig = inject('config');
 const selectedLanguage = ref(locale.value);
-
 
 // --- 备份管理器状态 ---
 const isBackupManagerVisible = ref(false);
@@ -21,7 +29,7 @@ const pageSize = ref(10);
 let createWebdavClientPromise = null;
 const getCreateWebdavClient = async () => {
   if (!createWebdavClientPromise) {
-    createWebdavClientPromise = import('webdav/web').then(module => module.createClient);
+    createWebdavClientPromise = import('webdav/web').then((module) => module.createClient);
   }
   return createWebdavClientPromise;
 };
@@ -54,7 +62,6 @@ const formatBytes = (bytes, decimals = 2) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 };
 
-
 onMounted(() => {
   selectedLanguage.value = locale.value;
 });
@@ -70,7 +77,7 @@ async function saveSingleSetting(keyPath, value) {
       }
       return true;
     } else {
-      console.warn("window.api.saveSetting is not available.");
+      console.warn('window.api.saveSetting is not available.');
       return false;
     }
   } catch (error) {
@@ -90,10 +97,10 @@ async function saveFullConfig() {
     if (window.api && window.api.updateConfigWithoutFeatures) {
       await window.api.updateConfigWithoutFeatures(configToSave);
     } else {
-      console.warn("window.api.updateConfigWithoutFeatures is not available.");
+      console.warn('window.api.updateConfigWithoutFeatures is not available.');
     }
   } catch (error) {
-    console.error("Error saving settings config:", error);
+    console.error('Error saving settings config:', error);
   }
 }
 
@@ -118,7 +125,7 @@ async function handleGlobalToggleChange(key, value) {
   }
 
   // 2. 批量更新所有快捷助手的对应设置
-  Object.keys(currentConfig.value.prompts).forEach(promptKey => {
+  Object.keys(currentConfig.value.prompts).forEach((promptKey) => {
     const prompt = currentConfig.value.prompts[promptKey];
     if (prompt) {
       // 这里的 key 分别对应 prompts 对象中的属性名：
@@ -158,9 +165,9 @@ async function exportConfig() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    console.log("Configuration exported successfully.");
+    console.log('Configuration exported successfully.');
   } catch (error) {
-    console.error("Error exporting config:", error);
+    console.error('Error exporting config:', error);
   }
 }
 
@@ -181,7 +188,7 @@ function importConfig() {
 
           const importedData = JSON.parse(e.target.result);
           if (typeof importedData !== 'object' || importedData === null) {
-            throw new Error("Imported file is not a valid configuration object.");
+            throw new Error('Imported file is not a valid configuration object.');
           }
 
           // 将保存的本地路径写回到即将应用的配置中
@@ -204,10 +211,10 @@ function importConfig() {
               currentConfig.value = result.config;
             }
           }
-          console.log("Configuration imported and replaced successfully.");
+          console.log('Configuration imported and replaced successfully.');
           ElMessage.success(t('setting.alerts.importSuccess'));
         } catch (err) {
-          console.error("Error importing configuration:", err);
+          console.error('Error importing configuration:', err);
           ElMessage.error(t('setting.alerts.importFailed'));
         }
       };
@@ -257,18 +264,21 @@ const addNewVoice = () => {
     cancelButtonText: t('common.cancel'),
     inputValidator: (value) => {
       if (!value || value.trim() === '') return t('setting.voice.addFailEmpty');
-      if (currentConfig.value.voiceList.includes(value.trim())) return t('setting.voice.addFailExists');
+      if (currentConfig.value.voiceList.includes(value.trim()))
+        return t('setting.voice.addFailExists');
       return true;
     },
-  }).then(({ value }) => {
-    const newVoice = value.trim();
-    if (!currentConfig.value.voiceList) {
-      currentConfig.value.voiceList = [];
-    }
-    currentConfig.value.voiceList.push(newVoice);
-    saveFullConfig();
-    ElMessage.success(t('setting.voice.addSuccess'));
-  }).catch(() => { });
+  })
+    .then(({ value }) => {
+      const newVoice = value.trim();
+      if (!currentConfig.value.voiceList) {
+        currentConfig.value.voiceList = [];
+      }
+      currentConfig.value.voiceList.push(newVoice);
+      saveFullConfig();
+      ElMessage.success(t('setting.voice.addSuccess'));
+    })
+    .catch(() => {});
 };
 
 const editVoice = (oldVoice) => {
@@ -284,28 +294,30 @@ const editVoice = (oldVoice) => {
       }
       return true;
     },
-  }).then(({ value }) => {
-    const newVoice = value.trim();
-    if (newVoice === oldVoice) return;
-    const index = currentConfig.value.voiceList.indexOf(oldVoice);
-    if (index > -1) {
-      currentConfig.value.voiceList[index] = newVoice;
-      Object.values(currentConfig.value.prompts).forEach(prompt => {
-        if (prompt.voice === oldVoice) {
-          prompt.voice = newVoice;
-        }
-      });
-      saveFullConfig();
-      ElMessage.success(t('setting.voice.editSuccess'));
-    }
-  }).catch(() => { });
+  })
+    .then(({ value }) => {
+      const newVoice = value.trim();
+      if (newVoice === oldVoice) return;
+      const index = currentConfig.value.voiceList.indexOf(oldVoice);
+      if (index > -1) {
+        currentConfig.value.voiceList[index] = newVoice;
+        Object.values(currentConfig.value.prompts).forEach((prompt) => {
+          if (prompt.voice === oldVoice) {
+            prompt.voice = newVoice;
+          }
+        });
+        saveFullConfig();
+        ElMessage.success(t('setting.voice.editSuccess'));
+      }
+    })
+    .catch(() => {});
 };
 
 const deleteVoice = (voiceToDelete) => {
   const index = currentConfig.value.voiceList.indexOf(voiceToDelete);
   if (index > -1) {
     currentConfig.value.voiceList.splice(index, 1);
-    Object.values(currentConfig.value.prompts).forEach(prompt => {
+    Object.values(currentConfig.value.prompts).forEach((prompt) => {
       if (prompt.voice === voiceToDelete) {
         prompt.voice = null;
       }
@@ -313,7 +325,6 @@ const deleteVoice = (voiceToDelete) => {
     saveFullConfig();
   }
 };
-
 
 // --- WebDAV 功能 ---
 async function backupToWebdav() {
@@ -333,18 +344,36 @@ async function backupToWebdav() {
   try {
     await ElMessageBox({
       title: t('setting.webdav.backup.confirmTitle'),
-      message: () => h('div', { style: 'display: flex; flex-direction: column; align-items: center; width: 100%;' }, [
-        h('p', { style: 'margin-bottom: 15px; font-size: 14px; color: var(--text-secondary); text-align: center; width: 100%;' }, t('setting.webdav.backup.confirmMessage')),
-        h(ElInput, {
-          modelValue: inputValue.value,
-          'onUpdate:modelValue': (val) => { inputValue.value = val; },
-          placeholder: t('setting.webdav.backup.inputFilename'),
-          autofocus: true,
-          style: 'width: 100%; max-width: 400px;'
-        }, {
-          append: () => h('div', { class: 'input-suffix-display' }, '.json')
-        })
-      ]),
+      message: () =>
+        h(
+          'div',
+          { style: 'display: flex; flex-direction: column; align-items: center; width: 100%;' },
+          [
+            h(
+              'p',
+              {
+                style:
+                  'margin-bottom: 15px; font-size: 14px; color: var(--text-secondary); text-align: center; width: 100%;',
+              },
+              t('setting.webdav.backup.confirmMessage'),
+            ),
+            h(
+              ElInput,
+              {
+                modelValue: inputValue.value,
+                'onUpdate:modelValue': (val) => {
+                  inputValue.value = val;
+                },
+                placeholder: t('setting.webdav.backup.inputFilename'),
+                autofocus: true,
+                style: 'width: 100%; max-width: 400px;',
+              },
+              {
+                append: () => h('div', { class: 'input-suffix-display' }, '.json'),
+              },
+            ),
+          ],
+        ),
       showCancelButton: true,
       confirmButtonText: t('common.confirm'),
       cancelButtonText: t('common.cancel'),
@@ -387,7 +416,7 @@ async function backupToWebdav() {
             ElMessage.success(t('setting.webdav.alerts.backupSuccess'));
             done();
           } catch (error) {
-            console.error("WebDAV backup failed:", error);
+            console.error('WebDAV backup failed:', error);
             ElMessage.error(`${t('setting.webdav.alerts.backupFailed')}: ${error.message}`);
           } finally {
             instance.confirmButtonLoading = false;
@@ -395,13 +424,13 @@ async function backupToWebdav() {
         } else {
           done();
         }
-      }
+      },
     });
   } catch (error) {
     if (error === 'cancel' || error === 'close') {
       ElMessage.info(t('setting.webdav.backup.cancelled'));
     } else {
-      console.error("MessageBox error:", error);
+      console.error('MessageBox error:', error);
     }
   }
 }
@@ -434,18 +463,22 @@ async function fetchBackupFiles() {
     const contents = response.data;
 
     if (!Array.isArray(contents)) {
-      console.error("Failed to fetch backup files: WebDAV response.data is not an array.", response);
-      ElMessage.error(t('setting.webdav.manager.fetchFailed') + ': Invalid response structure from server');
+      console.error(
+        'Failed to fetch backup files: WebDAV response.data is not an array.',
+        response,
+      );
+      ElMessage.error(
+        t('setting.webdav.manager.fetchFailed') + ': Invalid response structure from server',
+      );
       backupFiles.value = [];
       return;
     }
 
     backupFiles.value = contents
-      .filter(item => item.type === 'file' && item.basename.endsWith('.json'))
+      .filter((item) => item.type === 'file' && item.basename.endsWith('.json'))
       .sort((a, b) => new Date(b.lastmod) - new Date(a.lastmod));
-
   } catch (error) {
-    console.error("Failed to fetch backup files:", error);
+    console.error('Failed to fetch backup files:', error);
     let errorMessage = error.message;
     if (error.response && error.response.statusText) {
       errorMessage = `${error.response.status} ${error.response.statusText}`;
@@ -466,7 +499,7 @@ async function restoreFromWebdav(file) {
         confirmButtonText: t('common.confirm'),
         cancelButtonText: t('common.cancel'),
         type: 'warning',
-      }
+      },
     );
 
     ElMessage.info(t('setting.webdav.alerts.restoreInProgress'));
@@ -481,11 +514,11 @@ async function restoreFromWebdav(file) {
     const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
     const remoteFilePath = `${remoteDir}/${file.basename}`;
 
-    const jsonString = await client.getFileContents(remoteFilePath, { format: "text" });
+    const jsonString = await client.getFileContents(remoteFilePath, { format: 'text' });
     const importedData = JSON.parse(jsonString);
 
     if (typeof importedData !== 'object' || importedData === null) {
-      throw new Error("Downloaded file is not a valid configuration object.");
+      throw new Error('Downloaded file is not a valid configuration object.');
     }
 
     if (currentLocalChatPath) {
@@ -509,10 +542,9 @@ async function restoreFromWebdav(file) {
 
     ElMessage.success(t('setting.webdav.alerts.restoreSuccess'));
     isBackupManagerVisible.value = false;
-
   } catch (error) {
     if (error !== 'cancel' && error !== 'close') {
-      console.error("WebDAV restore failed:", error);
+      console.error('WebDAV restore failed:', error);
       ElMessage.error(`${t('setting.webdav.alerts.restoreFailed')}: ${error.message}`);
     }
   }
@@ -523,7 +555,7 @@ async function deleteFile(file) {
     await ElMessageBox.confirm(
       t('setting.webdav.manager.confirmDelete', { filename: file.basename }),
       t('common.warningTitle'),
-      { type: 'warning' }
+      { type: 'warning' },
     );
 
     const { url, username, password, path } = currentConfig.value.webdav;
@@ -536,7 +568,7 @@ async function deleteFile(file) {
     await fetchBackupFiles();
   } catch (error) {
     if (error !== 'cancel' && error !== 'close') {
-      console.error("Failed to delete file:", error);
+      console.error('Failed to delete file:', error);
       ElMessage.error(`${t('setting.webdav.manager.deleteFailed')}: ${error.message}`);
     }
   }
@@ -552,15 +584,15 @@ async function deleteSelectedFiles() {
     await ElMessageBox.confirm(
       t('setting.webdav.manager.confirmDeleteMultiple', { count: selectedFiles.value.length }),
       t('common.warningTitle'),
-      { type: 'warning' }
+      { type: 'warning' },
     );
 
     const { url, username, password, path } = currentConfig.value.webdav;
     const client = await createWebdavClient(url, username, password);
     const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
 
-    const deletePromises = selectedFiles.value.map(file =>
-      client.deleteFile(`${remoteDir}/${file.basename}`)
+    const deletePromises = selectedFiles.value.map((file) =>
+      client.deleteFile(`${remoteDir}/${file.basename}`),
     );
 
     await Promise.all(deletePromises);
@@ -568,7 +600,7 @@ async function deleteSelectedFiles() {
     await fetchBackupFiles();
   } catch (error) {
     if (error !== 'cancel' && error !== 'close') {
-      console.error("Failed to delete selected files:", error);
+      console.error('Failed to delete selected files:', error);
       ElMessage.error(`${t('setting.webdav.manager.deleteFailedMultiple')}: ${error.message}`);
     }
   }
@@ -597,13 +629,15 @@ async function selectLocalChatPath() {
           <div class="setting-option-item">
             <div class="setting-text-content">
               <span class="setting-option-label">{{ t('setting.language.label') }}</span>
-              <span class="setting-option-description">{{ t('setting.language.selectPlaceholder') }}</span>
+              <span class="setting-option-description">{{
+                t('setting.language.selectPlaceholder')
+              }}</span>
             </div>
             <el-select
               v-model="selectedLanguage"
               @change="handleLanguageChange"
               size="default"
-              style="width: 120px;"
+              style="width: 120px"
               class="setting-inline-select"
               popper-class="settings-select-popper"
             >
@@ -616,13 +650,15 @@ async function selectLocalChatPath() {
           <div class="setting-option-item">
             <div class="setting-text-content">
               <span class="setting-option-label">{{ t('setting.darkMode.label') }}</span>
-              <span class="setting-option-description">{{ t('setting.darkMode.description') }}</span>
+              <span class="setting-option-description">{{
+                t('setting.darkMode.description')
+              }}</span>
             </div>
             <el-select
               v-model="currentConfig.themeMode"
               @change="handleThemeChange"
               size="default"
-              style="width: 120px;"
+              style="width: 120px"
               class="setting-inline-select"
               popper-class="settings-select-popper"
             >
@@ -633,76 +669,118 @@ async function selectLocalChatPath() {
           </div>
           <div class="setting-option-item">
             <div class="setting-text-content">
-              <span class="setting-option-label">{{ t('setting.isAlwaysOnTop_global.label') }}</span>
-              <span class="setting-option-description">{{ t('setting.isAlwaysOnTop_global.description') }}</span>
+              <span class="setting-option-label">{{
+                t('setting.isAlwaysOnTop_global.label')
+              }}</span>
+              <span class="setting-option-description">{{
+                t('setting.isAlwaysOnTop_global.description')
+              }}</span>
             </div>
-            <el-switch v-model="currentConfig.isAlwaysOnTop_global"
-              @change="(value) => handleGlobalToggleChange('isAlwaysOnTop', value)" />
+            <el-switch
+              v-model="currentConfig.isAlwaysOnTop_global"
+              @change="(value) => handleGlobalToggleChange('isAlwaysOnTop', value)"
+            />
           </div>
           <div class="setting-option-item">
             <div class="setting-text-content">
-              <span class="setting-option-label">{{ t('setting.autoCloseOnBlur_global.label') }}</span>
-              <span class="setting-option-description">{{ t('setting.autoCloseOnBlur_global.description') }}</span>
+              <span class="setting-option-label">{{
+                t('setting.autoCloseOnBlur_global.label')
+              }}</span>
+              <span class="setting-option-description">{{
+                t('setting.autoCloseOnBlur_global.description')
+              }}</span>
             </div>
-            <el-switch v-model="currentConfig.autoCloseOnBlur_global"
-              @change="(value) => handleGlobalToggleChange('autoCloseOnBlur', value)" />
+            <el-switch
+              v-model="currentConfig.autoCloseOnBlur_global"
+              @change="(value) => handleGlobalToggleChange('autoCloseOnBlur', value)"
+            />
           </div>
           <div class="setting-option-item">
             <div class="setting-text-content">
               <span class="setting-option-label">{{ t('setting.autoSaveChat_global.label') }}</span>
-              <span class="setting-option-description">{{ t('setting.autoSaveChat_global.description') }}</span>
+              <span class="setting-option-description">{{
+                t('setting.autoSaveChat_global.description')
+              }}</span>
             </div>
-            <el-switch v-model="currentConfig.autoSaveChat_global"
-              @change="(value) => handleGlobalToggleChange('autoSaveChat', value)" />
+            <el-switch
+              v-model="currentConfig.autoSaveChat_global"
+              @change="(value) => handleGlobalToggleChange('autoSaveChat', value)"
+            />
           </div>
           <div class="setting-option-item">
             <div class="setting-text-content">
               <span class="setting-option-label">{{ t('setting.skipLineBreak.label') }}</span>
-              <span class="setting-option-description">{{ t('setting.skipLineBreak.description') }}</span>
+              <span class="setting-option-description">{{
+                t('setting.skipLineBreak.description')
+              }}</span>
             </div>
-            <el-switch v-model="currentConfig.skipLineBreak"
-              @change="(value) => saveSingleSetting('skipLineBreak', value)" />
+            <el-switch
+              v-model="currentConfig.skipLineBreak"
+              @change="(value) => saveSingleSetting('skipLineBreak', value)"
+            />
           </div>
           <div class="setting-option-item">
             <div class="setting-text-content">
               <span class="setting-option-label">{{ t('setting.ctrlEnter.label') }}</span>
-              <span class="setting-option-description">{{ t('setting.ctrlEnter.description') }}</span>
+              <span class="setting-option-description">{{
+                t('setting.ctrlEnter.description')
+              }}</span>
             </div>
-            <el-switch v-model="currentConfig.CtrlEnterToSend"
-              @change="(value) => saveSingleSetting('CtrlEnterToSend', value)" />
+            <el-switch
+              v-model="currentConfig.CtrlEnterToSend"
+              @change="(value) => saveSingleSetting('CtrlEnterToSend', value)"
+            />
           </div>
           <div class="setting-option-item">
             <div class="setting-text-content">
               <span class="setting-option-label">{{ t('setting.notification.label') }}</span>
-              <span class="setting-option-description">{{ t('setting.notification.description') }}</span>
+              <span class="setting-option-description">{{
+                t('setting.notification.description')
+              }}</span>
             </div>
-            <el-switch v-model="currentConfig.showNotification"
-              @change="(value) => saveSingleSetting('showNotification', value)" />
+            <el-switch
+              v-model="currentConfig.showNotification"
+              @change="(value) => saveSingleSetting('showNotification', value)"
+            />
           </div>
           <div class="setting-option-item">
             <div class="setting-text-content">
               <span class="setting-option-label">{{ t('setting.fixPosition.label') }}</span>
-              <span class="setting-option-description">{{ t('setting.fixPosition.description') }}</span>
+              <span class="setting-option-description">{{
+                t('setting.fixPosition.description')
+              }}</span>
             </div>
-            <el-switch v-model="currentConfig.fix_position"
-              @change="(value) => saveSingleSetting('fix_position', value)" />
+            <el-switch
+              v-model="currentConfig.fix_position"
+              @change="(value) => saveSingleSetting('fix_position', value)"
+            />
           </div>
           <div class="setting-option-item">
             <div class="setting-text-content">
               <span class="setting-option-label">{{ t('setting.launcher.enabledLabel') }}</span>
-              <span class="setting-option-description">{{ t('setting.launcher.enabledDescription') }}</span>
+              <span class="setting-option-description">{{
+                t('setting.launcher.enabledDescription')
+              }}</span>
             </div>
-            <el-switch v-model="currentConfig.launcherEnabled"
-              @change="(value) => saveSingleSetting('launcherEnabled', value)" />
+            <el-switch
+              v-model="currentConfig.launcherEnabled"
+              @change="(value) => saveSingleSetting('launcherEnabled', value)"
+            />
           </div>
           <div class="setting-option-item no-border">
             <div class="setting-text-content">
               <span class="setting-option-label">{{ t('setting.launcher.hotkeyLabel') }}</span>
-              <span class="setting-option-description">{{ t('setting.launcher.hotkeyDescription') }}</span>
+              <span class="setting-option-description">{{
+                t('setting.launcher.hotkeyDescription')
+              }}</span>
             </div>
-            <el-input v-model="currentConfig.launcherHotkey" :disabled="!currentConfig.launcherEnabled"
-              :placeholder="t('setting.launcher.hotkeyPlaceholder')" style="width: 320px;"
-              @change="handleLauncherHotkeyChange" />
+            <el-input
+              v-model="currentConfig.launcherHotkey"
+              :disabled="!currentConfig.launcherEnabled"
+              :placeholder="t('setting.launcher.hotkeyPlaceholder')"
+              style="width: 320px"
+              @change="handleLauncherHotkeyChange"
+            />
           </div>
         </section>
 
@@ -714,11 +792,24 @@ async function selectLocalChatPath() {
             </el-tooltip>
           </div>
           <div class="voice-list-container">
-            <el-tag v-for="voice in currentConfig.voiceList" :key="voice" closable @click="editVoice(voice)"
-              @close="deleteVoice(voice)" class="voice-tag" size="large">
+            <el-tag
+              v-for="voice in currentConfig.voiceList"
+              :key="voice"
+              closable
+              @click="editVoice(voice)"
+              @close="deleteVoice(voice)"
+              class="voice-tag"
+              size="large"
+            >
               {{ voice }}
             </el-tag>
-            <el-button class="add-voice-button" type="primary" plain :icon="Plus" @click="addNewVoice">
+            <el-button
+              class="add-voice-button"
+              type="primary"
+              plain
+              :icon="Plus"
+              @click="addNewVoice"
+            >
               {{ t('setting.voice.add') }}
             </el-button>
           </div>
@@ -729,8 +820,12 @@ async function selectLocalChatPath() {
           <h2 class="section-title">{{ t('setting.dataManagement.title') }}</h2>
           <div class="setting-option-item">
             <div class="setting-text-content">
-              <span class="setting-option-label">{{ t('setting.dataManagement.exportLabel') }}</span>
-              <span class="setting-option-description">{{ t('setting.dataManagement.exportDesc') }}</span>
+              <span class="setting-option-label">{{
+                t('setting.dataManagement.exportLabel')
+              }}</span>
+              <span class="setting-option-description">{{
+                t('setting.dataManagement.exportDesc')
+              }}</span>
             </div>
             <el-button @click="exportConfig" :icon="Download" size="default" plain>{{
               t('setting.dataManagement.exportButton')
@@ -738,8 +833,12 @@ async function selectLocalChatPath() {
           </div>
           <div class="setting-option-item">
             <div class="setting-text-content">
-              <span class="setting-option-label">{{ t('setting.dataManagement.importLabel') }}</span>
-              <span class="setting-option-description">{{ t('setting.dataManagement.importDesc') }}</span>
+              <span class="setting-option-label">{{
+                t('setting.dataManagement.importLabel')
+              }}</span>
+              <span class="setting-option-description">{{
+                t('setting.dataManagement.importDesc')
+              }}</span>
             </div>
             <el-button @click="importConfig" :icon="Upload" size="default" plain>{{
               t('setting.dataManagement.importButton')
@@ -748,7 +847,9 @@ async function selectLocalChatPath() {
           <div class="setting-option-item no-border">
             <div class="setting-text-content">
               <span class="setting-option-label">{{ t('setting.webdav.localChatPath') }}</span>
-              <span class="setting-option-description">{{ t('setting.webdav.localChatPathPlaceholder') }}</span>
+              <span class="setting-option-description">{{
+                t('setting.webdav.localChatPathPlaceholder')
+              }}</span>
             </div>
             <div class="path-input-wrapper">
               <input
@@ -758,7 +859,11 @@ async function selectLocalChatPath() {
                 @change="(e) => saveSingleSetting('webdav.localChatPath', e.target.value)"
                 :placeholder="t('setting.webdav.localChatPathPlaceholder')"
               />
-              <button class="path-input-btn" @click="selectLocalChatPath" :title="t('setting.webdav.selectFolder')">
+              <button
+                class="path-input-btn"
+                @click="selectLocalChatPath"
+                :title="t('setting.webdav.selectFolder')"
+              >
                 <el-icon :size="18"><Folder /></el-icon>
               </button>
             </div>
@@ -769,24 +874,44 @@ async function selectLocalChatPath() {
         <section class="settings-section">
           <h2 class="section-title">WebDAV</h2>
           <el-form label-width="200px" label-position="left" size="default">
-            <el-form-item :label="t('setting.webdav.url')"><el-input v-model="currentConfig.webdav.url"
+            <el-form-item :label="t('setting.webdav.url')"
+              ><el-input
+                v-model="currentConfig.webdav.url"
                 @change="(value) => saveSingleSetting('webdav.url', value)"
-                :placeholder="t('setting.webdav.urlPlaceholder')" /></el-form-item>
-            <el-form-item :label="t('setting.webdav.username')"><el-input v-model="currentConfig.webdav.username"
+                :placeholder="t('setting.webdav.urlPlaceholder')"
+            /></el-form-item>
+            <el-form-item :label="t('setting.webdav.username')"
+              ><el-input
+                v-model="currentConfig.webdav.username"
                 @change="(value) => saveSingleSetting('webdav.username', value)"
-                :placeholder="t('setting.webdav.usernamePlaceholder')" /></el-form-item>
-            <el-form-item :label="t('setting.webdav.password')"><el-input v-model="currentConfig.webdav.password"
-                @change="(value) => saveSingleSetting('webdav.password', value)" type="password" show-password
-                :placeholder="t('setting.webdav.passwordPlaceholder')" /></el-form-item>
-            <el-form-item :label="t('setting.webdav.path')"><el-input v-model="currentConfig.webdav.path"
+                :placeholder="t('setting.webdav.usernamePlaceholder')"
+            /></el-form-item>
+            <el-form-item :label="t('setting.webdav.password')"
+              ><el-input
+                v-model="currentConfig.webdav.password"
+                @change="(value) => saveSingleSetting('webdav.password', value)"
+                type="password"
+                show-password
+                :placeholder="t('setting.webdav.passwordPlaceholder')"
+            /></el-form-item>
+            <el-form-item :label="t('setting.webdav.path')"
+              ><el-input
+                v-model="currentConfig.webdav.path"
                 @change="(value) => saveSingleSetting('webdav.path', value)"
-                :placeholder="t('setting.webdav.pathPlaceholder')" /></el-form-item>
-            <el-form-item :label="t('setting.webdav.dataPath')"><el-input v-model="currentConfig.webdav.data_path"
+                :placeholder="t('setting.webdav.pathPlaceholder')"
+            /></el-form-item>
+            <el-form-item :label="t('setting.webdav.dataPath')"
+              ><el-input
+                v-model="currentConfig.webdav.data_path"
                 @change="(value) => saveSingleSetting('webdav.data_path', value)"
-                :placeholder="t('setting.webdav.dataPathPlaceholder')" /></el-form-item>
+                :placeholder="t('setting.webdav.dataPathPlaceholder')"
+            /></el-form-item>
             <el-form-item :label="t('setting.webdav.backupRestoreTitle')" class="no-margin-bottom">
-              <el-button @click="backupToWebdav" :icon="Upload">{{ t('setting.webdav.backupButton') }}</el-button>
-              <el-button @click="openBackupManager" :icon="FolderOpened">{{ t('setting.webdav.restoreButton')
+              <el-button @click="backupToWebdav" :icon="Upload">{{
+                t('setting.webdav.backupButton')
+              }}</el-button>
+              <el-button @click="openBackupManager" :icon="FolderOpened">{{
+                t('setting.webdav.restoreButton')
               }}</el-button>
             </el-form-item>
           </el-form>
@@ -795,27 +920,60 @@ async function selectLocalChatPath() {
     </el-scrollbar>
 
     <!-- [修改] 备份数据管理弹窗 -->
-    <el-dialog v-model="isBackupManagerVisible" :title="t('setting.webdav.manager.title')" width="700px" top="10vh"
-      :destroy-on-close="true" style="max-width: 90vw;" class="backup-manager-dialog" append-to-body>
-      <el-table :data="paginatedFiles" v-loading="isTableLoading" @selection-change="handleSelectionChange"
-        style="width: 100%" max-height="50vh" border stripe>
+    <el-dialog
+      v-model="isBackupManagerVisible"
+      :title="t('setting.webdav.manager.title')"
+      width="700px"
+      top="10vh"
+      :destroy-on-close="true"
+      style="max-width: 90vw"
+      class="backup-manager-dialog"
+      append-to-body
+    >
+      <el-table
+        :data="paginatedFiles"
+        v-loading="isTableLoading"
+        @selection-change="handleSelectionChange"
+        style="width: 100%"
+        max-height="50vh"
+        border
+        stripe
+      >
         <el-table-column type="selection" width="50" align="center" />
-        <el-table-column prop="basename" :label="t('setting.webdav.manager.filename')" sortable show-overflow-tooltip
-          min-width="160" />
-        <el-table-column prop="lastmod" :label="t('setting.webdav.manager.modifiedTime')" width="170" sortable
-          align="center">
+        <el-table-column
+          prop="basename"
+          :label="t('setting.webdav.manager.filename')"
+          sortable
+          show-overflow-tooltip
+          min-width="160"
+        />
+        <el-table-column
+          prop="lastmod"
+          :label="t('setting.webdav.manager.modifiedTime')"
+          width="170"
+          sortable
+          align="center"
+        >
           <template #default="scope">{{ formatDate(scope.row.lastmod) }}</template>
         </el-table-column>
-        <el-table-column prop="size" :label="t('setting.webdav.manager.size')" width="100" sortable align="center">
+        <el-table-column
+          prop="size"
+          :label="t('setting.webdav.manager.size')"
+          width="100"
+          sortable
+          align="center"
+        >
           <template #default="scope">{{ formatBytes(scope.row.size) }}</template>
         </el-table-column>
         <el-table-column :label="t('setting.webdav.manager.actions')" width="120" align="center">
           <template #default="scope">
             <div class="action-buttons-container">
               <el-button link type="primary" @click="restoreFromWebdav(scope.row)">{{
-                t('setting.webdav.manager.restore') }}</el-button>
+                t('setting.webdav.manager.restore')
+              }}</el-button>
               <el-divider direction="vertical" />
-              <el-button link type="danger" @click="deleteFile(scope.row)">{{ t('setting.webdav.manager.delete')
+              <el-button link type="danger" @click="deleteFile(scope.row)">{{
+                t('setting.webdav.manager.delete')
               }}</el-button>
             </div>
           </template>
@@ -825,16 +983,29 @@ async function selectLocalChatPath() {
       <template #footer>
         <div class="dialog-footer">
           <div class="footer-left">
-            <el-button :icon="Refresh" @click="fetchBackupFiles">{{ t('common.refresh') }}</el-button>
-            <el-button type="danger" :icon="DeleteIcon" @click="deleteSelectedFiles"
-              :disabled="selectedFiles.length === 0">
+            <el-button :icon="Refresh" @click="fetchBackupFiles">{{
+              t('common.refresh')
+            }}</el-button>
+            <el-button
+              type="danger"
+              :icon="DeleteIcon"
+              @click="deleteSelectedFiles"
+              :disabled="selectedFiles.length === 0"
+            >
               {{ t('common.deleteSelected') }} ({{ selectedFiles.length }})
             </el-button>
           </div>
           <div class="footer-center">
-            <el-pagination v-if="backupFiles.length > 0" v-model:current-page="currentPage" v-model:page-size="pageSize"
-              :page-sizes="[10, 20, 50, 100]" :total="backupFiles.length"
-              layout="total, sizes, prev, pager, next, jumper" background size="small" />
+            <el-pagination
+              v-if="backupFiles.length > 0"
+              v-model:current-page="currentPage"
+              v-model:page-size="pageSize"
+              :page-sizes="[10, 20, 50, 100]"
+              :total="backupFiles.length"
+              layout="total, sizes, prev, pager, next, jumper"
+              background
+              size="small"
+            />
           </div>
           <div class="footer-right">
             <el-button @click="isBackupManagerVisible = false">{{ t('common.close') }}</el-button>
@@ -859,7 +1030,9 @@ async function selectLocalChatPath() {
   height: 32px;
   padding: 0 12px;
   cursor: pointer;
-  transition: transform 0.2s ease-in-out, filter 0.2s ease-in-out;
+  transition:
+    transform 0.2s ease-in-out,
+    filter 0.2s ease-in-out;
 }
 
 .voice-tag:hover {
@@ -1046,7 +1219,6 @@ async function selectLocalChatPath() {
   border-right: 1px solid var(--border-primary);
 }
 
-
 :deep(.backup-manager-dialog .el-dialog__header) {
   padding: 5px !important;
 }
@@ -1067,7 +1239,9 @@ async function selectLocalChatPath() {
   border: 1px solid var(--border-primary);
   border-radius: 9999px;
   overflow: hidden;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .path-input-wrapper:focus-within {
@@ -1102,7 +1276,9 @@ async function selectLocalChatPath() {
   border-radius: 9999px;
   color: var(--text-secondary);
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .path-input-btn:hover {

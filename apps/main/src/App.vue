@@ -1,8 +1,26 @@
-<script setup>
-import { ref, watch, onMounted, provide, onBeforeUnmount, computed, h, defineAsyncComponent } from 'vue'
+<script setup lang="ts">
+// -nocheck
+import {
+  ref,
+  watch,
+  onMounted,
+  provide,
+  onBeforeUnmount,
+  computed,
+  h,
+  defineAsyncComponent,
+} from 'vue';
 
-import { useI18n } from 'vue-i18n'
-import { Bell, MessageCircle as ChatDotRound, WandSparkles as MagicStick, Library as Collection, Cloud as Cloudy, Settings as SettingIcon, FileText as Document } from 'lucide-vue-next';
+import { useI18n } from 'vue-i18n';
+import {
+  Bell,
+  MessageCircle as ChatDotRound,
+  WandSparkles as MagicStick,
+  Library as Collection,
+  Cloud as Cloudy,
+  Settings as SettingIcon,
+  FileText as Document,
+} from 'lucide-vue-next';
 import { ElBadge } from 'element-plus'; // 确保引入 ElBadge
 
 const Chats = defineAsyncComponent(() => import('./components/Chats.vue'));
@@ -12,7 +30,7 @@ const Setting = defineAsyncComponent(() => import('./components/Setting.vue'));
 const Providers = defineAsyncComponent(() => import('./components/Providers.vue'));
 const Skills = defineAsyncComponent(() => import('./components/Skills.vue'));
 
-const { t, locale } = useI18n()
+const { t, locale } = useI18n();
 const tab = ref(0);
 const header_text = ref(t('app.header.chats'));
 
@@ -28,28 +46,32 @@ const McpToolIcon = {
         stroke: 'currentColor',
         'stroke-width': '2',
         'stroke-linecap': 'round',
-        'stroke-linejoin': 'round'
+        'stroke-linejoin': 'round',
       },
       [
         h('path', { d: 'm15 12-8.373 8.373a1 1 0 1 1-3-3L12 9' }),
         h('path', { d: 'm18 15 4-4' }),
-        h('path', { d: 'm21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5' })
-      ]
+        h('path', {
+          d: 'm21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5',
+        }),
+      ],
     );
-  }
+  },
 };
 
-const navItems = computed(() => ([
+const navItems = computed(() => [
   { id: 0, label: t('app.tabs.chats'), icon: ChatDotRound },
   { id: 1, label: t('app.tabs.prompts'), icon: MagicStick },
   { id: 2, label: t('app.tabs.mcp'), icon: McpToolIcon },
   { id: 3, label: t('app.tabs.skills'), icon: Collection },
   { id: 4, label: t('app.tabs.providers'), icon: Cloudy },
-  { id: 5, label: t('app.tabs.settings'), icon: SettingIcon }
-]));
+  { id: 5, label: t('app.tabs.settings'), icon: SettingIcon },
+]);
 
 const config = ref(null);
-const platformName = String(navigator.userAgentData?.platform || navigator.platform || '').toLowerCase();
+const platformName = String(
+  navigator.userAgentData?.platform || navigator.platform || '',
+).toLowerCase();
 const isMacOS = computed(() => platformName.includes('mac'));
 
 const SIDEBAR_WIDTH_STORAGE_KEY = 'anywhere_main_sidebar_width_v1';
@@ -153,14 +175,18 @@ const applyMainVibrancyBodyClass = () => {
 provide('config', config);
 
 // This watcher is now very effective because of the CSS variables and shared state.
-watch(() => config.value?.isDarkMode, (isDark) => {
-  if (isDark === undefined) return;
-  if (isDark) {
-    document.documentElement.classList.add('dark');
-  } else {
-    document.documentElement.classList.remove('dark');
-  }
-}, { deep: true });
+watch(
+  () => config.value?.isDarkMode,
+  (isDark) => {
+    if (isDark === undefined) return;
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  },
+  { deep: true },
+);
 
 const handleGlobalEsc = (e) => {
   if (e.key === 'Escape') {
@@ -173,7 +199,7 @@ const handleGlobalEsc = (e) => {
     }
 
     // 2. 检查可见的弹窗遮罩层 (Dialog Overlays)
-    const overlays = Array.from(document.querySelectorAll('.el-overlay')).filter(el => {
+    const overlays = Array.from(document.querySelectorAll('.el-overlay')).filter((el) => {
       return el.style.display !== 'none' && !el.classList.contains('is-hidden');
     });
 
@@ -181,14 +207,18 @@ const handleGlobalEsc = (e) => {
       // 找到层级最高（最上层）的弹窗
       const topOverlay = overlays.reduce((max, current) => {
         return (parseInt(window.getComputedStyle(current).zIndex) || 0) >
-               (parseInt(window.getComputedStyle(max).zIndex) || 0) ? current : max;
+          (parseInt(window.getComputedStyle(max).zIndex) || 0)
+          ? current
+          : max;
       });
 
       // 阻止 uTools 退出
       e.stopPropagation();
 
       // A. 尝试点击右上角的关闭(X)按钮
-      const headerBtn = topOverlay.querySelector('.el-dialog__headerbtn, .el-message-box__headerbtn');
+      const headerBtn = topOverlay.querySelector(
+        '.el-dialog__headerbtn, .el-message-box__headerbtn',
+      );
       if (headerBtn) {
         headerBtn.click();
         return;
@@ -241,7 +271,7 @@ const docList = ref([
   { i18nKey: 'doc.titles.mcp', file: 'mcp_doc.md', lastUpdated: null },
   { i18nKey: 'doc.titles.skill', file: 'skill_doc.md', lastUpdated: null },
   { i18nKey: 'doc.titles.provider', file: 'provider_doc.md', lastUpdated: null },
-  { i18nKey: 'doc.titles.setting', file: 'setting_doc.md', lastUpdated: null }
+  { i18nKey: 'doc.titles.setting', file: 'setting_doc.md', lastUpdated: null },
 ]);
 
 // 阅读状态管理
@@ -278,7 +308,7 @@ const fetchAllDocsMetadata = async () => {
       const response = await fetch(`${baseUrl}${doc.file}`);
       if (!response.ok) return;
       const text = await response.text();
-      
+
       const match = text.match(dateRegex);
       if (match) {
         // 转换为兼容格式 YYYY/MM/DD 00:00:00
@@ -300,18 +330,18 @@ const fetchAllDocsMetadata = async () => {
 const checkDocHasUpdate = (index) => {
   const doc = docList.value[index];
   if (!doc || !doc.lastUpdated) return false;
-  
+
   // 从配置中读取状态
   const readMap = config.value?.docReadStatus || {};
   const lastRead = readMap[doc.file];
-  
+
   // 如果从未读过，或者更新时间晚于阅读时间，显示红点
   if (!lastRead) return true;
-  
+
   // Date比较
   const updateTime = new Date(doc.lastUpdated).getTime();
   const readTime = new Date(lastRead).getTime();
-  
+
   return updateTime > readTime;
 };
 
@@ -334,9 +364,12 @@ const markDocAsRead = async (filename) => {
 
   // 3. 持久化保存到 uTools 数据库，这里保存整个 docReadStatus 对象
   try {
-    await window.api.saveSetting('docReadStatus', JSON.parse(JSON.stringify(config.value.docReadStatus)));
+    await window.api.saveSetting(
+      'docReadStatus',
+      JSON.parse(JSON.stringify(config.value.docReadStatus)),
+    );
   } catch (e) {
-    console.error("保存阅读状态失败:", e);
+    console.error('保存阅读状态失败:', e);
   }
 };
 
@@ -350,17 +383,20 @@ const fetchAndParseDoc = async (filename) => {
     const baseUrl = 'https://raw.githubusercontent.com/Komorebi-yaodong/Anywhere/main/docs/';
     const response = await fetch(`${baseUrl}${filename}`);
     if (!response.ok) throw new Error('Network response was not ok');
-    
+
     let text = await response.text();
 
     // 图片路径修正逻辑 (同样使用镜像)
     const imgBaseUrl = 'https://raw.githubusercontent.com/Komorebi-yaodong/Anywhere/main/image/';
-    
+
     // 替换 Windows 风格反斜杠路径 (..\image\) 和 Unix 风格路径 (../image/)
-    text = text.replace(/!\[(.*?)\]\((\.\.[\\/])?image[\\/](.*?)\)/g, (match, alt, prefix, filename) => {
+    text = text.replace(
+      /!\[(.*?)\]\((\.\.[\\/])?image[\\/](.*?)\)/g,
+      (match, alt, prefix, filename) => {
         // 对文件名进行 encodeURI 处理，防止中文乱码
         return `![${alt}](${imgBaseUrl}${encodeURIComponent(filename)})`;
-    });
+      },
+    );
 
     const markedParser = await getMarkedParser();
     currentDocContent.value = markedParser.parse(text);
@@ -383,10 +419,10 @@ watch(activeDocIndex, (newIndex) => {
 // 打开弹窗时加载第一个文档，并更新阅读状态
 const openHelpDialog = () => {
   showDocDialog.value = true;
-  
+
   const index = parseInt(activeDocIndex.value) || 0;
   const targetDoc = docList.value[index];
-  
+
   if (targetDoc) {
     // 无论是首次打开还是切换，都重新加载（可能内容有变）并标记已读
     fetchAndParseDoc(targetDoc.file);
@@ -399,7 +435,7 @@ const handleDocLinks = (event) => {
 
   // 阻止默认跳转（防止在当前窗口打开导致页面白屏）
   event.preventDefault();
-  
+
   const href = target.getAttribute('href');
   if (!href) return;
 
@@ -417,8 +453,8 @@ const handleDocLinks = (event) => {
   if (href.endsWith('.md')) {
     // 提取文件名 (兼容 ./xxx.md 或 xxx.md)
     const filename = href.split(/[/\\]/).pop();
-    const targetIndex = docList.value.findIndex(doc => doc.file === filename);
-    
+    const targetIndex = docList.value.findIndex((doc) => doc.file === filename);
+
     if (targetIndex !== -1) {
       activeDocIndex.value = String(targetIndex);
     }
@@ -459,7 +495,7 @@ onMounted(async () => {
       config.value = JSON.parse(JSON.stringify(window.api.defaultConfig.config));
     }
   } catch (error) {
-    console.error("Error fetching config in App.vue:", error);
+    console.error('Error fetching config in App.vue:', error);
     config.value = JSON.parse(JSON.stringify(window.api.defaultConfig.config));
   }
 
@@ -493,7 +529,7 @@ function updateHeaderText() {
     2: 'app.header.mcp',
     3: 'app.header.skills',
     4: 'app.header.providers',
-    5: 'app.header.settings'
+    5: 'app.header.settings',
   };
   header_text.value = t(tabMap[tab.value]);
 }
@@ -569,10 +605,21 @@ watch(locale, () => {
       </el-main>
 
       <!-- 帮助文档弹窗 -->
-      <el-dialog v-model="showDocDialog" :title="t('doc.title')" width="80%" :lock-scroll="false" class="doc-dialog" append-to-body>
+      <el-dialog
+        v-model="showDocDialog"
+        :title="t('doc.title')"
+        width="80%"
+        :lock-scroll="false"
+        class="doc-dialog"
+        append-to-body
+      >
         <div class="doc-container">
           <div class="doc-sidebar">
-            <el-menu :default-active="activeDocIndex" @select="(index) => activeDocIndex = index" class="doc-menu">
+            <el-menu
+              :default-active="activeDocIndex"
+              @select="(index) => (activeDocIndex = index)"
+              class="doc-menu"
+            >
               <el-menu-item v-for="(doc, index) in docList" :key="index" :index="String(index)">
                 <el-icon><Document /></el-icon>
                 <span class="menu-item-text">
@@ -724,7 +771,9 @@ watch(locale, () => {
   width: 1px;
   transform: translateX(-50%);
   background-color: color-mix(in srgb, var(--border-primary) 78%, transparent);
-  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
 .sidebar-resize-handle:hover::before,
@@ -800,7 +849,7 @@ watch(locale, () => {
 .nav-item.active-tab {
   color: var(--text-primary);
   border-color: transparent;
-  background-color: #EAE9E8;
+  background-color: #eae9e8;
   box-shadow: none;
 }
 
@@ -1001,14 +1050,17 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
 .markdown-body {
   padding: 0px 40px;
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol';
   font-size: 15px; /* 稍微调大字号更易阅读 */
   line-height: 1.75; /* 增加行高，增加呼吸感 */
   -webkit-font-smoothing: antialiased; /* 让字体在 Mac 上更清晰 */
 }
 
 /* 标题样式优化 */
-.markdown-body :deep(h1), 
+.markdown-body :deep(h1),
 .markdown-body :deep(h2) {
   padding-bottom: 0.4em;
   margin-top: 1.5em;
@@ -1019,7 +1071,7 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
   line-height: 1.3;
 }
 
-.markdown-body :deep(h3), 
+.markdown-body :deep(h3),
 .markdown-body :deep(h4) {
   margin-top: 1.4em;
   margin-bottom: 0.8em;
@@ -1035,7 +1087,7 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
 }
 
 /* 列表优化 */
-.markdown-body :deep(ul), 
+.markdown-body :deep(ul),
 .markdown-body :deep(ol) {
   padding-left: 24px;
   margin-bottom: 1.2em;
@@ -1057,7 +1109,8 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
   background-color: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
   padding: 2px 6px;
   border-radius: var(--radius-sm);
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
   font-size: 0.85em;
   color: var(--text-primary);
   margin: 0 2px;
@@ -1078,7 +1131,8 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
   color: var(--text-primary);
   margin: 0;
   font-size: 13px;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 }
 
 .markdown-body :deep(blockquote) {

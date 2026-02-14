@@ -1,12 +1,33 @@
-<script setup>
+<script setup lang="ts">
+// -nocheck
 import { computed, ref, nextTick, onBeforeUnmount } from 'vue';
 import { Bubble, Thinking, XMarkdown } from 'vue-element-plus-x';
-import { ElTooltip, ElButton, ElInput, ElCollapse, ElCollapseItem, ElCheckbox, ElTag } from 'element-plus';
-import { Copy, Check, Pencil, ChevronUp, ChevronDown, RefreshCw, Trash2, X, FileText, Wrench, Square } from 'lucide-vue-next';
+import {
+  ElTooltip,
+  ElButton,
+  ElInput,
+  ElCollapse,
+  ElCollapseItem,
+  ElCheckbox,
+  ElTag,
+} from 'element-plus';
+import {
+  Copy,
+  Check,
+  Pencil,
+  ChevronUp,
+  ChevronDown,
+  RefreshCw,
+  Trash2,
+  X,
+  FileText,
+  Wrench,
+  Square,
+} from 'lucide-vue-next';
 import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
 
-import { formatTimestamp, formatMessageText, sanitizeToolArgs } from '../utils/formatters.js';
+import { formatTimestamp, formatMessageText, sanitizeToolArgs } from '../utils/formatters';
 
 const props = defineProps({
   message: Object,
@@ -20,7 +41,20 @@ const props = defineProps({
   isAutoApprove: Boolean,
 });
 
-const emit = defineEmits(['copy-text', 're-ask', 'delete-message', 'toggle-collapse', 'avatar-click', 'edit-message', 'edit-message-requested', 'edit-finished', 'cancel-tool-call', 'confirm-tool', 'reject-tool', 'update-auto-approve']);
+const emit = defineEmits([
+  'copy-text',
+  're-ask',
+  'delete-message',
+  'toggle-collapse',
+  'avatar-click',
+  'edit-message',
+  'edit-message-requested',
+  'edit-finished',
+  'cancel-tool-call',
+  'confirm-tool',
+  'reject-tool',
+  'update-auto-approve',
+]);
 const editInputRef = ref(null);
 const isEditing = ref(false);
 const editedContent = ref('');
@@ -115,7 +149,7 @@ const processFilePaths = (text) => {
   const createLink = (pathStr) => {
     // 清洗末尾的标点符号 (如句号、逗号、括号)
     const cleanPath = pathStr.replace(/[.,;:)\]。，；：]+$/, '').trim();
-    
+
     // 过滤过短的误判
     if (cleanPath.length < 2) return pathStr;
     // 排除单纯的根目录符号
@@ -136,12 +170,15 @@ const processFilePaths = (text) => {
   // 2. 处理 Unix/Linux/macOS 路径 (/ 或 ~ 开头)
   // (?<!["'=:\w]) 避免匹配 URL (http://) 或 HTML 属性
   // (^|[\s"'(>]) 确保路径出现在行首、空格、引号或括号之后
-  processed = processed.replace(/(^|[\s"'(>])((?:\/|~)[^:<>"|?*\n\r\t\s]+)/g, (match, prefix, pathStr) => {
-    // 二次校验：防止匹配 URL 的一部分 (如 https://example.com/foo)
-    // 如果 prefix 是空或者是空白符，通常是安全的。
-    // 如果是 > (HTML标签结束)，也是安全的。
-    return prefix + createLink(pathStr);
-  });
+  processed = processed.replace(
+    /(^|[\s"'(>])((?:\/|~)[^:<>"|?*\n\r\t\s]+)/g,
+    (match, prefix, pathStr) => {
+      // 二次校验：防止匹配 URL 的一部分 (如 https://example.com/foo)
+      // 如果 prefix 是空或者是空白符，通常是安全的。
+      // 如果是 > (HTML标签结束)，也是安全的。
+      return prefix + createLink(pathStr);
+    },
+  );
 
   return processed;
 };
@@ -151,25 +188,33 @@ const mermaidConfig = computed(() => ({
 }));
 
 const formatMessageContent = (content, role) => {
-  if (!content) return "";
+  if (!content) return '';
   if (!Array.isArray(content)) {
-    if (String(content).toLowerCase().startsWith('file name:') && String(content).toLowerCase().endsWith('file end')) {
-      return "";
+    if (
+      String(content).toLowerCase().startsWith('file name:') &&
+      String(content).toLowerCase().endsWith('file end')
+    ) {
+      return '';
     } else {
       return String(content);
     }
   }
 
-  let markdownString = "";
+  let markdownString = '';
   let i = 0;
   while (i < content.length) {
     const part = content[i];
 
-    if (part.type === 'text' && part.text && part.text.toLowerCase().startsWith('file name:') && part.text.toLowerCase().endsWith('file end')) {
+    if (
+      part.type === 'text' &&
+      part.text &&
+      part.text.toLowerCase().startsWith('file name:') &&
+      part.text.toLowerCase().endsWith('file end')
+    ) {
       i++;
       continue;
     } else if (part.type === 'image_url' && part.image_url?.url) {
-      let imageGroupMarkdown = "";
+      let imageGroupMarkdown = '';
       while (i < content.length && content[i].type === 'image_url' && content[i].image_url?.url) {
         imageGroupMarkdown += `![Image](${content[i].image_url.url}) `;
         i++;
@@ -196,13 +241,23 @@ const formatMessageContent = (content, role) => {
 const formatMessageFile = (content) => {
   let files = [];
   if (!Array.isArray(content)) {
-    if (String(content).toLowerCase().startsWith('file name:') && String(content).toLowerCase().endsWith('file end')) files.push(String(content).split('\n')[0].replace('file name:', '').trim());
+    if (
+      String(content).toLowerCase().startsWith('file name:') &&
+      String(content).toLowerCase().endsWith('file end')
+    )
+      files.push(String(content).split('\n')[0].replace('file name:', '').trim());
     else return [];
   } else {
-    content.forEach(part => {
-      if (part.type === 'text' && part.text && part.text.toLowerCase().startsWith('file name:') && part.text.toLowerCase().endsWith('file end')) files.push(part.text.split('\n')[0].replace('file name:', '').trim());
-      else if (part.type === "input_file" && part.filename) files.push(part.filename);
-      else if (part.type === "file" && part.file.filename) files.push(part.file.filename);
+    content.forEach((part) => {
+      if (
+        part.type === 'text' &&
+        part.text &&
+        part.text.toLowerCase().startsWith('file name:') &&
+        part.text.toLowerCase().endsWith('file end')
+      )
+        files.push(part.text.split('\n')[0].replace('file name:', '').trim());
+      else if (part.type === 'input_file' && part.filename) files.push(part.filename);
+      else if (part.type === 'file' && part.file.filename) files.push(part.file.filename);
     });
   }
   return files;
@@ -213,7 +268,10 @@ const isEditable = computed(() => {
   const content = props.message.content;
   if (typeof content === 'string') return true;
   if (Array.isArray(content)) {
-    return content.some(part => part.type === 'text' && part.text && !(part.text.toLowerCase().startsWith('file name:')));
+    return content.some(
+      (part) =>
+        part.type === 'text' && part.text && !part.text.toLowerCase().startsWith('file name:'),
+    );
   }
   return false;
 });
@@ -237,7 +295,7 @@ const finishEdit = (action) => {
   emit('edit-finished', {
     id: props.message.id,
     action: action,
-    content: editedContent.value
+    content: editedContent.value,
   });
 };
 
@@ -274,60 +332,70 @@ const renderedMarkdownContent = computed(() => {
   // 1. HTML 转义辅助函数 (用于显示文本)
   const escapeHtml = (unsafe) => {
     return unsafe
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#039;");
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   };
 
   // 2. 属性转义辅助函数 (本逻辑中已改用 encodeURIComponent，此函数暂留作备用)
   const escapeAttr = (unsafe) => {
-    return unsafe.replace(/"/g, "&quot;");
+    return unsafe.replace(/"/g, '&quot;');
   };
 
   // 3. 保护数学公式 (最高优先级)
-  let processedContent = formattedContent.replace(/(\$\$)([\s\S]*?)(\$\$)/g, (match) => addPlaceholder(match));
-  processedContent = processedContent.replace(/(\$)(?!\s)([^$\n]+?)(?<!\s)(\$)/g, (match) => addPlaceholder(match));
+  let processedContent = formattedContent.replace(/(\$\$)([\s\S]*?)(\$\$)/g, (match) =>
+    addPlaceholder(match),
+  );
+  processedContent = processedContent.replace(/(\$)(?!\s)([^$\n]+?)(?<!\s)(\$)/g, (match) =>
+    addPlaceholder(match),
+  );
 
   // 4. 保护块级代码 (```...```)
   // [修改] 优化正则以支持带缩进的代码块（例如列表中的代码块）
-  // 原正则: /(^|\n)(```)([\s\S]*?)\2/g 
+  // 原正则: /(^|\n)(```)([\s\S]*?)\2/g
   // 新正则: /(^|\n)([ \t]*)(```)([\s\S]*?)\3/g  <- 增加了 ([ \t]*) 捕获缩进，并将反向引用改为 \3
   processedContent = processedContent.replace(/(^|\n)([ \t]*)(```)([\s\S]*?)\3/g, (match) => {
     return addPlaceholder(match);
   });
 
   // 5. 处理行内代码 (`...`) - 在此处检测文件路径并生成链接
-  processedContent = processedContent.replace(/(^|[^\\])(`+)([\s\S]*?)\2/g, (match, prefix, delimiter, inner) => {
-    const trimmedInner = inner.trim();
-    
-    // 路径判定逻辑：
-    // 1. 包含 Windows 盘符 (C:\) 或 Unix 路径符 (/ 或 ~)
-    // 2. 不包含换行符
-    // 3. 长度大于 1
-    const isWinPath = /^[a-zA-Z]:\\/.test(trimmedInner);
-    const isUnixPath = /^[\/~]/.test(trimmedInner);
-    const hasNewline = trimmedInner.includes('\n');
+  processedContent = processedContent.replace(
+    /(^|[^\\])(`+)([\s\S]*?)\2/g,
+    (match, prefix, delimiter, inner) => {
+      const trimmedInner = inner.trim();
 
-    if ((isWinPath || isUnixPath) && !hasNewline && trimmedInner.length > 1) {
-      // 清洗末尾标点
-      const cleanPath = trimmedInner.replace(/[.,;:)\]。，；：]+$/, '');
-      
-      // 1. 将 <a> 包裹在 <code> 外面，避免 HTML 解析器截断或隐藏代码块内容。
-      // 2. 使用 encodeURIComponent 编码路径，解决空格和中文导致的属性解析错误。
-      // 3. 添加 style="text-decoration:none;" 防止下划线干扰代码块样式。
-      const linkHtml = `<a href="#" data-filepath="${encodeURIComponent(cleanPath)}" class="local-file-link" style="text-decoration:none;" title="点击打开文件"><code class="inline-code-tag">${escapeHtml(inner)}</code></a>`;
-      return prefix + addPlaceholder(linkHtml);
-    }
+      // 路径判定逻辑：
+      // 1. 包含 Windows 盘符 (C:\) 或 Unix 路径符 (/ 或 ~)
+      // 2. 不包含换行符
+      // 3. 长度大于 1
+      const isWinPath = /^[a-zA-Z]:\\/.test(trimmedInner);
+      const isUnixPath = /^[\/~]/.test(trimmedInner);
+      const hasNewline = trimmedInner.includes('\n');
 
-    // 普通代码块，正常显示
-    const codeHtml = `<code class="inline-code-tag">${escapeHtml(inner)}</code>`;
-    return prefix + addPlaceholder(codeHtml);
-  });
+      if ((isWinPath || isUnixPath) && !hasNewline && trimmedInner.length > 1) {
+        // 清洗末尾标点
+        const cleanPath = trimmedInner.replace(/[.,;:)\]。，；：]+$/, '');
+
+        // 1. 将 <a> 包裹在 <code> 外面，避免 HTML 解析器截断或隐藏代码块内容。
+        // 2. 使用 encodeURIComponent 编码路径，解决空格和中文导致的属性解析错误。
+        // 3. 添加 style="text-decoration:none;" 防止下划线干扰代码块样式。
+        const linkHtml = `<a href="#" data-filepath="${encodeURIComponent(cleanPath)}" class="local-file-link" style="text-decoration:none;" title="点击打开文件"><code class="inline-code-tag">${escapeHtml(inner)}</code></a>`;
+        return prefix + addPlaceholder(linkHtml);
+      }
+
+      // 普通代码块，正常显示
+      const codeHtml = `<code class="inline-code-tag">${escapeHtml(inner)}</code>`;
+      return prefix + addPlaceholder(codeHtml);
+    },
+  );
 
   // 6. 加粗处理
-  processedContent = processedContent.replace(/(^|[^\\])\*\*([^\n]+?)\*\*/g, '$1<strong>$2</strong>');
+  processedContent = processedContent.replace(
+    /(^|[^\\])\*\*([^\n]+?)\*\*/g,
+    '$1<strong>$2</strong>',
+  );
 
   // 7. HTML 清洗
   let sanitizedPart = DOMPurify.sanitize(processedContent, {
@@ -345,9 +413,11 @@ const renderedMarkdownContent = computed(() => {
   });
 
   // 9. 表格包裹
-  finalContent = finalContent.replace(/<table/g, '<div class="table-scroll-wrapper"><table').replace(/<\/table>/g, '</table></div>');
+  finalContent = finalContent
+    .replace(/<table/g, '<div class="table-scroll-wrapper"><table')
+    .replace(/<\/table>/g, '</table></div>');
 
-  const rendered = (!finalContent && props.message.role === 'assistant') ? ' ' : (finalContent || ' ');
+  const rendered = !finalContent && props.message.role === 'assistant' ? ' ' : finalContent || ' ';
   setCachedRender(cacheKey, rendered);
   return rendered;
 });
@@ -379,7 +449,8 @@ const truncateFilename = (filename, maxLength = 30) => {
   if (typeof filename !== 'string' || filename.length <= maxLength) return filename;
   const ellipsis = '...';
   const lastDotIndex = filename.lastIndexOf('.');
-  if (lastDotIndex === -1 || lastDotIndex < 10) return filename.substring(0, maxLength - ellipsis.length) + ellipsis;
+  if (lastDotIndex === -1 || lastDotIndex < 10)
+    return filename.substring(0, maxLength - ellipsis.length) + ellipsis;
   const nameWithoutExt = filename.substring(0, lastDotIndex);
   const extension = filename.substring(lastDotIndex);
   const charsToKeep = maxLength - extension.length - ellipsis.length;
@@ -396,25 +467,42 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="chat-message" v-if="message.role !== 'system'">
-
     <!-- 用户消息 -->
     <div v-if="message.role === 'user'" class="message-wrapper user-wrapper">
       <div class="message-meta-header user-meta-header">
-        <span class="timestamp" v-if="message.timestamp">{{ formatTimestamp(message.timestamp) }}</span>
-        <img :src="userAvatar" alt="User Avatar" @click="onAvatarClick('user', $event)"
-          class="chat-avatar-top user-avatar">
+        <span class="timestamp" v-if="message.timestamp">{{
+          formatTimestamp(message.timestamp)
+        }}</span>
+        <img
+          :src="userAvatar"
+          alt="User Avatar"
+          @click="onAvatarClick('user', $event)"
+          class="chat-avatar-top user-avatar"
+        />
       </div>
 
       <Bubble class="user-bubble" placement="end" shape="corner" maxWidth="100%">
         <template #content>
-          <div v-if="!isEditing" class="markdown-wrapper" :class="{ 'collapsed': isCollapsed }">
-            <XMarkdown :markdown="renderedMarkdownContent" :is-dark="isDarkMode" :enable-latex="true"
-              :mermaid-config="mermaidConfig" :default-theme-mode="isDarkMode ? 'dark' : 'light'"
-              :themes="{ light: 'github-light', dark: 'github-dark-default' }" :allow-html="true" />
+          <div v-if="!isEditing" class="markdown-wrapper" :class="{ collapsed: isCollapsed }">
+            <XMarkdown
+              :markdown="renderedMarkdownContent"
+              :is-dark="isDarkMode"
+              :enable-latex="true"
+              :mermaid-config="mermaidConfig"
+              :default-theme-mode="isDarkMode ? 'dark' : 'light'"
+              :themes="{ light: 'github-light', dark: 'github-dark-default' }"
+              :allow-html="true"
+            />
           </div>
           <div v-else class="editing-wrapper">
-            <el-input ref="editInputRef" v-model="editedContent" type="textarea" :autosize="{ minRows: 1, maxRows: 15 }"
-              resize="none" @keydown="handleEditKeyDown" />
+            <el-input
+              ref="editInputRef"
+              v-model="editedContent"
+              type="textarea"
+              :autosize="{ minRows: 1, maxRows: 15 }"
+              resize="none"
+              @keydown="handleEditKeyDown"
+            />
             <div class="editing-actions">
               <span class="edit-shortcut-hint">Ctrl+Enter 确认 / Esc 取消</span>
               <el-button @click="finishEdit('save')" size="small" circle type="primary">
@@ -430,35 +518,78 @@ onBeforeUnmount(() => {
           <div class="message-footer">
             <div class="footer-wrapper">
               <div class="footer-actions">
-                <button class="footer-action-btn" type="button" :class="{ 'is-copied': isCopied }"
-                  :title="isCopied ? '已复制' : '复制'" :aria-label="isCopied ? '已复制' : '复制'"
-                  :disabled="isLoading && isLastMessage" @click="onCopy">
+                <button
+                  class="footer-action-btn"
+                  type="button"
+                  :class="{ 'is-copied': isCopied }"
+                  :title="isCopied ? '已复制' : '复制'"
+                  :aria-label="isCopied ? '已复制' : '复制'"
+                  :disabled="isLoading && isLastMessage"
+                  @click="onCopy"
+                >
                   <transition name="copy-icon-swap" mode="out-in">
-                    <component :is="isCopied ? Check : Copy" :key="isCopied ? 'copy-ok' : 'copy'"
-                      class="footer-action-icon" />
+                    <component
+                      :is="isCopied ? Check : Copy"
+                      :key="isCopied ? 'copy-ok' : 'copy'"
+                      class="footer-action-icon"
+                    />
                   </transition>
                 </button>
-                <button v-if="isEditable" class="footer-action-btn" type="button" title="编辑" aria-label="编辑"
-                  @click="emit('edit-message-requested', index)">
+                <button
+                  v-if="isEditable"
+                  class="footer-action-btn"
+                  type="button"
+                  title="编辑"
+                  aria-label="编辑"
+                  @click="emit('edit-message-requested', index)"
+                >
                   <Pencil class="footer-action-icon" />
                 </button>
-                <button v-if="shouldShowCollapseButton" class="footer-action-btn" type="button"
-                  :title="isCollapsed ? '展开' : '折叠'" :aria-label="isCollapsed ? '展开' : '折叠'"
-                  @click="onToggleCollapse($event)">
-                  <component :is="isCollapsed ? ChevronDown : ChevronUp" class="footer-action-icon" />
+                <button
+                  v-if="shouldShowCollapseButton"
+                  class="footer-action-btn"
+                  type="button"
+                  :title="isCollapsed ? '展开' : '折叠'"
+                  :aria-label="isCollapsed ? '展开' : '折叠'"
+                  @click="onToggleCollapse($event)"
+                >
+                  <component
+                    :is="isCollapsed ? ChevronDown : ChevronUp"
+                    class="footer-action-icon"
+                  />
                 </button>
-                <button v-if="isLastMessage" class="footer-action-btn" type="button" title="重新生成" aria-label="重新生成"
-                  @click="onReAsk">
+                <button
+                  v-if="isLastMessage"
+                  class="footer-action-btn"
+                  type="button"
+                  title="重新生成"
+                  aria-label="重新生成"
+                  @click="onReAsk"
+                >
                   <RefreshCw class="footer-action-icon" />
                 </button>
-                <button class="footer-action-btn" type="button" title="删除" aria-label="删除" @click="onDelete">
+                <button
+                  class="footer-action-btn"
+                  type="button"
+                  title="删除"
+                  aria-label="删除"
+                  @click="onDelete"
+                >
                   <Trash2 class="footer-action-icon" />
                 </button>
               </div>
-              <div class="message-files-vertical-list" v-if="formatMessageFile(message.content).length > 0">
-                <el-tooltip v-for="(file_name, idx) in formatMessageFile(message.content)" :key="idx"
-                  :content="file_name" placement="top" :disabled="file_name.length < 30"
-                  :popper-style="{ maxWidth: '30vw', wordBreak: 'break-all' }">
+              <div
+                class="message-files-vertical-list"
+                v-if="formatMessageFile(message.content).length > 0"
+              >
+                <el-tooltip
+                  v-for="(file_name, idx) in formatMessageFile(message.content)"
+                  :key="idx"
+                  :content="file_name"
+                  placement="top"
+                  :disabled="file_name.length < 30"
+                  :popper-style="{ maxWidth: '30vw', wordBreak: 'break-all' }"
+                >
                   <el-button class="file-button" type="info" plain size="small">
                     <template #icon>
                       <FileText :size="14" />
@@ -476,34 +607,66 @@ onBeforeUnmount(() => {
     <!-- AI 消息 -->
     <div v-if="message.role === 'assistant'" class="message-wrapper ai-wrapper">
       <div class="message-meta-header ai-meta-header">
-        <img :src="aiAvatar" alt="AI Avatar" @click="onAvatarClick('assistant', $event)"
-          class="chat-avatar-top ai-avatar">
+        <img
+          :src="aiAvatar"
+          alt="AI Avatar"
+          @click="onAvatarClick('assistant', $event)"
+          class="chat-avatar-top ai-avatar"
+        />
         <div class="meta-info-column">
           <div class="meta-name-row">
             <span class="ai-name">{{ message.aiName }}</span>
             <span v-if="message.voiceName" class="voice-name">({{ message.voiceName }})</span>
           </div>
-          <span class="timestamp-row" v-if="message.completedTimestamp">{{ formatTimestamp(message.completedTimestamp)
+          <span class="timestamp-row" v-if="message.completedTimestamp">{{
+            formatTimestamp(message.completedTimestamp)
           }}</span>
         </div>
       </div>
 
-      <Bubble class="ai-bubble" placement="start" shape="corner" maxWidth="100%"
-        :loading="isLastMessage && isLoading && renderedMarkdownContent === ' ' && (!message.tool_calls || message.tool_calls.length === 0)">
+      <Bubble
+        class="ai-bubble"
+        placement="start"
+        shape="corner"
+        maxWidth="100%"
+        :loading="
+          isLastMessage &&
+          isLoading &&
+          renderedMarkdownContent === ' ' &&
+          (!message.tool_calls || message.tool_calls.length === 0)
+        "
+      >
         <template #header>
-          <Thinking v-if="message.reasoning_content && message.reasoning_content.trim().length > 0" maxWidth="90%"
-            :content="(message.reasoning_content || '').trim()" :modelValue="false" :status="message.status">
+          <Thinking
+            v-if="message.reasoning_content && message.reasoning_content.trim().length > 0"
+            maxWidth="90%"
+            :content="(message.reasoning_content || '').trim()"
+            :modelValue="false"
+            :status="message.status"
+          >
           </Thinking>
         </template>
         <template #content>
-          <div v-if="!isEditing" class="markdown-wrapper" :class="{ 'collapsed': isCollapsed }">
-            <XMarkdown :markdown="renderedMarkdownContent" :is-dark="isDarkMode" :enable-latex="true"
-              :mermaid-config="mermaidConfig" :default-theme-mode="isDarkMode ? 'dark' : 'light'"
-              :themes="{ light: 'one-light', dark: 'vesper' }" :allow-html="true" />
+          <div v-if="!isEditing" class="markdown-wrapper" :class="{ collapsed: isCollapsed }">
+            <XMarkdown
+              :markdown="renderedMarkdownContent"
+              :is-dark="isDarkMode"
+              :enable-latex="true"
+              :mermaid-config="mermaidConfig"
+              :default-theme-mode="isDarkMode ? 'dark' : 'light'"
+              :themes="{ light: 'one-light', dark: 'vesper' }"
+              :allow-html="true"
+            />
           </div>
           <div v-else class="editing-wrapper">
-            <el-input ref="editInputRef" v-model="editedContent" type="textarea" :autosize="{ minRows: 1, maxRows: 15 }"
-              resize="none" @keydown="handleEditKeyDown" />
+            <el-input
+              ref="editInputRef"
+              v-model="editedContent"
+              type="textarea"
+              :autosize="{ minRows: 1, maxRows: 15 }"
+              resize="none"
+              @keydown="handleEditKeyDown"
+            />
             <div class="editing-actions">
               <span class="edit-shortcut-hint">Ctrl+Enter 确认 / Esc 取消</span>
               <el-button @click="finishEdit('save')" size="small" circle type="primary">
@@ -514,26 +677,71 @@ onBeforeUnmount(() => {
               </el-button>
             </div>
           </div>
-          <div v-if="message.tool_calls && message.tool_calls.length > 0" class="tool-calls-container">
-            <div v-for="toolCall in message.tool_calls" :key="toolCall.id" class="single-tool-wrapper">
-              <el-collapse class="tool-collapse"
-                :model-value="(!isAutoApprove && (toolCall.approvalStatus === 'waiting' || toolCall.approvalStatus === 'executing')) ? [toolCall.id] : []">
+          <div
+            v-if="message.tool_calls && message.tool_calls.length > 0"
+            class="tool-calls-container"
+          >
+            <div
+              v-for="toolCall in message.tool_calls"
+              :key="toolCall.id"
+              class="single-tool-wrapper"
+            >
+              <el-collapse
+                class="tool-collapse"
+                :model-value="
+                  !isAutoApprove &&
+                  (toolCall.approvalStatus === 'waiting' || toolCall.approvalStatus === 'executing')
+                    ? [toolCall.id]
+                    : []
+                "
+              >
                 <el-collapse-item :name="toolCall.id">
                   <template #title>
                     <div class="tool-call-title">
                       <Wrench :size="15" class="tool-icon" />
                       <span class="tool-name">{{ toolCall.name }}</span>
                       <div class="tool-header-right">
-                        <el-tag v-if="toolCall.approvalStatus === 'waiting'" type="warning" size="small" effect="light"
-                          round>等待批准</el-tag>
-                        <el-tag v-else-if="toolCall.approvalStatus === 'executing'" type="primary" size="small"
-                          effect="light" round>执行中</el-tag>
-                        <el-tag v-else-if="toolCall.approvalStatus === 'rejected'" type="danger" size="small"
-                          effect="plain" round>已拒绝</el-tag>
-                        <el-tag v-else-if="toolCall.approvalStatus === 'finished'" type="success" size="small"
-                          effect="plain" round>完成</el-tag>
-                        <el-tooltip content="停止执行" placement="top" v-if="toolCall.approvalStatus === 'executing'">
-                          <div class="stop-btn-wrapper" @click.stop="$emit('cancel-tool-call', toolCall.id)">
+                        <el-tag
+                          v-if="toolCall.approvalStatus === 'waiting'"
+                          type="warning"
+                          size="small"
+                          effect="light"
+                          round
+                          >等待批准</el-tag
+                        >
+                        <el-tag
+                          v-else-if="toolCall.approvalStatus === 'executing'"
+                          type="primary"
+                          size="small"
+                          effect="light"
+                          round
+                          >执行中</el-tag
+                        >
+                        <el-tag
+                          v-else-if="toolCall.approvalStatus === 'rejected'"
+                          type="danger"
+                          size="small"
+                          effect="plain"
+                          round
+                          >已拒绝</el-tag
+                        >
+                        <el-tag
+                          v-else-if="toolCall.approvalStatus === 'finished'"
+                          type="success"
+                          size="small"
+                          effect="plain"
+                          round
+                          >完成</el-tag
+                        >
+                        <el-tooltip
+                          content="停止执行"
+                          placement="top"
+                          v-if="toolCall.approvalStatus === 'executing'"
+                        >
+                          <div
+                            class="stop-btn-wrapper"
+                            @click.stop="$emit('cancel-tool-call', toolCall.id)"
+                          >
                             <Square :size="14" />
                           </div>
                         </el-tooltip>
@@ -545,8 +753,14 @@ onBeforeUnmount(() => {
                       <strong>参数:</strong>
                       <pre><code>{{ formatToolArgs(toolCall.args) }}</code></pre>
                     </div>
-                    <div class="tool-detail-section"
-                      v-if="toolCall.result && toolCall.result !== '等待批准...' && toolCall.result !== '执行中...'">
+                    <div
+                      class="tool-detail-section"
+                      v-if="
+                        toolCall.result &&
+                        toolCall.result !== '等待批准...' &&
+                        toolCall.result !== '执行中...'
+                      "
+                    >
                       <strong>结果:</strong>
                       <div class="tool-result-wrapper">
                         <pre><code>{{ toolCall.result }}</code></pre>
@@ -557,7 +771,11 @@ onBeforeUnmount(() => {
               </el-collapse>
               <div v-if="toolCall.approvalStatus === 'waiting'" class="tool-approval-actions">
                 <div class="actions-left">
-                  <el-button type="primary" size="small" @click="$emit('confirm-tool', toolCall.id, true)">
+                  <el-button
+                    type="primary"
+                    size="small"
+                    @click="$emit('confirm-tool', toolCall.id, true)"
+                  >
                     <template #icon>
                       <Check :size="14" />
                     </template>
@@ -571,8 +789,12 @@ onBeforeUnmount(() => {
                   </el-button>
                 </div>
                 <div class="actions-right">
-                  <el-checkbox :model-value="isAutoApprove" @change="(val) => $emit('update-auto-approve', val)"
-                    label="自动批准后续调用" size="small" />
+                  <el-checkbox
+                    :model-value="isAutoApprove"
+                    @change="(val) => $emit('update-auto-approve', val)"
+                    label="自动批准后续调用"
+                    size="small"
+                  />
                 </div>
               </div>
             </div>
@@ -581,27 +803,60 @@ onBeforeUnmount(() => {
         <template #footer>
           <div class="message-footer">
             <div class="footer-actions">
-              <button class="footer-action-btn" type="button" :class="{ 'is-copied': isCopied }"
-                :title="isCopied ? '已复制' : '复制'" :aria-label="isCopied ? '已复制' : '复制'"
-                :disabled="isLoading && isLastMessage" @click="onCopy">
+              <button
+                class="footer-action-btn"
+                type="button"
+                :class="{ 'is-copied': isCopied }"
+                :title="isCopied ? '已复制' : '复制'"
+                :aria-label="isCopied ? '已复制' : '复制'"
+                :disabled="isLoading && isLastMessage"
+                @click="onCopy"
+              >
                 <transition name="copy-icon-swap" mode="out-in">
-                  <component :is="isCopied ? Check : Copy" :key="isCopied ? 'copy-ok' : 'copy'"
-                    class="footer-action-icon" />
+                  <component
+                    :is="isCopied ? Check : Copy"
+                    :key="isCopied ? 'copy-ok' : 'copy'"
+                    class="footer-action-icon"
+                  />
                 </transition>
               </button>
-              <button v-if="isEditable" class="footer-action-btn" type="button" title="编辑" aria-label="编辑"
-                @click="emit('edit-message-requested', index)">
+              <button
+                v-if="isEditable"
+                class="footer-action-btn"
+                type="button"
+                title="编辑"
+                aria-label="编辑"
+                @click="emit('edit-message-requested', index)"
+              >
                 <Pencil class="footer-action-icon" />
               </button>
-              <button v-if="shouldShowCollapseButton" class="footer-action-btn" type="button"
-                :title="isCollapsed ? '展开' : '折叠'" :aria-label="isCollapsed ? '展开' : '折叠'" @click="onToggleCollapse($event)">
+              <button
+                v-if="shouldShowCollapseButton"
+                class="footer-action-btn"
+                type="button"
+                :title="isCollapsed ? '展开' : '折叠'"
+                :aria-label="isCollapsed ? '展开' : '折叠'"
+                @click="onToggleCollapse($event)"
+              >
                 <component :is="isCollapsed ? ChevronDown : ChevronUp" class="footer-action-icon" />
               </button>
-              <button v-if="isLastMessage" class="footer-action-btn" type="button" title="重新生成" aria-label="重新生成"
-                @click="onReAsk">
+              <button
+                v-if="isLastMessage"
+                class="footer-action-btn"
+                type="button"
+                title="重新生成"
+                aria-label="重新生成"
+                @click="onReAsk"
+              >
                 <RefreshCw class="footer-action-icon" />
               </button>
-              <button class="footer-action-btn" type="button" title="删除" aria-label="删除" @click="onDelete">
+              <button
+                class="footer-action-btn"
+                type="button"
+                title="删除"
+                aria-label="删除"
+                @click="onDelete"
+              >
                 <Trash2 class="footer-action-icon" />
               </button>
             </div>
@@ -788,7 +1043,18 @@ html.dark .chat-message .ai-bubble {
     font-size: 14px;
     line-height: 1.65;
     tab-size: 4;
-    font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    font-family:
+      ui-sans-serif,
+      -apple-system,
+      system-ui,
+      'Segoe UI',
+      Roboto,
+      'Helvetica Neue',
+      Arial,
+      sans-serif,
+      'Apple Color Emoji',
+      'Segoe UI Emoji',
+      'Segoe UI Symbol';
     word-break: break-word;
   }
 
@@ -867,7 +1133,7 @@ html.dark .chat-message .ai-bubble {
     }
 
     &::-webkit-media-controls-panel {
-      background-color: var(--bg-tertiary, #F0F0F0);
+      background-color: var(--bg-tertiary, #f0f0f0);
       border-radius: 24px;
       padding: 0 10px 0 10px;
       justify-content: center;
@@ -1055,13 +1321,12 @@ html.dark .chat-message .ai-bubble {
   }
 
   html.dark & {
-
     :deep(h1),
     :deep(h2),
     :deep(h3),
     :deep(h4),
     :deep(h5) {
-      border-bottom-color: #373A40;
+      border-bottom-color: #373a40;
     }
 
     :deep(h6) {
@@ -1069,7 +1334,7 @@ html.dark .chat-message .ai-bubble {
     }
 
     :deep(hr) {
-      background-color: #373A40 !important;
+      background-color: #373a40 !important;
       margin-top: 8px;
       margin-bottom: 8px;
     }
@@ -1108,7 +1373,7 @@ html.dark .chat-message .ai-bubble {
 
     :deep(tr) {
       background-color: #212327;
-      border-top: 1px solid #373A40;
+      border-top: 1px solid #373a40;
     }
 
     :deep(tr:nth-child(2n)) {
@@ -1116,12 +1381,12 @@ html.dark .chat-message .ai-bubble {
     }
 
     :deep(td) {
-      border-color: #373A40;
+      border-color: #373a40;
       min-width: 60px;
     }
 
     :deep(.pre-md) {
-      border: 0px solid #373A40;
+      border: 0px solid #373a40;
     }
 
     :deep(.inline-code-tag) {
@@ -1190,7 +1455,7 @@ html.dark .chat-message .ai-bubble {
       }
 
       &::-webkit-scrollbar-thumb {
-        background-color: var(--el-border-color-darker, #4C4D4F);
+        background-color: var(--el-border-color-darker, #4c4d4f);
         border-radius: 4px;
       }
 
@@ -1226,7 +1491,7 @@ html.dark .chat-message .ai-bubble {
     margin-bottom: 8px;
 
     :deep(.el-textarea__inner) {
-      background-color: #ECECEC;
+      background-color: #ececec;
       box-shadow: none !important;
       border: 1px solid var(--el-border-color-light);
       color: var(--el-text-color-primary);
@@ -1410,7 +1675,9 @@ html.dark .ai-name {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.16s ease, visibility 0.16s ease;
+  transition:
+    opacity 0.16s ease,
+    visibility 0.16s ease;
 }
 
 .message-wrapper:hover .footer-actions,
@@ -1433,7 +1700,12 @@ html.dark .ai-name {
   color: var(--el-text-color-secondary);
   cursor: pointer;
   opacity: 0.82;
-  transition: color 0.16s ease, opacity 0.16s ease, transform 0.16s ease, background-color 0.16s ease, box-shadow 0.16s ease;
+  transition:
+    color 0.16s ease,
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    background-color 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
 .footer-action-btn:hover {
@@ -1464,7 +1736,9 @@ html.dark .ai-name {
 
 .copy-icon-swap-enter-active,
 .copy-icon-swap-leave-active {
-  transition: opacity 0.14s ease, transform 0.14s ease;
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
 }
 
 .copy-icon-swap-enter-from,
@@ -1516,7 +1790,11 @@ html.dark .ai-name {
 
 .ai-bubble :deep(.el-thinking-popper) {
   max-width: 85vw;
-  background-color: color-mix(in srgb, var(--el-fill-color-light) 90%, var(--el-bg-color) 10%) !important;
+  background-color: color-mix(
+    in srgb,
+    var(--el-fill-color-light) 90%,
+    var(--el-bg-color) 10%
+  ) !important;
   border-color: var(--el-border-color) !important;
 }
 
@@ -1527,23 +1805,23 @@ html.dark .ai-name {
 
 html.dark .ai-bubble :deep(.el-thinking .trigger) {
   background-color: var(--el-fill-color-darker, #2c2e33);
-  color: var(--el-text-color-primary, #F9FAFB);
-  border-color: var(--el-border-color-dark, #373A40);
+  color: var(--el-text-color-primary, #f9fafb);
+  border-color: var(--el-border-color-dark, #373a40);
 }
 
 html.dark .ai-bubble :deep(.el-thinking .el-icon) {
-  color: var(--el-text-color-secondary, #A0A5B1);
+  color: var(--el-text-color-secondary, #a0a5b1);
 }
 
 html.dark .ai-bubble :deep(.el-thinking-popper) {
   max-width: 85vw;
   background-color: var(--bg-tertiary, #2c2e33) !important;
-  border-color: var(--border-primary, #373A40) !important;
+  border-color: var(--border-primary, #373a40) !important;
 }
 
 html.dark .ai-bubble :deep(.el-thinking-popper .el-popper__arrow::before) {
   background: var(--bg-tertiary, #2c2e33) !important;
-  border-color: var(--border-primary, #373A40) !important;
+  border-color: var(--border-primary, #373a40) !important;
 }
 
 .ai-bubble :deep(.el-thinking .content pre) {
@@ -1558,8 +1836,8 @@ html.dark .ai-bubble :deep(.el-thinking-popper .el-popper__arrow::before) {
 
 html.dark .ai-bubble :deep(.el-thinking .content pre) {
   background-color: var(--el-fill-color-darker);
-  color: var(--el-text-color-regular, #E5E7EB);
-  border: 1px solid var(--border-primary, #373A40);
+  color: var(--el-text-color-regular, #e5e7eb);
+  border: 1px solid var(--border-primary, #373a40);
 }
 
 .tool-calls-container {
@@ -1658,7 +1936,7 @@ html.dark .ai-bubble :deep(.el-thinking .content pre) {
 }
 
 html.dark .stop-btn-wrapper {
-  background-color: #E5EAF3;
+  background-color: #e5eaf3;
   color: #141414;
 
   &:hover {
@@ -1786,7 +2064,7 @@ html.dark .tool-collapse {
 
 html.dark .stop-btn-wrapper:hover {
   background-color: rgba(245, 108, 108, 0.2);
-  color: #F56C6C;
+  color: #f56c6c;
 }
 
 html.dark .tool-approval-actions {

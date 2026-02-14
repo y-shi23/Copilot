@@ -1,6 +1,21 @@
-<script setup>
-import { ref, reactive, onMounted, computed, inject, watch } from 'vue'
-import { Plus, Trash2 as Delete, Pencil as Edit, Search, ListCheck, Minus, Eye, EyeOff, Globe, Brain, Wrench, Binary, Settings } from 'lucide-vue-next';
+<script setup lang="ts">
+// -nocheck
+import { ref, reactive, onMounted, computed, inject, watch } from 'vue';
+import {
+  Plus,
+  Trash2 as Delete,
+  Pencil as Edit,
+  Search,
+  ListCheck,
+  Minus,
+  Eye,
+  EyeOff,
+  Globe,
+  Brain,
+  Wrench,
+  Binary,
+  Settings,
+} from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import draggable from 'vuedraggable';
@@ -12,11 +27,45 @@ const MODELS_DEV_CACHE_KEY = 'sanft_modelsdev_cache_v1';
 const MODELS_DEV_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const WEB_KEYWORD_PATTERN = /\b(web|www|search|browse|internet|research)\b/i;
 const EMBEDDING_KEYWORD_PATTERN = /\b(embed|embedding|text-embedding|bge|e5)\b/i;
-const LOCAL_ICON_PRIORITY = ['openai', 'claude', 'gemini', 'deepseek', 'moonshot', 'qwen', 'zhipu', 'doubao', 'stepfun', 'minimax', 'xiaomimimo'];
+const LOCAL_ICON_PRIORITY = [
+  'openai',
+  'claude',
+  'gemini',
+  'deepseek',
+  'moonshot',
+  'qwen',
+  'zhipu',
+  'doubao',
+  'stepfun',
+  'minimax',
+  'xiaomimimo',
+];
 const LOCAL_ICON_MATCH_RULES = {
   openai: {
-    strongPatterns: [/^gpt/i, /^o[1-9]/i, /codex/i, /chatgpt/i, /text-embedding/i, /whisper/i, /dall-e/i, /openai\//i],
-    weakKeywords: ['gpt', 'o1', 'o2', 'o3', 'o4', 'o5', 'codex', 'chatgpt', 'text-embedding', 'whisper', 'dall-e', 'openai/'],
+    strongPatterns: [
+      /^gpt/i,
+      /^o[1-9]/i,
+      /codex/i,
+      /chatgpt/i,
+      /text-embedding/i,
+      /whisper/i,
+      /dall-e/i,
+      /openai\//i,
+    ],
+    weakKeywords: [
+      'gpt',
+      'o1',
+      'o2',
+      'o3',
+      'o4',
+      'o5',
+      'codex',
+      'chatgpt',
+      'text-embedding',
+      'whisper',
+      'dall-e',
+      'openai/',
+    ],
     metadataProviderAliases: ['openai', 'azure'],
     providerHintKeywords: ['openai', 'chatgpt', 'azure openai'],
   },
@@ -82,11 +131,20 @@ const LOCAL_ICON_MATCH_RULES = {
   },
 };
 
-const localSvgModules = import.meta.glob('@/assets/model-svgs/*.svg', { eager: true, import: 'default' });
+const localSvgModules = import.meta.glob('@/assets/model-svgs/*.svg', {
+  eager: true,
+  import: 'default',
+});
 
 function normalizeLocalSvgKey(filePath) {
-  const fileName = String(filePath || '').split('/').pop() || '';
-  return fileName.toLowerCase().replace(/\.svg$/i, '').replace(/-color$/i, '');
+  const fileName =
+    String(filePath || '')
+      .split('/')
+      .pop() || '';
+  return fileName
+    .toLowerCase()
+    .replace(/\.svg$/i, '')
+    .replace(/-color$/i, '');
 }
 
 const localSvgMap = Object.entries(localSvgModules).reduce((acc, [filePath, moduleValue]) => {
@@ -99,11 +157,14 @@ const localSvgMap = Object.entries(localSvgModules).reduce((acc, [filePath, modu
 
 const DEFAULT_LOCAL_ICON_KEY = localSvgMap.openai
   ? 'openai'
-  : (LOCAL_ICON_PRIORITY.find((key) => !!localSvgMap[key]) || Object.keys(localSvgMap)[0] || '');
+  : LOCAL_ICON_PRIORITY.find((key) => !!localSvgMap[key]) || Object.keys(localSvgMap)[0] || '';
 const FALLBACK_MODEL_LOGO_URL = DEFAULT_LOCAL_ICON_KEY ? localSvgMap[DEFAULT_LOCAL_ICON_KEY] : '';
 
 const MODEL_FAMILY_PROVIDER_HINTS = [
-  { providerId: 'openai', pattern: /^(gpt|o[1-9]|codex|chatgpt|text-embedding|whisper|dall-e|tts)/i },
+  {
+    providerId: 'openai',
+    pattern: /^(gpt|o[1-9]|codex|chatgpt|text-embedding|whisper|dall-e|tts)/i,
+  },
   { providerId: 'anthropic', pattern: /^claude/i },
   { providerId: 'google', pattern: /^gemini/i },
   { providerId: 'deepseek', pattern: /^deepseek/i },
@@ -119,9 +180,17 @@ const capabilityOrder = ['vision', 'web', 'reasoning', 'tools', 'embedding'];
 const capabilityIconMap = {
   vision: { icon: Eye, className: 'capability-vision', labelKey: 'providers.capabilities.vision' },
   web: { icon: Globe, className: 'capability-web', labelKey: 'providers.capabilities.web' },
-  reasoning: { icon: Brain, className: 'capability-reasoning', labelKey: 'providers.capabilities.reasoning' },
+  reasoning: {
+    icon: Brain,
+    className: 'capability-reasoning',
+    labelKey: 'providers.capabilities.reasoning',
+  },
   tools: { icon: Wrench, className: 'capability-tools', labelKey: 'providers.capabilities.tools' },
-  embedding: { icon: Binary, className: 'capability-embedding', labelKey: 'providers.capabilities.embedding' },
+  embedding: {
+    icon: Binary,
+    className: 'capability-embedding',
+    labelKey: 'providers.capabilities.embedding',
+  },
 };
 
 function createEmptyCapabilities() {
@@ -145,7 +214,9 @@ function sanitizeCapabilities(raw) {
 }
 
 function normalizeModelId(modelId) {
-  return String(modelId || '').trim().toLowerCase();
+  return String(modelId || '')
+    .trim()
+    .toLowerCase();
 }
 
 const currentConfig = inject('config');
@@ -200,10 +271,13 @@ function readModelsMetadataCache() {
 
 function writeModelsMetadataCache(data) {
   try {
-    localStorage.setItem(MODELS_DEV_CACHE_KEY, JSON.stringify({
-      cachedAt: Date.now(),
-      data,
-    }));
+    localStorage.setItem(
+      MODELS_DEV_CACHE_KEY,
+      JSON.stringify({
+        cachedAt: Date.now(),
+        data,
+      }),
+    );
   } catch (_error) {
     // Ignore localStorage write errors; runtime data is still usable.
   }
@@ -245,7 +319,9 @@ function applyModelsMetadataData(data) {
 
   modelsMetadata.providers = providersData;
   modelsMetadata.modelIndex = nextModelIndex;
-  modelsMetadata.providerIds = Object.keys(providersData).map((providerId) => String(providerId).toLowerCase());
+  modelsMetadata.providerIds = Object.keys(providersData).map((providerId) =>
+    String(providerId).toLowerCase(),
+  );
   modelsMetadata.loaded = true;
   modelsMetadata.error = null;
 }
@@ -457,9 +533,9 @@ function isWeakIconMatch(rule, normalizedModelId) {
 
 function isMetadataProviderIconMatch(rule, metadataProviderId) {
   if (!rule?.metadataProviderAliases || !metadataProviderId) return false;
-  return rule.metadataProviderAliases.some((alias) => (
-    metadataProviderId === alias || metadataProviderId.includes(alias)
-  ));
+  return rule.metadataProviderAliases.some(
+    (alias) => metadataProviderId === alias || metadataProviderId.includes(alias),
+  );
 }
 
 function isProviderHintIconMatch(rule, providerHintText) {
@@ -492,8 +568,7 @@ function resolveLocalIconKey(modelId, provider, metadataEntry) {
   const providerHintText = getProviderHintText(provider);
   const metadataProviderId = normalizeModelId(metadataEntry?.providerId);
 
-  const ranked = LOCAL_ICON_PRIORITY
-    .filter((iconKey) => !!localSvgMap[iconKey])
+  const ranked = LOCAL_ICON_PRIORITY.filter((iconKey) => !!localSvgMap[iconKey])
     .map((iconKey) => ({
       iconKey,
       score: getLocalIconScore(iconKey, normalizedModelId, providerHintText, metadataProviderId),
@@ -535,7 +610,8 @@ function getModelCapabilityOverride(provider, modelId) {
 }
 
 function removeModelCapabilityOverride(provider, modelId) {
-  if (!provider?.modelCapabilityOverrides || typeof provider.modelCapabilityOverrides !== 'object') return;
+  if (!provider?.modelCapabilityOverrides || typeof provider.modelCapabilityOverrides !== 'object')
+    return;
 
   if (Object.prototype.hasOwnProperty.call(provider.modelCapabilityOverrides, modelId)) {
     delete provider.modelCapabilityOverrides[modelId];
@@ -599,7 +675,10 @@ function handleModelLogoError(event) {
 onMounted(() => {
   if (currentConfig.value.providerOrder && currentConfig.value.providerOrder.length > 0) {
     provider_key.value = currentConfig.value.providerOrder[0];
-  } else if (currentConfig.value.providers && Object.keys(currentConfig.value.providers).length > 0) {
+  } else if (
+    currentConfig.value.providers &&
+    Object.keys(currentConfig.value.providers).length > 0
+  ) {
     provider_key.value = Object.keys(currentConfig.value.providers)[0];
   } else {
     provider_key.value = null;
@@ -609,7 +688,11 @@ onMounted(() => {
 });
 
 const selectedProvider = computed(() => {
-  if (provider_key.value && currentConfig.value.providers && currentConfig.value.providers[provider_key.value]) {
+  if (
+    provider_key.value &&
+    currentConfig.value.providers &&
+    currentConfig.value.providers[provider_key.value]
+  ) {
     return currentConfig.value.providers[provider_key.value];
   }
   return null;
@@ -630,12 +713,16 @@ const modelRenderMetaMap = computed(() => {
 
 const localProviderOrder = ref([]);
 
-watch(() => currentConfig.value.providerOrder, (val) => {
-  localProviderOrder.value = val ? [...val] : [];
-}, { immediate: true });
+watch(
+  () => currentConfig.value.providerOrder,
+  (val) => {
+    localProviderOrder.value = val ? [...val] : [];
+  },
+  { immediate: true },
+);
 
 function saveProviderOrder() {
-  atomicSave(config => {
+  atomicSave((config) => {
     config.providerOrder = [...localProviderOrder.value];
   });
 }
@@ -645,7 +732,7 @@ const atomicSave = async (updateFunction) => {
   try {
     const latestConfigData = await window.api.getConfig();
     if (!latestConfigData || !latestConfigData.config) {
-      throw new Error("Failed to get latest config from DB.");
+      throw new Error('Failed to get latest config from DB.');
     }
     const latestConfig = latestConfigData.config;
 
@@ -654,22 +741,21 @@ const atomicSave = async (updateFunction) => {
     await window.api.updateConfigWithoutFeatures({ config: latestConfig });
 
     currentConfig.value = latestConfig;
-
   } catch (error) {
-    console.error("Atomic save failed:", error);
+    console.error('Atomic save failed:', error);
     ElMessage.error(t('providers.alerts.configSaveFailed'));
   }
-}
+};
 
 function delete_provider() {
   if (!provider_key.value) return;
 
-  atomicSave(config => {
+  atomicSave((config) => {
     const keyToDelete = provider_key.value;
     const index = config.providerOrder.indexOf(keyToDelete);
 
     delete config.providers[keyToDelete];
-    config.providerOrder = config.providerOrder.filter(key => key !== keyToDelete);
+    config.providerOrder = config.providerOrder.filter((key) => key !== keyToDelete);
 
     // 更新 provider_key 以选择一个新的服务商
     if (config.providerOrder.length > 0) {
@@ -685,27 +771,31 @@ function delete_provider() {
 }
 
 const addProvider_page = ref(false);
-const addprovider_form = reactive({ name: "" });
+const addprovider_form = reactive({ name: '' });
 
 function add_prvider_function() {
   const timestamp = String(Date.now());
-  const newName = addprovider_form.name || `${t('providers.unnamedProvider')} ${timestamp.slice(-4)}`;
+  const newName =
+    addprovider_form.name || `${t('providers.unnamedProvider')} ${timestamp.slice(-4)}`;
 
-  atomicSave(config => {
+  atomicSave((config) => {
     config.providers[timestamp] = {
       name: newName,
-      url: "", api_key: "", modelList: [], enable: true
+      url: '',
+      api_key: '',
+      modelList: [],
+      enable: true,
     };
     config.providerOrder.push(timestamp);
     provider_key.value = timestamp;
   });
 
-  addprovider_form.name = "";
+  addprovider_form.name = '';
   addProvider_page.value = false;
 }
 
 const change_provider_name_page = ref(false);
-const change_provider_name_form = reactive({ name: "" });
+const change_provider_name_form = reactive({ name: '' });
 
 function openChangeProviderNameDialog() {
   if (selectedProvider.value) {
@@ -719,13 +809,13 @@ function change_provider_name_function() {
   const keyToUpdate = provider_key.value;
   const newName = change_provider_name_form.name;
 
-  atomicSave(config => {
+  atomicSave((config) => {
     if (config.providers[keyToUpdate]) {
       config.providers[keyToUpdate].name = newName;
     }
   });
 
-  change_provider_name_form.name = "";
+  change_provider_name_form.name = '';
   change_provider_name_page.value = false;
 }
 
@@ -733,24 +823,24 @@ function delete_model(model) {
   if (!provider_key.value) return;
   const keyToUpdate = provider_key.value;
 
-  atomicSave(config => {
+  atomicSave((config) => {
     const provider = config.providers[keyToUpdate];
     if (provider) {
-      provider.modelList = provider.modelList.filter(m => m !== model);
+      provider.modelList = provider.modelList.filter((m) => m !== model);
       removeModelCapabilityOverride(provider, model);
     }
   });
 }
 
 const addModel_page = ref(false);
-const addModel_form = reactive({ name: "" })
+const addModel_form = reactive({ name: '' });
 
 function add_model_function() {
   if (!provider_key.value || !addModel_form.name.trim()) return;
   const keyToUpdate = provider_key.value;
   const newModelName = addModel_form.name.trim();
 
-  atomicSave(config => {
+  atomicSave((config) => {
     const provider = config.providers[keyToUpdate];
     if (provider) {
       if (!provider.modelList) {
@@ -760,7 +850,7 @@ function add_model_function() {
     }
   });
 
-  addModel_form.name = "";
+  addModel_form.name = '';
   addModel_page.value = false;
 }
 
@@ -773,12 +863,12 @@ const filteredModels = computed(() => {
     return getModel_form.modelList;
   }
   const lowerCaseQuery = searchQuery.value.toLowerCase();
-  return getModel_form.modelList.filter(model =>
-    (model.id && model.id.toLowerCase().includes(lowerCaseQuery)) ||
-    (model.owned_by && model.owned_by.toLowerCase().includes(lowerCaseQuery))
+  return getModel_form.modelList.filter(
+    (model) =>
+      (model.id && model.id.toLowerCase().includes(lowerCaseQuery)) ||
+      (model.owned_by && model.owned_by.toLowerCase().includes(lowerCaseQuery)),
   );
 });
-
 
 async function activate_get_model_function() {
   if (!selectedProvider.value || !selectedProvider.value.url) {
@@ -793,12 +883,14 @@ async function activate_get_model_function() {
 
   const url = selectedProvider.value.url;
   const apiKey = selectedProvider.value.api_key;
-  const apiKeyToUse = window.api && typeof window.api.getRandomItem === 'function' && apiKey ? window.api.getRandomItem(apiKey) : apiKey;
-
+  const apiKeyToUse =
+    window.api && typeof window.api.getRandomItem === 'function' && apiKey
+      ? window.api.getRandomItem(apiKey)
+      : apiKey;
 
   const options = {
     method: 'GET',
-    headers: { 'Content-Type': 'application/json' }
+    headers: { 'Content-Type': 'application/json' },
   };
   if (apiKeyToUse) {
     options.headers['Authorization'] = `Bearer ${apiKeyToUse}`;
@@ -808,12 +900,15 @@ async function activate_get_model_function() {
     const response = await fetch(`${url}/models`, options);
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: response.statusText }));
-      const errorMessage = t('providers.alerts.fetchModelsError', { status: response.status, message: errorData.message || t('providers.alerts.fetchModelsFailedDefault') });
+      const errorMessage = t('providers.alerts.fetchModelsError', {
+        status: response.status,
+        message: errorData.message || t('providers.alerts.fetchModelsFailedDefault'),
+      });
       throw new Error(errorMessage);
     }
     const data = await response.json();
     if (data?.data && Array.isArray(data.data)) {
-      getModel_form.modelList = data.data.map(m => ({ id: m.id, owned_by: m.owned_by }));
+      getModel_form.modelList = data.data.map((m) => ({ id: m.id, owned_by: m.owned_by }));
     } else {
       getModel_form.modelList = [];
     }
@@ -830,7 +925,7 @@ function get_model_function(add, modelId) {
   if (!provider_key.value) return;
   const keyToUpdate = provider_key.value;
 
-  atomicSave(config => {
+  atomicSave((config) => {
     const provider = config.providers[keyToUpdate];
     if (provider) {
       if (!provider.modelList) {
@@ -841,7 +936,7 @@ function get_model_function(add, modelId) {
           provider.modelList.push(modelId);
         }
       } else {
-        provider.modelList = provider.modelList.filter(m => m !== modelId);
+        provider.modelList = provider.modelList.filter((m) => m !== modelId);
         removeModelCapabilityOverride(provider, modelId);
       }
     }
@@ -854,7 +949,7 @@ function saveModelOrder() {
   // v-model已经更新了selectedProvider.modelList的顺序
   const newOrder = selectedProvider.value.modelList;
 
-  atomicSave(config => {
+  atomicSave((config) => {
     const provider = config.providers[keyToUpdate];
     if (provider) {
       provider.modelList = newOrder;
@@ -874,11 +969,15 @@ async function saveSingleProviderSetting(key, value) {
 }
 
 const apiKeyCount = computed(() => {
-  if (!selectedProvider.value || !selectedProvider.value.api_key || !selectedProvider.value.api_key.trim()) {
+  if (
+    !selectedProvider.value ||
+    !selectedProvider.value.api_key ||
+    !selectedProvider.value.api_key.trim()
+  ) {
     return 0;
   }
   // 同时支持中英文逗号，并过滤空字符串
-  const keys = selectedProvider.value.api_key.split(/[,，]/).filter(k => k.trim() !== '');
+  const keys = selectedProvider.value.api_key.split(/[,，]/).filter((k) => k.trim() !== '');
   return keys.length;
 });
 
@@ -918,10 +1017,13 @@ async function saveModelCapabilityOverride() {
   const modelId = modelCapabilityDialogForm.modelId;
   const capabilities = getModelCapabilityDialogFormData();
 
-  await atomicSave(config => {
+  await atomicSave((config) => {
     const provider = config.providers[keyToUpdate];
     if (!provider) return;
-    if (!provider.modelCapabilityOverrides || typeof provider.modelCapabilityOverrides !== 'object') {
+    if (
+      !provider.modelCapabilityOverrides ||
+      typeof provider.modelCapabilityOverrides !== 'object'
+    ) {
       provider.modelCapabilityOverrides = {};
     }
     provider.modelCapabilityOverrides[modelId] = capabilities;
@@ -936,7 +1038,7 @@ async function resetModelCapabilityOverride() {
   const keyToUpdate = provider_key.value;
   const modelId = modelCapabilityDialogForm.modelId;
 
-  await atomicSave(config => {
+  await atomicSave((config) => {
     const provider = config.providers[keyToUpdate];
     if (!provider) return;
     removeModelCapabilityOverride(provider, modelId);
@@ -991,37 +1093,65 @@ watch(contextMenuVisible, (val) => {
       <el-container>
         <el-aside width="240px" class="providers-aside">
           <el-scrollbar class="provider-list-scrollbar">
-            <draggable v-model="localProviderOrder" :item-key="(el) => el" :animation="250"
-              ghost-class="provider-drag-ghost" :force-fallback="true" fallback-class="provider-drag-fallback"
-              :fallback-on-body="true" @end="saveProviderOrder">
+            <draggable
+              v-model="localProviderOrder"
+              :item-key="(el) => el"
+              :animation="250"
+              ghost-class="provider-drag-ghost"
+              :force-fallback="true"
+              fallback-class="provider-drag-fallback"
+              :fallback-on-body="true"
+              @end="saveProviderOrder"
+            >
               <template #item="{ element: key_id }">
-                <div class="provider-item" :class="{
-                  'active': provider_key === key_id, 'disabled': currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable
-                }" @click="provider_key = key_id" @contextmenu="handleProviderContextMenu($event, key_id)">
-                  <span class="provider-item-name">{{ currentConfig.providers[key_id]?.name ||
-                    t('providers.unnamedProvider') }}</span>
+                <div
+                  class="provider-item"
+                  :class="{
+                    active: provider_key === key_id,
+                    disabled:
+                      currentConfig.providers[key_id] && !currentConfig.providers[key_id].enable,
+                  }"
+                  @click="provider_key = key_id"
+                  @contextmenu="handleProviderContextMenu($event, key_id)"
+                >
+                  <span class="provider-item-name">{{
+                    currentConfig.providers[key_id]?.name || t('providers.unnamedProvider')
+                  }}</span>
                   <div class="provider-status-wrapper">
                     <transition name="status-flip" mode="out-in">
-                      <el-tag 
+                      <el-tag
                         :type="currentConfig.providers[key_id].enable ? 'primary' : 'info'"
-                        size="small" 
-                        effect="dark" 
+                        size="small"
+                        effect="dark"
                         round
                         :key="currentConfig.providers[key_id].enable ? 'on' : 'off'"
-                        class="provider-status-tag">
-                        {{ currentConfig.providers[key_id].enable ? t('providers.statusOn') : t('providers.statusOff') }}
+                        class="provider-status-tag"
+                      >
+                        {{
+                          currentConfig.providers[key_id].enable
+                            ? t('providers.statusOn')
+                            : t('providers.statusOff')
+                        }}
                       </el-tag>
                     </transition>
                   </div>
                 </div>
               </template>
             </draggable>
-            <div v-if="!currentConfig.providerOrder || currentConfig.providerOrder.length === 0" class="no-providers">
+            <div
+              v-if="!currentConfig.providerOrder || currentConfig.providerOrder.length === 0"
+              class="no-providers"
+            >
               {{ t('providers.noProviders') }}
             </div>
           </el-scrollbar>
           <div class="aside-actions">
-            <el-button type="primary" :icon="Plus" @click="addProvider_page = true" class="add-provider-btn">
+            <el-button
+              type="primary"
+              :icon="Plus"
+              @click="addProvider_page = true"
+              class="add-provider-btn"
+            >
               {{ t('providers.addProviderBtn') }}
             </el-button>
           </div>
@@ -1034,8 +1164,11 @@ watch(contextMenuVisible, (val) => {
                 <h2 class="provider-name">
                   {{ selectedProvider.name }}
                 </h2>
-                <el-switch v-model="selectedProvider.enable"
-                  @change="(value) => saveSingleProviderSetting('enable', value)" size="large" />
+                <el-switch
+                  v-model="selectedProvider.enable"
+                  @change="(value) => saveSingleProviderSetting('enable', value)"
+                  size="large"
+                />
               </div>
 
               <el-form label-position="left" label-width="75px" class="provider-form">
@@ -1046,43 +1179,64 @@ watch(contextMenuVisible, (val) => {
                   <template #label>
                     <span class="label-with-badge">
                       {{ t('providers.apiKeyLabel') }}
-                      <span v-if="apiKeyCount > 0" class="api-key-count-badge">{{ apiKeyCount }}</span>
+                      <span v-if="apiKeyCount > 0" class="api-key-count-badge">{{
+                        apiKeyCount
+                      }}</span>
                     </span>
                   </template>
-                  <el-input 
-                    v-model="selectedProvider.api_key" 
+                  <el-input
+                    v-model="selectedProvider.api_key"
                     :type="showApiKey ? 'text' : 'password'"
                     :placeholder="t('providers.apiKeyPlaceholder')"
-                    @change="(value) => saveSingleProviderSetting('api_key', value)">
+                    @change="(value) => saveSingleProviderSetting('api_key', value)"
+                  >
                     <template #suffix>
-                      <component 
-                        :is="showApiKey ? EyeOff : Eye" 
-                        :size="16" 
+                      <component
+                        :is="showApiKey ? EyeOff : Eye"
+                        :size="16"
                         @click="showApiKey = !showApiKey"
-                        style="cursor: pointer;" />
+                        style="cursor: pointer"
+                      />
                     </template>
                   </el-input>
                 </el-form-item>
                 <el-form-item :label="t('providers.apiUrlLabel')">
-                  <el-input v-model="selectedProvider.url" :placeholder="t('providers.apiUrlPlaceholder')"
-                    @change="(value) => saveSingleProviderSetting('url', value)" />
+                  <el-input
+                    v-model="selectedProvider.url"
+                    :placeholder="t('providers.apiUrlPlaceholder')"
+                    @change="(value) => saveSingleProviderSetting('url', value)"
+                  />
                 </el-form-item>
 
                 <el-form-item :label="t('providers.modelsLabel')">
                   <div class="models-actions-row">
                     <el-tooltip :content="t('providers.getModelsFromApiBtn')" placement="top">
-                      <el-button :icon="ListCheck" @click="activate_get_model_function" circle class="circle-action-btn" />
+                      <el-button
+                        :icon="ListCheck"
+                        @click="activate_get_model_function"
+                        circle
+                        class="circle-action-btn"
+                      />
                     </el-tooltip>
                     <el-tooltip :content="t('providers.addManuallyBtn')" placement="top">
-                      <el-button :icon="Plus" @click="addModel_page = true" circle class="circle-action-btn" />
+                      <el-button
+                        :icon="Plus"
+                        @click="addModel_page = true"
+                        circle
+                        class="circle-action-btn"
+                      />
                     </el-tooltip>
                   </div>
                 </el-form-item>
                 <div class="models-list-wrapper">
-                  <draggable v-if="selectedProvider.modelList && selectedProvider.modelList.length > 0"
-                    v-model="selectedProvider.modelList" item-key="model"
-                    class="models-list-container draggable-models-list" @end="saveModelOrder"
-                    ghost-class="sortable-ghost">
+                  <draggable
+                    v-if="selectedProvider.modelList && selectedProvider.modelList.length > 0"
+                    v-model="selectedProvider.modelList"
+                    item-key="model"
+                    class="models-list-container draggable-models-list"
+                    @end="saveModelOrder"
+                    ghost-class="sortable-ghost"
+                  >
                     <template #item="{ element: model }">
                       <div class="model-tag">
                         <div class="model-main">
@@ -1094,7 +1248,10 @@ watch(contextMenuVisible, (val) => {
                             @error="handleModelLogoError"
                           />
                           <span class="model-name">{{ model }}</span>
-                          <div v-if="modelRenderMetaMap[model]?.capabilityEntries?.length" class="model-capabilities">
+                          <div
+                            v-if="modelRenderMetaMap[model]?.capabilityEntries?.length"
+                            class="model-capabilities"
+                          >
                             <el-tooltip
                               v-for="capability in modelRenderMetaMap[model].capabilityEntries"
                               :key="`${model}-${capability.key}`"
@@ -1108,13 +1265,24 @@ watch(contextMenuVisible, (val) => {
                           </div>
                         </div>
                         <div class="model-actions">
-                          <el-tooltip :content="t('providers.modelCapabilitySettingsTooltip')" placement="top">
-                            <button type="button" class="circle-action-btn-sm model-settings-btn" @click.stop="openModelCapabilityDialog(model)">
+                          <el-tooltip
+                            :content="t('providers.modelCapabilitySettingsTooltip')"
+                            placement="top"
+                          >
+                            <button
+                              type="button"
+                              class="circle-action-btn-sm model-settings-btn"
+                              @click.stop="openModelCapabilityDialog(model)"
+                            >
                               <Settings :size="14" />
                             </button>
                           </el-tooltip>
                           <el-tooltip :content="t('providers.removeModelTooltip')" placement="top">
-                            <button type="button" class="circle-action-btn-sm model-remove-btn" @click.stop="delete_model(model)">
+                            <button
+                              type="button"
+                              class="circle-action-btn-sm model-remove-btn"
+                              @click.stop="delete_model(model)"
+                            >
                               <Minus :size="16" />
                             </button>
                           </el-tooltip>
@@ -1126,49 +1294,85 @@ watch(contextMenuVisible, (val) => {
                     {{ t('providers.noModelsAdded') }}
                   </div>
                 </div>
-
               </el-form>
             </div>
-            <el-empty v-else :description="t('providers.selectProviderOrAdd')" class="empty-state-main" />
+            <el-empty
+              v-else
+              :description="t('providers.selectProviderOrAdd')"
+              class="empty-state-main"
+            />
           </el-scrollbar>
         </el-main>
       </el-container>
     </div>
 
     <!-- Dialogs -->
-    <el-dialog v-model="addProvider_page" :title="t('providers.addProviderDialogTitle')" width="500px"
-      :close-on-click-modal="false" append-to-body>
-      <el-form :model="addprovider_form" @submit.prevent="add_prvider_function" label-position="top">
+    <el-dialog
+      v-model="addProvider_page"
+      :title="t('providers.addProviderDialogTitle')"
+      width="500px"
+      :close-on-click-modal="false"
+      append-to-body
+    >
+      <el-form
+        :model="addprovider_form"
+        @submit.prevent="add_prvider_function"
+        label-position="top"
+      >
         <el-form-item :label="t('providers.providerNameLabel')" required>
-          <el-input v-model="addprovider_form.name" autocomplete="off"
-            :placeholder="t('providers.providerNamePlaceholder')" />
+          <el-input
+            v-model="addprovider_form.name"
+            autocomplete="off"
+            :placeholder="t('providers.providerNamePlaceholder')"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="addProvider_page = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="add_prvider_function">{{ t('common.confirm') }}</el-button>
+        <el-button type="primary" @click="add_prvider_function">{{
+          t('common.confirm')
+        }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="change_provider_name_page" :title="t('providers.changeProviderNameDialogTitle')" width="500px"
-      :close-on-click-modal="false" append-to-body>
-      <el-form :model="change_provider_name_form" @submit.prevent="change_provider_name_function" label-position="top">
+    <el-dialog
+      v-model="change_provider_name_page"
+      :title="t('providers.changeProviderNameDialogTitle')"
+      width="500px"
+      :close-on-click-modal="false"
+      append-to-body
+    >
+      <el-form
+        :model="change_provider_name_form"
+        @submit.prevent="change_provider_name_function"
+        label-position="top"
+      >
         <el-form-item :label="t('providers.providerNameLabel')" required>
           <el-input v-model="change_provider_name_form.name" autocomplete="off" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="change_provider_name_page = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="change_provider_name_function">{{ t('common.confirm') }}</el-button>
+        <el-button type="primary" @click="change_provider_name_function">{{
+          t('common.confirm')
+        }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="addModel_page" :title="t('providers.addModelDialogTitle')" width="500px"
-      :close-on-click-modal="false" append-to-body>
+    <el-dialog
+      v-model="addModel_page"
+      :title="t('providers.addModelDialogTitle')"
+      width="500px"
+      :close-on-click-modal="false"
+      append-to-body
+    >
       <el-form :model="addModel_form" @submit.prevent="add_model_function" label-position="top">
         <el-form-item :label="t('providers.modelNameIdLabel')" required>
-          <el-input v-model="addModel_form.name" autocomplete="off"
-            :placeholder="t('providers.modelNameIdPlaceholder')" />
+          <el-input
+            v-model="addModel_form.name"
+            autocomplete="off"
+            :placeholder="t('providers.modelNameIdPlaceholder')"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -1177,30 +1381,86 @@ watch(contextMenuVisible, (val) => {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="getModel_page" :title="t('providers.availableModelsDialogTitle')" width="700px" top="10vh"
-      :close-on-click-modal="false" append-to-body class="available-models-dialog">
+    <el-dialog
+      v-model="getModel_page"
+      :title="t('providers.availableModelsDialogTitle')"
+      width="700px"
+      top="10vh"
+      :close-on-click-modal="false"
+      append-to-body
+      class="available-models-dialog"
+    >
       <div class="dialog-search-bar-container">
-        <el-input v-model="searchQuery" :placeholder="t('providers.searchModelsPlaceholder')" clearable
-          :prefix-icon="Search" />
+        <el-input
+          v-model="searchQuery"
+          :placeholder="t('providers.searchModelsPlaceholder')"
+          clearable
+          :prefix-icon="Search"
+        />
       </div>
 
-      <el-alert v-if="getModel_form.error" :title="getModel_form.error" type="error" show-icon :closable="false"
-        class="dialog-error-alert" />
+      <el-alert
+        v-if="getModel_form.error"
+        :title="getModel_form.error"
+        type="error"
+        show-icon
+        :closable="false"
+        class="dialog-error-alert"
+      />
 
-      <el-table :data="filteredModels" v-loading="getModel_form.isLoading" style="width: 100%" max-height="50vh"
-        :empty-text="searchQuery ? t('providers.noModelsMatchSearch') : t('providers.noModelsFoundError')" stripe
-        border>
+      <el-table
+        :data="filteredModels"
+        v-loading="getModel_form.isLoading"
+        style="width: 100%"
+        max-height="50vh"
+        :empty-text="
+          searchQuery ? t('providers.noModelsMatchSearch') : t('providers.noModelsFoundError')
+        "
+        stripe
+        border
+      >
         <el-table-column prop="id" :label="t('providers.table.modelId')" sortable />
         <el-table-column :label="t('providers.table.action')" width="100" align="center">
           <template #default="scope">
             <el-tooltip
-              :content="selectedProvider && selectedProvider.modelList && selectedProvider.modelList.includes(scope.row.id) ? t('providers.removeModelTooltip') : t('providers.addModelTooltip')"
-              placement="top">
+              :content="
+                selectedProvider &&
+                selectedProvider.modelList &&
+                selectedProvider.modelList.includes(scope.row.id)
+                  ? t('providers.removeModelTooltip')
+                  : t('providers.addModelTooltip')
+              "
+              placement="top"
+            >
               <el-button
-                :type="selectedProvider && selectedProvider.modelList && selectedProvider.modelList.includes(scope.row.id) ? 'danger' : 'success'"
-                :icon="selectedProvider && selectedProvider.modelList && selectedProvider.modelList.includes(scope.row.id) ? Minus : Plus"
-                circle size="small" class="circle-action-btn"
-                @click="get_model_function(!(selectedProvider && selectedProvider.modelList && selectedProvider.modelList.includes(scope.row.id)), scope.row.id)" />
+                :type="
+                  selectedProvider &&
+                  selectedProvider.modelList &&
+                  selectedProvider.modelList.includes(scope.row.id)
+                    ? 'danger'
+                    : 'success'
+                "
+                :icon="
+                  selectedProvider &&
+                  selectedProvider.modelList &&
+                  selectedProvider.modelList.includes(scope.row.id)
+                    ? Minus
+                    : Plus
+                "
+                circle
+                size="small"
+                class="circle-action-btn"
+                @click="
+                  get_model_function(
+                    !(
+                      selectedProvider &&
+                      selectedProvider.modelList &&
+                      selectedProvider.modelList.includes(scope.row.id)
+                    ),
+                    scope.row.id,
+                  )
+                "
+              />
             </el-tooltip>
           </template>
         </el-table-column>
@@ -1223,7 +1483,11 @@ watch(contextMenuVisible, (val) => {
       <div class="model-capability-dialog-model">{{ modelCapabilityDialogForm.modelId }}</div>
       <div class="model-capability-dialog-tip">{{ t('providers.modelCapabilityDialogTip') }}</div>
       <div class="model-capability-grid">
-        <label v-for="item in modelCapabilityDialogItems" :key="item.key" class="model-capability-grid-item">
+        <label
+          v-for="item in modelCapabilityDialogItems"
+          :key="item.key"
+          class="model-capability-grid-item"
+        >
           <el-checkbox v-model="modelCapabilityDialogForm[item.key]" />
           <span class="model-capability-grid-icon" :class="item.className">
             <component :is="item.icon" :size="14" />
@@ -1232,16 +1496,27 @@ watch(contextMenuVisible, (val) => {
         </label>
       </div>
       <template #footer>
-        <el-button @click="modelCapabilityDialogVisible = false">{{ t('common.cancel') }}</el-button>
-        <el-button @click="resetModelCapabilityOverride" :disabled="!modelCapabilityDialogHasOverride">
+        <el-button @click="modelCapabilityDialogVisible = false">{{
+          t('common.cancel')
+        }}</el-button>
+        <el-button
+          @click="resetModelCapabilityOverride"
+          :disabled="!modelCapabilityDialogHasOverride"
+        >
           {{ t('providers.modelCapabilityResetToAuto') }}
         </el-button>
-        <el-button type="primary" @click="saveModelCapabilityOverride">{{ t('common.confirm') }}</el-button>
+        <el-button type="primary" @click="saveModelCapabilityOverride">{{
+          t('common.confirm')
+        }}</el-button>
       </template>
     </el-dialog>
 
     <teleport to="body">
-      <div v-if="contextMenuVisible" class="provider-context-menu" :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }">
+      <div
+        v-if="contextMenuVisible"
+        class="provider-context-menu"
+        :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
+      >
         <div class="context-menu-item" @click="handleContextMenuRename">
           <el-icon class="context-menu-icon"><Edit /></el-icon>
           <span>{{ t('providers.rename') }}</span>
@@ -1275,7 +1550,7 @@ watch(contextMenuVisible, (val) => {
   gap: 20px;
 }
 
-.providers-content-wrapper>.el-container {
+.providers-content-wrapper > .el-container {
   width: 100%;
   height: 100%;
   background-color: var(--bg-secondary);
@@ -1312,7 +1587,9 @@ watch(contextMenuVisible, (val) => {
   margin-bottom: 4px;
   border-radius: var(--radius-md);
   cursor: grab;
-  transition: background-color 0.2s, color 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
   font-size: 14px;
   color: var(--text-primary) !important;
 }
@@ -1327,7 +1604,18 @@ watch(contextMenuVisible, (val) => {
   text-overflow: ellipsis;
   flex-grow: 1;
   margin-right: 8px;
-  font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+  font-family:
+    ui-sans-serif,
+    -apple-system,
+    system-ui,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif,
+    'Apple Color Emoji',
+    'Segoe UI Emoji',
+    'Segoe UI Symbol';
 }
 
 .provider-item:hover {
@@ -1442,7 +1730,6 @@ watch(contextMenuVisible, (val) => {
   display: flex;
   flex-direction: column;
 }
-
 
 .provider-details {
   padding: 0px 30px 0px 30px;
@@ -1629,16 +1916,18 @@ watch(contextMenuVisible, (val) => {
   opacity: 1 !important;
   background-color: var(--bg-accent-light) !important;
   border-radius: var(--radius-md) !important;
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.12),
-              0 2px 6px -1px rgba(0, 0, 0, 0.05) !important;
+  box-shadow:
+    0 8px 24px -4px rgba(0, 0, 0, 0.12),
+    0 2px 6px -1px rgba(0, 0, 0, 0.05) !important;
   z-index: 9999 !important;
   transition: box-shadow 0.2s ease !important;
 }
 
 :global(html.dark .provider-drag-fallback) {
   background-color: var(--bg-accent-light) !important;
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5),
-              0 2px 6px -1px rgba(0, 0, 0, 0.25) !important;
+  box-shadow:
+    0 8px 24px -4px rgba(0, 0, 0, 0.5),
+    0 2px 6px -1px rgba(0, 0, 0, 0.25) !important;
 }
 
 .draggable-models-list .model-tag {
@@ -1764,7 +2053,6 @@ watch(contextMenuVisible, (val) => {
   align-items: center;
   margin-bottom: 2px;
   padding-left: 85px;
-
 }
 
 .form-item-header .form-item-description {
@@ -1865,7 +2153,9 @@ watch(contextMenuVisible, (val) => {
   z-index: 9999;
   border-radius: var(--radius-lg) !important;
   background: color-mix(in srgb, var(--bg-secondary) 92%, transparent) !important;
-  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-primary) !important;
+  box-shadow:
+    var(--shadow-lg),
+    0 0 0 1px var(--border-primary) !important;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   overflow: hidden !important;

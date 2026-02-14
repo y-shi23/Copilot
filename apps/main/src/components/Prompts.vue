@@ -1,6 +1,21 @@
-<script setup>
+<script setup lang="ts">
+// -nocheck
 import { ref, reactive, computed, inject, watch, nextTick, onMounted } from 'vue';
-import { Plus, Trash2 as Delete, X as Close, MessageSquareText as ChatLineRound, Upload as UploadFilled, MapPin as Position, CircleQuestionMark as QuestionFilled, Repeat as Switch, RefreshCw as Refresh, Pencil as Edit, Download, Search, MessageSquareShare } from 'lucide-vue-next';
+import {
+  Plus,
+  Trash2 as Delete,
+  X as Close,
+  MessageSquareText as ChatLineRound,
+  Upload as UploadFilled,
+  MapPin as Position,
+  CircleQuestionMark as QuestionFilled,
+  Repeat as Switch,
+  RefreshCw as Refresh,
+  Pencil as Edit,
+  Download,
+  Search,
+  MessageSquareShare,
+} from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 
@@ -19,10 +34,10 @@ const fetchAvailableSkills = async () => {
       const skills = await window.api.listSkills(currentConfig.value.skillPath);
       // 过滤出未禁用的 Skill，并按名称排序
       availableSkills.value = skills
-        .filter(s => !s.disabled)
+        .filter((s) => !s.disabled)
         .sort((a, b) => a.name.localeCompare(b.name));
     } catch (e) {
-      console.error("Failed to fetch skills:", e);
+      console.error('Failed to fetch skills:', e);
       availableSkills.value = [];
     }
   } else {
@@ -48,15 +63,14 @@ watch(activeTabName, (newTabName) => {
     if (activeTabEl) {
       activeTabEl.scrollIntoView({
         behavior: 'smooth', // 平滑滚动
-        inline: 'center',   // 水平居中
-        block: 'nearest'    // 垂直方向上保持最近
+        inline: 'center', // 水平居中
+        block: 'nearest', // 垂直方向上保持最近
       });
     } else if (newTabName === '__ALL_PROMPTS__') {
       scrollContainer.scrollTo({ left: 0, behavior: 'smooth' });
     }
   });
 });
-
 
 const activeTabPrompts = computed(() => {
   const tab = activeTabName.value;
@@ -71,12 +85,12 @@ const activeTabPrompts = computed(() => {
 
 const areAllPromptsEnabled = computed(() => {
   if (allPromptsCount.value === 0) return false;
-  return allPrompts.value.every(p => p.enable);
+  return allPrompts.value.every((p) => p.enable);
 });
 
 function toggleAllPrompts(enableState) {
-  atomicSave(config => {
-    Object.keys(config.prompts).forEach(promptKey => {
+  atomicSave((config) => {
+    Object.keys(config.prompts).forEach((promptKey) => {
       config.prompts[promptKey].enable = enableState;
     });
   }, true);
@@ -87,23 +101,24 @@ function getFilteredPrompts(prompts, query) {
     return prompts;
   }
   const lowerCaseQuery = query.toLowerCase();
-  return prompts.filter(item =>
-    (item.key && item.key.toLowerCase().includes(lowerCaseQuery)) ||
-    (item.prompt && item.prompt.toLowerCase().includes(lowerCaseQuery))
+  return prompts.filter(
+    (item) =>
+      (item.key && item.key.toLowerCase().includes(lowerCaseQuery)) ||
+      (item.prompt && item.prompt.toLowerCase().includes(lowerCaseQuery)),
   );
 }
 
 const showPromptEditDialog = ref(false);
 const editingPrompt = reactive({
   originalKey: null,
-  key: "",
-  type: "general",
-  prompt: "",
-  showMode: "window",
-  model: "",
+  key: '',
+  type: 'general',
+  prompt: '',
+  showMode: 'window',
+  model: '',
   enable: true,
   selectedTag: [],
-  icon: "",
+  icon: '',
   stream: true,
   isTemperature: false,
   temperature: 0.7,
@@ -111,15 +126,15 @@ const editingPrompt = reactive({
   isDirectSend_normal: true,
   ifTextNecessary: false,
   voice: '',
-  reasoning_effort: "default",
+  reasoning_effort: 'default',
   defaultMcpServers: [],
   defaultSkills: [],
   window_width: 540,
   window_height: 700,
   isAlwaysOnTop: true,
   autoCloseOnBlur: true,
-  matchRegex: "",
-  backgroundImage: "",
+  matchRegex: '',
+  backgroundImage: '',
   backgroundOpacity: 0.6,
   backgroundBlur: 0,
   autoSaveChat: false,
@@ -131,7 +146,7 @@ const iconEditorState = reactive({
   scale: 1,
   radius: 0, // 0 - 50 (%)
   offsetX: 0,
-  offsetY: 0
+  offsetY: 0,
 });
 const editorCanvasRef = ref(null);
 let editorImageObj = null;
@@ -258,7 +273,9 @@ const handleCanvasMouseMove = (e) => {
   lastMouseY = e.clientY;
   drawEditorCanvas();
 };
-const handleCanvasMouseUp = () => { isDraggingImage = false; };
+const handleCanvasMouseUp = () => {
+  isDraggingImage = false;
+};
 const handleCanvasWheel = (e) => {
   e.preventDefault();
   const delta = e.deltaY > 0 ? -0.1 : 0.1;
@@ -270,14 +287,17 @@ const handleCanvasWheel = (e) => {
 };
 
 // 监听参数变化重绘
-watch(() => [iconEditorState.scale, iconEditorState.radius], () => {
-  drawEditorCanvas();
-});
+watch(
+  () => [iconEditorState.scale, iconEditorState.radius],
+  () => {
+    drawEditorCanvas();
+  },
+);
 
 const isNewPrompt = ref(false);
 
 const showAddTagDialog = ref(false);
-const newTagName = ref("");
+const newTagName = ref('');
 
 const showAssignPromptDialog = ref(false);
 const assignPromptForm = reactive({
@@ -296,13 +316,13 @@ const availableModels = computed(() => {
   const models = [];
   if (!currentConfig.value || !currentConfig.value.providers) return models;
   const providerOrder = currentConfig.value.providerOrder || [];
-  providerOrder.forEach(providerId => {
+  providerOrder.forEach((providerId) => {
     const provider = currentConfig.value.providers[providerId];
     if (provider && provider.enable && provider.modelList && provider.modelList.length > 0) {
-      provider.modelList.forEach(modelName => {
+      provider.modelList.forEach((modelName) => {
         models.push({
           value: `${providerId}|${modelName}`,
-          label: `${provider.name}|${modelName}`
+          label: `${provider.name}|${modelName}`,
         });
       });
     }
@@ -326,22 +346,24 @@ const availableMcpServers = computed(() => {
 const usedModels = computed(() => {
   if (!currentConfig.value || !currentConfig.value.prompts) return [];
   const modelSet = new Set();
-  Object.values(currentConfig.value.prompts).forEach(p => {
+  Object.values(currentConfig.value.prompts).forEach((p) => {
     if (p.model) {
       modelSet.add(p.model);
     }
   });
-  return Array.from(modelSet).sort().map(modelValue => ({
-    value: modelValue,
-    label: availableModels.value.find(m => m.value === modelValue)?.label || modelValue
-  }));
+  return Array.from(modelSet)
+    .sort()
+    .map((modelValue) => ({
+      value: modelValue,
+      label: availableModels.value.find((m) => m.value === modelValue)?.label || modelValue,
+    }));
 });
 
 const availableVoices = computed(() => {
   const voices = currentConfig.value?.voiceList || [];
   return [
     { label: t('prompts.voiceOptions.off'), value: '' },
-    ...voices.map(v => ({ label: v, value: v }))
+    ...voices.map((v) => ({ label: v, value: v })),
   ];
 });
 
@@ -354,7 +376,7 @@ const allPromptsCount = computed(() => allPrompts.value.length);
 
 const allEnabledPromptsCount = computed(() => {
   if (!currentConfig.value.prompts) return 0;
-  return Object.values(currentConfig.value.prompts).filter(p => p.enable).length;
+  return Object.values(currentConfig.value.prompts).filter((p) => p.enable).length;
 });
 
 const tagEabledPromptsCount = computed(() => (tagName) => {
@@ -373,30 +395,34 @@ const sortedTagNames = computed(() => {
 });
 
 const promptsInTag = computed(() => (tagName) => {
-  if (!currentConfig.value.prompts || !currentConfig.value.tags || !currentConfig.value.tags[tagName]) {
+  if (
+    !currentConfig.value.prompts ||
+    !currentConfig.value.tags ||
+    !currentConfig.value.tags[tagName]
+  ) {
     return [];
   }
   return currentConfig.value.tags[tagName]
-    .map(promptKey => ({
+    .map((promptKey) => ({
       key: promptKey,
-      ...(currentConfig.value.prompts[promptKey] || {})
+      ...(currentConfig.value.prompts[promptKey] || {}),
     }))
-    .filter(p => p.key && currentConfig.value.prompts[p.key]);
+    .filter((p) => p.key && currentConfig.value.prompts[p.key]);
 });
 
 const promptsAvailableToAssign = computed(() => (tagName) => {
   if (!tagName || !currentConfig.value.prompts) return [];
   const promptsInCurrentTag = new Set(currentConfig.value.tags[tagName] || []);
   return Object.keys(currentConfig.value.prompts)
-    .filter(key => !promptsInCurrentTag.has(key))
-    .map(key => ({ key, label: key, data: currentConfig.value.prompts[key] }));
+    .filter((key) => !promptsInCurrentTag.has(key))
+    .map((key) => ({ key, label: key, data: currentConfig.value.prompts[key] }));
 });
 
 async function atomicSave(updateFunction, syncFeatures = false) {
   try {
     const latestConfigData = await window.api.getConfig();
     if (!latestConfigData || !latestConfigData.config) {
-      throw new Error("Failed to get latest config from DB.");
+      throw new Error('Failed to get latest config from DB.');
     }
     const latestConfig = latestConfigData.config;
 
@@ -411,28 +437,29 @@ async function atomicSave(updateFunction, syncFeatures = false) {
     }
 
     currentConfig.value = latestConfig;
-
   } catch (error) {
-    console.error("Atomic save failed:", error);
+    console.error('Atomic save failed:', error);
     ElMessage.error(t('prompts.alerts.saveFailed'));
   }
 }
 
 function prepareAddTag() {
-  newTagName.value = "";
+  newTagName.value = '';
   showAddTagDialog.value = true;
 }
 
 function addTag() {
   const tagName = newTagName.value.trim();
   if (!tagName) {
-    ElMessage.warning(t('prompts.alerts.tagNameEmpty')); return;
+    ElMessage.warning(t('prompts.alerts.tagNameEmpty'));
+    return;
   }
   if (currentConfig.value.tags[tagName]) {
-    ElMessage.warning(t('prompts.alerts.tagExists', { tagName })); return;
+    ElMessage.warning(t('prompts.alerts.tagExists', { tagName }));
+    return;
   }
 
-  atomicSave(config => {
+  atomicSave((config) => {
     config.tags[tagName] = [];
     // 切换到新创建的标签
     activeTabName.value = tagName;
@@ -442,7 +469,7 @@ function addTag() {
 }
 
 function deleteTag(tagName) {
-  atomicSave(config => {
+  atomicSave((config) => {
     delete config.tags[tagName];
     // 如果删除的是当前活动标签，则切换到“全部”标签
     if (activeTabName.value === tagName) {
@@ -451,9 +478,9 @@ function deleteTag(tagName) {
   });
 }
 function toggleAllPromptsInTag(tagName, enableState) {
-  atomicSave(config => {
+  atomicSave((config) => {
     if (!config.tags[tagName]) return;
-    config.tags[tagName].forEach(promptKey => {
+    config.tags[tagName].forEach((promptKey) => {
       if (config.prompts[promptKey]) {
         config.prompts[promptKey].enable = enableState;
       }
@@ -465,8 +492,9 @@ function areAllPromptsInTagEnabled(tagName) {
   if (!currentConfig.value.tags[tagName] || currentConfig.value.tags[tagName].length === 0) {
     return false;
   }
-  return currentConfig.value.tags[tagName].every(promptKey =>
-    currentConfig.value.prompts[promptKey] && currentConfig.value.prompts[promptKey].enable
+  return currentConfig.value.tags[tagName].every(
+    (promptKey) =>
+      currentConfig.value.prompts[promptKey] && currentConfig.value.prompts[promptKey].enable,
   );
 }
 
@@ -474,17 +502,33 @@ function prepareAddPrompt() {
   fetchAvailableSkills(); // [新增] 打开前刷新 Skill 列表
   isNewPrompt.value = true;
   Object.assign(editingPrompt, {
-    originalKey: null, key: "", type: "general", prompt: "", showMode: "window", model: "",
-    enable: true, selectedTag: [], icon: "", stream: true, isTemperature: false, temperature: 0.7,
-    isDirectSend_file: false, isDirectSend_normal: true, ifTextNecessary: false,
-    voice: '', reasoning_effort: "default", defaultMcpServers: [],
+    originalKey: null,
+    key: '',
+    type: 'general',
+    prompt: '',
+    showMode: 'window',
+    model: '',
+    enable: true,
+    selectedTag: [],
+    icon: '',
+    stream: true,
+    isTemperature: false,
+    temperature: 0.7,
+    isDirectSend_file: false,
+    isDirectSend_normal: true,
+    ifTextNecessary: false,
+    voice: '',
+    reasoning_effort: 'default',
+    defaultMcpServers: [],
     defaultSkills: [],
-    window_width: 540, window_height: 700,
-    position_x: 0, position_y: 0,
+    window_width: 540,
+    window_height: 700,
+    position_x: 0,
+    position_y: 0,
     isAlwaysOnTop: currentConfig.value.isAlwaysOnTop_global,
     autoCloseOnBlur: currentConfig.value.autoCloseOnBlur_global,
-    matchRegex: "",
-    backgroundImage: "",
+    matchRegex: '',
+    backgroundImage: '',
     backgroundOpacity: 0.6,
     backgroundBlur: 0,
     autoSaveChat: currentConfig.value.autoSaveChat_global ?? false,
@@ -501,10 +545,10 @@ async function prepareEditPrompt(promptKey, currentTagName = null) {
     if (latestConfigData && latestConfigData.config) {
       currentConfig.value = latestConfigData.config;
     } else {
-      throw new Error("Failed to fetch latest config.");
+      throw new Error('Failed to fetch latest config.');
     }
   } catch (error) {
-    console.error("Failed to refresh config before editing prompt:", error);
+    console.error('Failed to refresh config before editing prompt:', error);
     ElMessage.error(t('prompts.alerts.configFetchFailed'));
   }
 
@@ -519,19 +563,31 @@ async function prepareEditPrompt(promptKey, currentTagName = null) {
     .map(([tagName]) => tagName);
 
   Object.assign(editingPrompt, {
-    originalKey: promptKey, key: promptKey, type: p.type, prompt: p.prompt,
-    showMode: p.showMode, model: p.model, enable: p.enable, icon: p.icon || "",
+    originalKey: promptKey,
+    key: promptKey,
+    type: p.type,
+    prompt: p.prompt,
+    showMode: p.showMode,
+    model: p.model,
+    enable: p.enable,
+    icon: p.icon || '',
     selectedTag: belongingTags,
-    stream: p.stream ?? true, isTemperature: p.isTemperature ?? false,
-    temperature: p.temperature ?? 0.7, isDirectSend_file: p.isDirectSend_file ?? false,
-    isDirectSend_normal: p.isDirectSend_normal ?? true, ifTextNecessary: p.ifTextNecessary ?? false,
-    voice: p.voice ?? '', reasoning_effort: p.reasoning_effort ?? "default",
+    stream: p.stream ?? true,
+    isTemperature: p.isTemperature ?? false,
+    temperature: p.temperature ?? 0.7,
+    isDirectSend_file: p.isDirectSend_file ?? false,
+    isDirectSend_normal: p.isDirectSend_normal ?? true,
+    ifTextNecessary: p.ifTextNecessary ?? false,
+    voice: p.voice ?? '',
+    reasoning_effort: p.reasoning_effort ?? 'default',
     defaultMcpServers: p.defaultMcpServers ?? [],
     defaultSkills: p.defaultSkills || [],
-    window_width: p.window_width ?? 540, window_height: p.window_height ?? 700,
-    isAlwaysOnTop: p.isAlwaysOnTop ?? true, autoCloseOnBlur: p.autoCloseOnBlur ?? true,
-    matchRegex: p.matchRegex || "",
-    backgroundImage: p.backgroundImage || "",
+    window_width: p.window_width ?? 540,
+    window_height: p.window_height ?? 700,
+    isAlwaysOnTop: p.isAlwaysOnTop ?? true,
+    autoCloseOnBlur: p.autoCloseOnBlur ?? true,
+    matchRegex: p.matchRegex || '',
+    backgroundImage: p.backgroundImage || '',
     backgroundOpacity: p.backgroundOpacity ?? 0.6,
     backgroundBlur: p.backgroundBlur ?? 0,
     autoSaveChat: p.autoSaveChat ?? false,
@@ -542,25 +598,38 @@ async function prepareEditPrompt(promptKey, currentTagName = null) {
 function savePrompt() {
   const newKey = editingPrompt.key.trim();
   const oldKey = editingPrompt.originalKey;
-  if (!newKey) { ElMessage.warning(t('prompts.alerts.promptKeyEmpty')); return; }
+  if (!newKey) {
+    ElMessage.warning(t('prompts.alerts.promptKeyEmpty'));
+    return;
+  }
 
-  atomicSave(config => {
+  atomicSave((config) => {
     if (newKey !== oldKey && config.prompts[newKey]) {
       ElMessage.warning(t('prompts.alerts.promptKeyExists', { newKey }));
-      throw new Error("Prompt key exists");
+      throw new Error('Prompt key exists');
     }
 
     const promptData = {
-      type: editingPrompt.type, prompt: editingPrompt.prompt, showMode: editingPrompt.showMode,
-      model: editingPrompt.model, enable: editingPrompt.enable, icon: editingPrompt.icon || "",
-      stream: editingPrompt.stream, isTemperature: editingPrompt.isTemperature,
-      temperature: editingPrompt.temperature, isDirectSend_file: editingPrompt.isDirectSend_file,
-      isDirectSend_normal: editingPrompt.isDirectSend_normal, ifTextNecessary: editingPrompt.ifTextNecessary,
-      voice: editingPrompt.voice, reasoning_effort: editingPrompt.reasoning_effort,
+      type: editingPrompt.type,
+      prompt: editingPrompt.prompt,
+      showMode: editingPrompt.showMode,
+      model: editingPrompt.model,
+      enable: editingPrompt.enable,
+      icon: editingPrompt.icon || '',
+      stream: editingPrompt.stream,
+      isTemperature: editingPrompt.isTemperature,
+      temperature: editingPrompt.temperature,
+      isDirectSend_file: editingPrompt.isDirectSend_file,
+      isDirectSend_normal: editingPrompt.isDirectSend_normal,
+      ifTextNecessary: editingPrompt.ifTextNecessary,
+      voice: editingPrompt.voice,
+      reasoning_effort: editingPrompt.reasoning_effort,
       defaultMcpServers: editingPrompt.defaultMcpServers,
       defaultSkills: editingPrompt.defaultSkills,
-      window_width: editingPrompt.window_width, window_height: editingPrompt.window_height,
-      isAlwaysOnTop: editingPrompt.isAlwaysOnTop, autoCloseOnBlur: editingPrompt.autoCloseOnBlur,
+      window_width: editingPrompt.window_width,
+      window_height: editingPrompt.window_height,
+      isAlwaysOnTop: editingPrompt.isAlwaysOnTop,
+      autoCloseOnBlur: editingPrompt.autoCloseOnBlur,
       matchRegex: editingPrompt.matchRegex,
       backgroundImage: editingPrompt.backgroundImage,
       backgroundOpacity: editingPrompt.backgroundOpacity,
@@ -570,7 +639,8 @@ function savePrompt() {
 
     // 1. 更新或创建 prompts 对象中的条目
     if (isNewPrompt.value) {
-      promptData.position_x = 0; promptData.position_y = 0;
+      promptData.position_x = 0;
+      promptData.position_y = 0;
       config.prompts[newKey] = promptData;
     } else {
       const existingPrompt = config.prompts[oldKey] || {};
@@ -588,18 +658,20 @@ function savePrompt() {
 
     // 2. 更新标签
     const keyToUseForTags = isNewPrompt.value ? newKey : oldKey;
-    const oldTags = Object.keys(config.tags).filter(tagName => config.tags[tagName].includes(keyToUseForTags));
+    const oldTags = Object.keys(config.tags).filter((tagName) =>
+      config.tags[tagName].includes(keyToUseForTags),
+    );
     const newTags = editingPrompt.selectedTag;
 
     // 从不再包含此快捷助手的标签中移除
-    oldTags.forEach(tagName => {
+    oldTags.forEach((tagName) => {
       if (!newTags.includes(tagName)) {
-        config.tags[tagName] = config.tags[tagName].filter(pk => pk !== keyToUseForTags);
+        config.tags[tagName] = config.tags[tagName].filter((pk) => pk !== keyToUseForTags);
       }
     });
 
     // 添加到新的标签中
-    newTags.forEach(tagName => {
+    newTags.forEach((tagName) => {
       if (!config.tags[tagName]) config.tags[tagName] = [];
       if (!config.tags[tagName].includes(keyToUseForTags)) {
         config.tags[tagName].push(keyToUseForTags);
@@ -608,47 +680,52 @@ function savePrompt() {
 
     // 如果 prompt key 被重命名，更新所有标签中的引用
     if (!isNewPrompt.value && newKey !== oldKey) {
-      Object.keys(config.tags).forEach(tagName => {
+      Object.keys(config.tags).forEach((tagName) => {
         const index = config.tags[tagName].indexOf(oldKey);
         if (index > -1) {
           config.tags[tagName][index] = newKey;
         }
       });
     }
-
   }, true);
 
   showPromptEditDialog.value = false;
 }
 
 function deletePrompt(promptKeyToDelete) {
-  atomicSave(config => {
+  atomicSave((config) => {
     if (!config.prompts[promptKeyToDelete]) return;
     delete config.prompts[promptKeyToDelete];
-    Object.keys(config.tags).forEach(tagName => {
-      config.tags[tagName] = config.tags[tagName].filter(pk => pk !== promptKeyToDelete);
+    Object.keys(config.tags).forEach((tagName) => {
+      config.tags[tagName] = config.tags[tagName].filter((pk) => pk !== promptKeyToDelete);
     });
   }, true);
 }
 
 function removePromptFromTag(tagName, promptKey) {
-  atomicSave(config => {
+  atomicSave((config) => {
     if (config.tags[tagName]) {
-      config.tags[tagName] = config.tags[tagName].filter(pk => pk !== promptKey);
+      config.tags[tagName] = config.tags[tagName].filter((pk) => pk !== promptKey);
     }
   });
 }
 
 function changePromptOrderInTag(tagName, promptKey, direction) {
-  atomicSave(config => {
+  atomicSave((config) => {
     const tagPrompts = config.tags[tagName];
     if (!tagPrompts) return;
     const currentIndex = tagPrompts.indexOf(promptKey);
 
     if (direction === 'left' && currentIndex > 0) {
-      [tagPrompts[currentIndex], tagPrompts[currentIndex - 1]] = [tagPrompts[currentIndex - 1], tagPrompts[currentIndex]];
+      [tagPrompts[currentIndex], tagPrompts[currentIndex - 1]] = [
+        tagPrompts[currentIndex - 1],
+        tagPrompts[currentIndex],
+      ];
     } else if (direction === 'right' && currentIndex < tagPrompts.length - 1) {
-      [tagPrompts[currentIndex], tagPrompts[currentIndex + 1]] = [tagPrompts[currentIndex + 1], tagPrompts[currentIndex]];
+      [tagPrompts[currentIndex], tagPrompts[currentIndex + 1]] = [
+        tagPrompts[currentIndex + 1],
+        tagPrompts[currentIndex],
+      ];
     }
   });
 }
@@ -656,7 +733,7 @@ function changePromptOrderInTag(tagName, promptKey, direction) {
 async function handlePromptEnableChange(promptKey, value) {
   try {
     await window.api.saveSetting(`prompts.${promptKey}.enable`, value);
-    atomicSave(config => { }, true);
+    atomicSave((config) => {}, true);
   } catch (e) {
     ElMessage.error(t('prompts.alerts.saveSettingFailed'));
     currentConfig.value.prompts[promptKey].enable = !value;
@@ -680,12 +757,12 @@ function openAssignPromptDialog(tagName) {
 
 function assignSelectedPromptsToTag() {
   const tagName = assignPromptForm.targetTagName;
-  atomicSave(config => {
+  atomicSave((config) => {
     if (!tagName || !config.tags[tagName]) {
       ElMessage.warning(t('prompts.alerts.targetTagNotFound'));
       return;
     }
-    assignPromptForm.selectedPromptKeys.forEach(promptKey => {
+    assignPromptForm.selectedPromptKeys.forEach((promptKey) => {
       if (!config.tags[tagName].includes(promptKey)) {
         config.tags[tagName].push(promptKey);
       }
@@ -707,11 +784,16 @@ function formatDescription(text) {
 function getTypeDisplay(type) {
   if (!type) return '';
   switch (type) {
-    case 'general': return t('prompts.typeOptions.general');
-    case 'over': return t('prompts.typeOptions.text');
-    case 'img': return t('prompts.typeOptions.image');
-    case 'files': return t('prompts.typeOptions.files');
-    default: return type;
+    case 'general':
+      return t('prompts.typeOptions.general');
+    case 'over':
+      return t('prompts.typeOptions.text');
+    case 'img':
+      return t('prompts.typeOptions.image');
+    case 'files':
+      return t('prompts.typeOptions.files');
+    default:
+      return type;
   }
 }
 
@@ -735,16 +817,23 @@ const handleIconUpload = (file) => {
   return false;
 };
 
-const removeEditingIcon = () => { editingPrompt.icon = ""; };
+const removeEditingIcon = () => {
+  editingPrompt.icon = '';
+};
 
 const downloadEditingIcon = () => {
-  if (!editingPrompt.icon) { ElMessage.warning(t('prompts.alerts.noIconToDownload')); return; }
+  if (!editingPrompt.icon) {
+    ElMessage.warning(t('prompts.alerts.noIconToDownload'));
+    return;
+  }
   const link = document.createElement('a');
   link.href = editingPrompt.icon;
   const matches = editingPrompt.icon.match(/^data:image\/([a-zA-Z+]+);base64,/);
   const extension = matches && matches[1] ? matches[1].replace('svg+xml', 'svg') : 'png';
   link.download = `icon.${extension}`;
-  document.body.appendChild(link); link.click(); document.body.removeChild(link);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 
 // 打开替换模型弹窗的函数
@@ -768,8 +857,8 @@ async function replaceModels() {
 
   let updatedCount = 0;
   // 使用 await 等待 atomicSave 完成
-  await atomicSave(config => {
-    Object.values(config.prompts).forEach(prompt => {
+  await atomicSave((config) => {
+    Object.values(config.prompts).forEach((prompt) => {
       if (prompt.model === sourceModel) {
         prompt.model = targetModel;
         updatedCount++;
@@ -792,7 +881,7 @@ async function refreshPromptsConfig() {
       throw new Error(t('prompts.alerts.configInvalid'));
     }
   } catch (error) {
-    console.error("刷新配置失败:", error);
+    console.error('刷新配置失败:', error);
     ElMessage.error(t('prompts.alerts.refreshFailed'));
   }
 }
@@ -803,12 +892,20 @@ async function refreshPromptsConfig() {
     <el-scrollbar class="main-content-scrollbar">
       <div class="content-wrapper">
         <div class="search-bar-container">
-          <el-input v-model="searchQueries[activeTabName]" :placeholder="t('prompts.searchPlaceholder')" :prefix-icon="Search" clearable />
+          <el-input
+            v-model="searchQueries[activeTabName]"
+            :placeholder="t('prompts.searchPlaceholder')"
+            :prefix-icon="Search"
+            clearable
+          />
         </div>
 
         <div class="prompts-header">
-          <div class="custom-all-tab" :class="{ 'is-active': activeTabName === '__ALL_PROMPTS__' }"
-            @click="activeTabName = '__ALL_PROMPTS__'">
+          <div
+            class="custom-all-tab"
+            :class="{ 'is-active': activeTabName === '__ALL_PROMPTS__' }"
+            @click="activeTabName = '__ALL_PROMPTS__'"
+          >
             <div class="tab-label-multiline">
               <span class="tab-name">{{ t('prompts.allPrompts') }}</span>
               <span class="tab-count">({{ allEnabledPromptsCount }} / {{ allPromptsCount }})</span>
@@ -820,77 +917,160 @@ async function refreshPromptsConfig() {
               <template #label>
                 <div class="tab-label-multiline">
                   <span class="tab-name">{{ tagName }}</span>
-                  <span class="tab-count">({{ tagEabledPromptsCount(tagName) }} / {{ currentConfig.tags[tagName]?.length ||
-                    0 }})</span>
+                  <span class="tab-count"
+                    >({{ tagEabledPromptsCount(tagName) }} /
+                    {{ currentConfig.tags[tagName]?.length || 0 }})</span
+                  >
                 </div>
               </template>
             </el-tab-pane>
           </el-tabs>
 
           <div class="tab-actions">
-            <el-tooltip v-if="activeTabName === '__ALL_PROMPTS__'"
-              :content="areAllPromptsEnabled ? t('prompts.disableAll') : t('prompts.enableAll')">
-              <el-switch :model-value="areAllPromptsEnabled" @change="(value) => toggleAllPrompts(value)"
-                class="tag-enable-toggle" />
+            <el-tooltip
+              v-if="activeTabName === '__ALL_PROMPTS__'"
+              :content="areAllPromptsEnabled ? t('prompts.disableAll') : t('prompts.enableAll')"
+            >
+              <el-switch
+                :model-value="areAllPromptsEnabled"
+                @change="(value) => toggleAllPrompts(value)"
+                class="tag-enable-toggle"
+              />
             </el-tooltip>
-            <el-tooltip v-else
-              :content="areAllPromptsInTagEnabled(activeTabName) ? t('prompts.disableAll') : t('prompts.enableAll')">
-              <el-switch :model-value="areAllPromptsInTagEnabled(activeTabName)"
-                @change="(value) => toggleAllPromptsInTag(activeTabName, value)" class="tag-enable-toggle"
-                :disabled="!currentConfig.tags[activeTabName] || currentConfig.tags[activeTabName].length === 0" />
+            <el-tooltip
+              v-else
+              :content="
+                areAllPromptsInTagEnabled(activeTabName)
+                  ? t('prompts.disableAll')
+                  : t('prompts.enableAll')
+              "
+            >
+              <el-switch
+                :model-value="areAllPromptsInTagEnabled(activeTabName)"
+                @change="(value) => toggleAllPromptsInTag(activeTabName, value)"
+                class="tag-enable-toggle"
+                :disabled="
+                  !currentConfig.tags[activeTabName] ||
+                  currentConfig.tags[activeTabName].length === 0
+                "
+              />
             </el-tooltip>
 
             <el-tooltip :content="t('prompts.addExistingPrompt')" placement="top">
-              <el-button class="circle-action-btn" size="small" :icon="Plus" circle
+              <el-button
+                class="circle-action-btn"
+                size="small"
+                :icon="Plus"
+                circle
                 @click="openAssignPromptDialog(activeTabName)"
-                :disabled="activeTabName === '__ALL_PROMPTS__' || !promptsAvailableToAssign(activeTabName) || promptsAvailableToAssign(activeTabName).length === 0" />
+                :disabled="
+                  activeTabName === '__ALL_PROMPTS__' ||
+                  !promptsAvailableToAssign(activeTabName) ||
+                  promptsAvailableToAssign(activeTabName).length === 0
+                "
+              />
             </el-tooltip>
 
-            <el-button :icon="Delete" circle size="small" @click.stop="deleteTag(activeTabName)"
-              class="circle-action-btn" :disabled="activeTabName === '__ALL_PROMPTS__'" />
+            <el-button
+              :icon="Delete"
+              circle
+              size="small"
+              @click.stop="deleteTag(activeTabName)"
+              class="circle-action-btn"
+              :disabled="activeTabName === '__ALL_PROMPTS__'"
+            />
           </div>
         </div>
 
         <div class="prompts-grid-container">
           <div v-if="!activeTabPrompts.length" class="empty-tag-message">
-            <el-text type="info" size="small">{{ activeTabName === '__ALL_PROMPTS__' ? t('prompts.noPrompts') :
-              t('prompts.noPromptsInTag') }}</el-text>
+            <el-text type="info" size="small">{{
+              activeTabName === '__ALL_PROMPTS__'
+                ? t('prompts.noPrompts')
+                : t('prompts.noPromptsInTag')
+            }}</el-text>
           </div>
-          <div v-for="item in getFilteredPrompts(activeTabPrompts, searchQueries[activeTabName])" :key="item.key"
-            class="prompt-card">
+          <div
+            v-for="item in getFilteredPrompts(activeTabPrompts, searchQueries[activeTabName])"
+            :key="item.key"
+            class="prompt-card"
+          >
             <div class="prompt-card-header">
-              <el-avatar v-if="item.icon" :src="item.icon" shape="square" :size="32" class="prompt-card-icon" />
+              <el-avatar
+                v-if="item.icon"
+                :src="item.icon"
+                shape="square"
+                :size="32"
+                class="prompt-card-icon"
+              />
               <el-icon v-else :size="20" class="prompt-card-icon-default">
                 <Position />
               </el-icon>
               <div class="prompt-card-title-group">
-                <span class="prompt-name" @click="prepareEditPrompt(item.key, activeTabName)">{{ item.key }}</span>
+                <span class="prompt-name" @click="prepareEditPrompt(item.key, activeTabName)">{{
+                  item.key
+                }}</span>
               </div>
               <div class="prompt-card-header-actions">
-                <el-tooltip v-if="item.showMode === 'window' && item.enable" :content="t('prompts.openWindow')"
-                  placement="top">
-                  <el-button :icon="MessageSquareShare" circle text @click.stop="openPromptWindow(item.key)"
-                    class="action-btn-compact" />
+                <el-tooltip
+                  v-if="item.showMode === 'window' && item.enable"
+                  :content="t('prompts.openWindow')"
+                  placement="top"
+                >
+                  <el-button
+                    :icon="MessageSquareShare"
+                    circle
+                    text
+                    @click.stop="openPromptWindow(item.key)"
+                    class="action-btn-compact"
+                  />
                 </el-tooltip>
-                <el-switch v-model="item.enable" @change="(value) => handlePromptEnableChange(item.key, value)"
-                  size="small" class="prompt-enable-toggle" />
+                <el-switch
+                  v-model="item.enable"
+                  @change="(value) => handlePromptEnableChange(item.key, value)"
+                  size="small"
+                  class="prompt-enable-toggle"
+                />
               </div>
             </div>
             <div class="prompt-card-body">
-              <p class="prompt-description" @click="prepareEditPrompt(item.key, activeTabName)">{{ formatDescription(item.prompt) }}</p>
+              <p class="prompt-description" @click="prepareEditPrompt(item.key, activeTabName)">
+                {{ formatDescription(item.prompt) }}
+              </p>
             </div>
             <div class="prompt-card-footer">
               <div class="prompt-tags">
-                <el-tag v-if="item.type" size="small" type="info">{{ getTypeDisplay(item.type) }}</el-tag>
-                <el-tag v-if="item.showMode === 'window'" size="small">{{ t('prompts.showModeOptions.window') }}</el-tag>
-                <el-tag v-if="item.showMode === 'fastinput'" size="small">{{ t('prompts.showModeOptions.fastinput') }}</el-tag>
+                <el-tag v-if="item.type" size="small" type="info">{{
+                  getTypeDisplay(item.type)
+                }}</el-tag>
+                <el-tag v-if="item.showMode === 'window'" size="small">{{
+                  t('prompts.showModeOptions.window')
+                }}</el-tag>
+                <el-tag v-if="item.showMode === 'fastinput'" size="small">{{
+                  t('prompts.showModeOptions.fastinput')
+                }}</el-tag>
               </div>
               <div class="prompt-actions">
-                <el-button v-if="activeTabName !== '__ALL_PROMPTS__'" :icon="Close" text circle
-                  size="small" @click="removePromptFromTag(activeTabName, item.key)"
-                  :title="t('prompts.tooltips.removeFromTag')" class="action-btn-compact" />
-                <el-button v-else :icon="Delete" text circle size="small" @click="deletePrompt(item.key)"
-                  :title="t('prompts.deletePrompt')" class="action-btn-compact" />
+                <el-button
+                  v-if="activeTabName !== '__ALL_PROMPTS__'"
+                  :icon="Close"
+                  text
+                  circle
+                  size="small"
+                  @click="removePromptFromTag(activeTabName, item.key)"
+                  :title="t('prompts.tooltips.removeFromTag')"
+                  class="action-btn-compact"
+                />
+                <el-button
+                  v-else
+                  :icon="Delete"
+                  text
+                  circle
+                  size="small"
+                  @click="deletePrompt(item.key)"
+                  :title="t('prompts.deletePrompt')"
+                  class="action-btn-compact"
+                />
               </div>
             </div>
           </div>
@@ -908,22 +1088,54 @@ async function refreshPromptsConfig() {
       <el-button class="action-btn" @click="prepareReplaceModels" :icon="Switch">
         {{ t('prompts.replaceModels') }}
       </el-button>
-      <el-button class="refresh-fab-button circle-action-btn" :icon="Refresh" circle @click="refreshPromptsConfig" />
+      <el-button
+        class="refresh-fab-button circle-action-btn"
+        :icon="Refresh"
+        circle
+        @click="refreshPromptsConfig"
+      />
     </div>
 
-    <el-dialog v-model="showPromptEditDialog" :title="isNewPrompt ? t('prompts.addNewPrompt') : t('prompts.editPrompt')"
-      width="700px" :close-on-click-modal="false" top="5vh" custom-class="edit-prompt-dialog" append-to-body>
+    <el-dialog
+      v-model="showPromptEditDialog"
+      :title="isNewPrompt ? t('prompts.addNewPrompt') : t('prompts.editPrompt')"
+      width="700px"
+      :close-on-click-modal="false"
+      top="5vh"
+      custom-class="edit-prompt-dialog"
+      append-to-body
+    >
       <el-scrollbar max-height="60vh" class="prompt-dialog-scrollbar">
         <el-form :model="editingPrompt" @submit.prevent="savePrompt" class="edit-prompt-form">
           <div class="top-section-grid">
             <div class="icon-area">
-              <div class="icon-editor-area" @paste="handleIconPaste" tabindex="0" style="outline: none;">
-                <el-upload class="icon-uploader" action="#" drag :show-file-list="false"
-                  :before-upload="handleIconUploadChange" accept="image/png, image/jpeg, image/webp"
-                  @drop.prevent="handleIconDrop" @dragover.prevent>
+              <div
+                class="icon-editor-area"
+                @paste="handleIconPaste"
+                tabindex="0"
+                style="outline: none"
+              >
+                <el-upload
+                  class="icon-uploader"
+                  action="#"
+                  drag
+                  :show-file-list="false"
+                  :before-upload="handleIconUploadChange"
+                  accept="image/png, image/jpeg, image/webp"
+                  @drop.prevent="handleIconDrop"
+                  @dragover.prevent
+                >
                   <template v-if="editingPrompt.icon">
-                    <el-avatar :src="editingPrompt.icon" shape="square" :size="64" class="uploaded-icon-avatar" />
-                    <div class="icon-hover-mask" @click.stop.prevent="openIconEditor(editingPrompt.icon)">
+                    <el-avatar
+                      :src="editingPrompt.icon"
+                      shape="square"
+                      :size="64"
+                      class="uploaded-icon-avatar"
+                    />
+                    <div
+                      class="icon-hover-mask"
+                      @click.stop.prevent="openIconEditor(editingPrompt.icon)"
+                    >
                       <el-icon>
                         <Edit />
                       </el-icon>
@@ -934,8 +1146,16 @@ async function refreshPromptsConfig() {
                       <el-icon :size="20">
                         <UploadFilled />
                       </el-icon>
-                      <div class="icon-upload-text"
-                        style="font-size: 10px; margin-top: 4px; color: var(--text-tertiary); line-height: 1.2; white-space: pre-line;">
+                      <div
+                        class="icon-upload-text"
+                        style="
+                          font-size: 10px;
+                          margin-top: 4px;
+                          color: var(--text-tertiary);
+                          line-height: 1.2;
+                          white-space: pre-line;
+                        "
+                      >
                         {{ t('prompts.icon.uploadText') }}
                       </div>
                     </div>
@@ -943,14 +1163,22 @@ async function refreshPromptsConfig() {
                 </el-upload>
 
                 <div class="icon-button-group">
-                  <el-button class="icon-action-button" size="small" @click="downloadEditingIcon"
-                    :title="t('prompts.icon.downloadTooltip')">
+                  <el-button
+                    class="icon-action-button"
+                    size="small"
+                    @click="downloadEditingIcon"
+                    :title="t('prompts.icon.downloadTooltip')"
+                  >
                     <el-icon>
                       <Download />
                     </el-icon>
                   </el-button>
-                  <el-button class="icon-action-button" size="small" @click="removeEditingIcon"
-                    :title="t('prompts.icon.removeTooltip')">
+                  <el-button
+                    class="icon-action-button"
+                    size="small"
+                    @click="removeEditingIcon"
+                    :title="t('prompts.icon.removeTooltip')"
+                  >
                     <el-icon>
                       <Delete />
                     </el-icon>
@@ -960,7 +1188,9 @@ async function refreshPromptsConfig() {
             </div>
             <div class="form-fields-area">
               <div class="form-grid">
-                <label for="promptName" class="el-form-item__label">{{ t('prompts.promptKeyLabelShort', '名称') }}</label>
+                <label for="promptName" class="el-form-item__label">{{
+                  t('prompts.promptKeyLabelShort', '名称')
+                }}</label>
                 <el-form-item prop="key" class="grid-item no-margin">
                   <el-input id="promptName" v-model="editingPrompt.key" />
                 </el-form-item>
@@ -969,11 +1199,11 @@ async function refreshPromptsConfig() {
                   <el-switch v-model="editingPrompt.enable" />
                 </div>
 
-                <div style="grid-column: 1 / 4;">
+                <div style="grid-column: 1 / 4">
                   <el-row :gutter="12">
                     <el-col :span="12">
                       <el-form-item :label="t('prompts.typeLabel')">
-                        <el-select v-model="editingPrompt.type" style="width: 100%;">
+                        <el-select v-model="editingPrompt.type" style="width: 100%">
                           <el-option :label="t('prompts.typeOptions.general')" value="general" />
                           <el-option :label="t('prompts.typeOptions.text')" value="over" />
                           <el-option :label="t('prompts.typeOptions.image')" value="img" />
@@ -983,8 +1213,11 @@ async function refreshPromptsConfig() {
                     </el-col>
                     <el-col :span="12">
                       <el-form-item :label="t('prompts.showModeLabel')">
-                        <el-select v-model="editingPrompt.showMode" style="width: 100%;">
-                          <el-option :label="t('prompts.showModeOptions.fastinput')" value="fastinput" />
+                        <el-select v-model="editingPrompt.showMode" style="width: 100%">
+                          <el-option
+                            :label="t('prompts.showModeOptions.fastinput')"
+                            value="fastinput"
+                          />
                           <el-option :label="t('prompts.showModeOptions.window')" value="window" />
                         </el-select>
                       </el-form-item>
@@ -995,26 +1228,37 @@ async function refreshPromptsConfig() {
                       <span>{{ t('prompts.regex.label') }}</span>
                       <el-tooltip placement="right" raw-content>
                         <template #content>
-                          <div style="max-width: 350px; line-height: 1.6;" v-html="t('prompts.regex.tooltip')
-                            .replace(/(\d+\.\s)/g, '<br/>$1')
-                            .replace(/(•)/g, '<br/>&nbsp;&nbsp;$1')
-                            .replace(/(常用符号速查:|Quick Reference:)/g, '<br/><br/><b>$1</b>')">
-                          </div>
+                          <div
+                            style="max-width: 350px; line-height: 1.6"
+                            v-html="
+                              t('prompts.regex.tooltip')
+                                .replace(/(\d+\.\s)/g, '<br/>$1')
+                                .replace(/(•)/g, '<br/>&nbsp;&nbsp;$1')
+                                .replace(/(常用符号速查:|Quick Reference:)/g, '<br/><br/><b>$1</b>')
+                            "
+                          ></div>
                         </template>
-                        <el-icon class="tip-icon" style="margin-left: 4px;">
+                        <el-icon class="tip-icon" style="margin-left: 4px">
                           <QuestionFilled />
                         </el-icon>
                       </el-tooltip>
                     </template>
-                    <el-input v-model="editingPrompt.matchRegex" :placeholder="t('prompts.regex.placeholder')" />
+                    <el-input
+                      v-model="editingPrompt.matchRegex"
+                      :placeholder="t('prompts.regex.placeholder')"
+                    />
                   </el-form-item>
                 </div>
 
                 <label class="el-form-item__label">{{ t('prompts.modelLabel') }}</label>
                 <el-form-item class="grid-item full-width no-margin">
-                  <el-select v-model="editingPrompt.model" filterable clearable style="width: 100%;">
-                    <el-option v-for="item in availableModels" :key="item.value" :label="item.label"
-                      :value="item.value" />
+                  <el-select v-model="editingPrompt.model" filterable clearable style="width: 100%">
+                    <el-option
+                      v-for="item in availableModels"
+                      :key="item.value"
+                      :label="item.label"
+                      :value="item.value"
+                    />
                   </el-select>
                 </el-form-item>
               </div>
@@ -1025,21 +1269,36 @@ async function refreshPromptsConfig() {
             <el-col :span="12">
               <el-form-item :label="t('prompts.promptContentLabel')" label-position="top">
                 <el-scrollbar max-height="150px" class="prompt-textarea-scrollbar">
-                  <el-input v-model="editingPrompt.prompt" type="textarea" :autosize="{ minRows: 6 }" resize="none"
-                    :placeholder="t('prompts.inputPlaceholder')" />
+                  <el-input
+                    v-model="editingPrompt.prompt"
+                    type="textarea"
+                    :autosize="{ minRows: 6 }"
+                    resize="none"
+                    :placeholder="t('prompts.inputPlaceholder')"
+                  />
                 </el-scrollbar>
               </el-form-item>
               <el-form-item label-position="top">
                 <template #label>
                   <div>
                     {{ t('prompts.llmParametersLabel') }}
-                    <div class="form-item-subtitle">{{ t('prompts.llmParametersRemark', '（仅当前快捷助手模型生效，更换其他模型后不再生效）') }}
+                    <div class="form-item-subtitle">
+                      {{
+                        t(
+                          'prompts.llmParametersRemark',
+                          '（仅当前快捷助手模型生效，更换其他模型后不再生效）',
+                        )
+                      }}
                     </div>
                   </div>
                 </template>
                 <div class="llm-params-container">
-                  <div class="param-item"
-                    v-if="editingPrompt.showMode === 'window' || editingPrompt.showMode === 'fastinput'">
+                  <div
+                    class="param-item"
+                    v-if="
+                      editingPrompt.showMode === 'window' || editingPrompt.showMode === 'fastinput'
+                    "
+                  >
                     <span class="param-label">{{ t('prompts.streamLabel') }}</span>
                     <div class="spacer"></div>
                     <el-switch v-model="editingPrompt.stream" />
@@ -1051,12 +1310,16 @@ async function refreshPromptsConfig() {
                   </div>
                   <div class="param-item reasoning-effort-param">
                     <span class="param-label">{{ t('prompts.reasoningEffortLabel') }}</span>
-                    <el-tooltip :content="t('prompts.tooltips.reasoningEffort')" placement="top"><el-icon
-                        class="tip-icon">
-                        <QuestionFilled />
-                      </el-icon></el-tooltip>
+                    <el-tooltip :content="t('prompts.tooltips.reasoningEffort')" placement="top"
+                      ><el-icon class="tip-icon">
+                        <QuestionFilled /> </el-icon
+                    ></el-tooltip>
                     <div class="spacer"></div>
-                    <el-select v-model="editingPrompt.reasoning_effort" size="small" style="width: 120px;">
+                    <el-select
+                      v-model="editingPrompt.reasoning_effort"
+                      size="small"
+                      style="width: 120px"
+                    >
                       <el-option :label="t('prompts.reasoningEffort.default')" value="default" />
                       <el-option :label="t('prompts.reasoningEffort.low')" value="low" />
                       <el-option :label="t('prompts.reasoningEffort.medium')" value="medium" />
@@ -1065,9 +1328,19 @@ async function refreshPromptsConfig() {
                   </div>
                 </div>
               </el-form-item>
-              <el-form-item v-if="editingPrompt.isTemperature" :label="t('prompts.temperatureLabel')"
-                label-position="top" class="slider-form-item">
-                <el-slider v-model="editingPrompt.temperature" :min="0" :max="2" :step="0.1" show-input />
+              <el-form-item
+                v-if="editingPrompt.isTemperature"
+                :label="t('prompts.temperatureLabel')"
+                label-position="top"
+                class="slider-form-item"
+              >
+                <el-slider
+                  v-model="editingPrompt.temperature"
+                  :min="0"
+                  :max="2"
+                  :step="0.1"
+                  show-input
+                />
               </el-form-item>
             </el-col>
 
@@ -1076,133 +1349,215 @@ async function refreshPromptsConfig() {
                 <div class="llm-params-container full-height">
                   <div class="param-item">
                     <span class="param-label">{{ t('prompts.sendDirectLabel') }}</span>
-                    <el-tooltip :content="t('prompts.tooltips.sendDirect')" placement="top"><el-icon class="tip-icon">
-                        <QuestionFilled />
-                      </el-icon></el-tooltip>
+                    <el-tooltip :content="t('prompts.tooltips.sendDirect')" placement="top"
+                      ><el-icon class="tip-icon">
+                        <QuestionFilled /> </el-icon
+                    ></el-tooltip>
                     <div class="spacer"></div>
                     <el-switch v-model="editingPrompt.isDirectSend_normal" />
                   </div>
                   <div class="param-item">
                     <span class="param-label">{{ t('prompts.sendFileLabel') }}</span>
-                    <el-tooltip :content="t('prompts.tooltips.sendFile')" placement="top"><el-icon class="tip-icon">
-                        <QuestionFilled />
-                      </el-icon></el-tooltip>
+                    <el-tooltip :content="t('prompts.tooltips.sendFile')" placement="top"
+                      ><el-icon class="tip-icon">
+                        <QuestionFilled /> </el-icon
+                    ></el-tooltip>
                     <div class="spacer"></div>
                     <el-switch v-model="editingPrompt.isDirectSend_file" />
                   </div>
                   <div class="param-item">
                     <span class="param-label">{{ t('prompts.ifTextNecessary') }}</span>
-                    <el-tooltip :content="t('prompts.tooltips.ifTextNecessary')" placement="top"><el-icon
-                        class="tip-icon">
-                        <QuestionFilled />
-                      </el-icon></el-tooltip>
+                    <el-tooltip :content="t('prompts.tooltips.ifTextNecessary')" placement="top"
+                      ><el-icon class="tip-icon">
+                        <QuestionFilled /> </el-icon
+                    ></el-tooltip>
                     <div class="spacer"></div>
                     <el-switch v-model="editingPrompt.ifTextNecessary" />
                   </div>
                   <div v-if="editingPrompt.showMode === 'window'" class="param-item">
                     <span class="param-label">{{ t('prompts.isAlwaysOnTopLabel') }}</span>
-                    <el-tooltip :content="t('prompts.tooltips.isAlwaysOnTopTooltip')" placement="top"><el-icon
-                        class="tip-icon">
-                        <QuestionFilled />
-                      </el-icon></el-tooltip>
+                    <el-tooltip
+                      :content="t('prompts.tooltips.isAlwaysOnTopTooltip')"
+                      placement="top"
+                      ><el-icon class="tip-icon">
+                        <QuestionFilled /> </el-icon
+                    ></el-tooltip>
                     <div class="spacer"></div>
                     <el-switch v-model="editingPrompt.isAlwaysOnTop" />
                   </div>
                   <div v-if="editingPrompt.showMode === 'window'" class="param-item">
                     <span class="param-label">{{ t('prompts.autoCloseOnBlurLabel') }}</span>
-                    <el-tooltip :content="t('prompts.tooltips.autoCloseOnBlurTooltip')" placement="top"><el-icon
-                        class="tip-icon">
-                        <QuestionFilled />
-                      </el-icon></el-tooltip>
+                    <el-tooltip
+                      :content="t('prompts.tooltips.autoCloseOnBlurTooltip')"
+                      placement="top"
+                      ><el-icon class="tip-icon">
+                        <QuestionFilled /> </el-icon
+                    ></el-tooltip>
                     <div class="spacer"></div>
                     <el-switch v-model="editingPrompt.autoCloseOnBlur" />
                   </div>
                   <div v-if="editingPrompt.showMode === 'window'" class="param-item">
                     <span class="param-label">{{ t('prompts.autoSaveChatLabel') }}</span>
-                    <el-tooltip :content="t('prompts.tooltips.autoSaveChatTooltip')" placement="top"><el-icon
-                        class="tip-icon">
-                        <QuestionFilled />
-                      </el-icon></el-tooltip>
+                    <el-tooltip :content="t('prompts.tooltips.autoSaveChatTooltip')" placement="top"
+                      ><el-icon class="tip-icon">
+                        <QuestionFilled /> </el-icon
+                    ></el-tooltip>
                     <div class="spacer"></div>
                     <el-switch v-model="editingPrompt.autoSaveChat" />
                   </div>
 
                   <div class="param-item voice-param">
                     <span class="param-label">{{ t('prompts.voiceLabel') }}</span>
-                    <el-tooltip :content="t('prompts.voiceTooltip')" placement="top"><el-icon class="tip-icon">
-                        <QuestionFilled />
-                      </el-icon></el-tooltip>
+                    <el-tooltip :content="t('prompts.voiceTooltip')" placement="top"
+                      ><el-icon class="tip-icon">
+                        <QuestionFilled /> </el-icon
+                    ></el-tooltip>
                     <div class="spacer"></div>
-                    <el-select v-model="editingPrompt.voice" :placeholder="t('prompts.voicePlaceholder')" clearable
-                      size="small" style="width: 120px;">
-                      <el-option v-for="item in availableVoices" :key="item.value" :label="item.label"
-                        :value="item.value" />
+                    <el-select
+                      v-model="editingPrompt.voice"
+                      :placeholder="t('prompts.voicePlaceholder')"
+                      clearable
+                      size="small"
+                      style="width: 120px"
+                    >
+                      <el-option
+                        v-for="item in availableVoices"
+                        :key="item.value"
+                        :label="item.label"
+                        :value="item.value"
+                      />
                     </el-select>
                   </div>
                   <div v-if="editingPrompt.showMode === 'window'" class="param-item">
                     <span class="param-label">{{ t('prompts.defaultMcpServersLabel') }}</span>
-                    <el-tooltip :content="t('prompts.tooltips.defaultMcpServers')" placement="top"><el-icon
-                        class="tip-icon">
-                        <QuestionFilled />
-                      </el-icon></el-tooltip>
+                    <el-tooltip :content="t('prompts.tooltips.defaultMcpServers')" placement="top"
+                      ><el-icon class="tip-icon">
+                        <QuestionFilled /> </el-icon
+                    ></el-tooltip>
                     <div class="spacer"></div>
-                    <el-select v-model="editingPrompt.defaultMcpServers" multiple filterable clearable
-                      :reserve-keyword="false" :placeholder="t('prompts.defaultMcpServersPlaceholder')"
-                      style="width: 100%;">
-                      <el-option v-for="server in availableMcpServers" :key="server.value" :label="server.label"
-                        :value="server.value" />
+                    <el-select
+                      v-model="editingPrompt.defaultMcpServers"
+                      multiple
+                      filterable
+                      clearable
+                      :reserve-keyword="false"
+                      :placeholder="t('prompts.defaultMcpServersPlaceholder')"
+                      style="width: 100%"
+                    >
+                      <el-option
+                        v-for="server in availableMcpServers"
+                        :key="server.value"
+                        :label="server.label"
+                        :value="server.value"
+                      />
                     </el-select>
                   </div>
                   <div v-if="editingPrompt.showMode === 'window'" class="param-item">
                     <span class="param-label">{{ t('prompts.defaultSkillsLabel') }}</span>
-                    <el-tooltip :content="t('prompts.tooltips.defaultSkills')" placement="top"><el-icon
-                        class="tip-icon">
-                        <QuestionFilled />
-                      </el-icon></el-tooltip>
+                    <el-tooltip :content="t('prompts.tooltips.defaultSkills')" placement="top"
+                      ><el-icon class="tip-icon">
+                        <QuestionFilled /> </el-icon
+                    ></el-tooltip>
                     <div class="spacer"></div>
-                    <el-select v-model="editingPrompt.defaultSkills" multiple filterable clearable
-                      :reserve-keyword="false" :placeholder="t('prompts.defaultSkillsPlaceholder')"
-                      style="width: 100%;">
-                      <el-option v-for="skill in availableSkills" :key="skill.name" :label="skill.name"
-                        :value="skill.name" />
+                    <el-select
+                      v-model="editingPrompt.defaultSkills"
+                      multiple
+                      filterable
+                      clearable
+                      :reserve-keyword="false"
+                      :placeholder="t('prompts.defaultSkillsPlaceholder')"
+                      style="width: 100%"
+                    >
+                      <el-option
+                        v-for="skill in availableSkills"
+                        :key="skill.name"
+                        :label="skill.name"
+                        :value="skill.name"
+                      />
                     </el-select>
                   </div>
-                  <div v-if="editingPrompt.showMode === 'window'" class="param-item"
-                    style="align-items: flex-start; margin-top: 10px;">
-                    <div style="width: 100%;">
-                      <div style="display: flex; align-items: center; margin-bottom: 5px;">
+                  <div
+                    v-if="editingPrompt.showMode === 'window'"
+                    class="param-item"
+                    style="align-items: flex-start; margin-top: 10px"
+                  >
+                    <div style="width: 100%">
+                      <div style="display: flex; align-items: center; margin-bottom: 5px">
                         <span class="param-label">{{ t('prompts.background.imageLabel') }}</span>
                         <div class="spacer"></div>
                       </div>
-                      <el-input v-model="editingPrompt.backgroundImage"
-                        :placeholder="t('prompts.background.imagePlaceholder')" size="small" clearable />
-                      <div v-if="editingPrompt.backgroundImage" style="margin-top: 8px;">
-                        <div style="display: flex; align-items: center; margin-bottom: 0px;">
-                          <span class="param-label" style="font-size: 12px;">{{ t('prompts.background.opacityLabel') }}:
-                            {{
-                              editingPrompt.backgroundOpacity }}</span>
+                      <el-input
+                        v-model="editingPrompt.backgroundImage"
+                        :placeholder="t('prompts.background.imagePlaceholder')"
+                        size="small"
+                        clearable
+                      />
+                      <div v-if="editingPrompt.backgroundImage" style="margin-top: 8px">
+                        <div style="display: flex; align-items: center; margin-bottom: 0px">
+                          <span class="param-label" style="font-size: 12px"
+                            >{{ t('prompts.background.opacityLabel') }}:
+                            {{ editingPrompt.backgroundOpacity }}</span
+                          >
                         </div>
-                        <el-slider v-model="editingPrompt.backgroundOpacity" :min="0.05" :max="1" :step="0.05"
-                          size="small" />
-                        <div style="display: flex; align-items: center; margin-bottom: 0px; margin-top: 4px;">
-                          <span class="param-label" style="font-size: 12px;">{{ t('prompts.background.blurLabel') }}: {{
-                            editingPrompt.backgroundBlur }}px</span>
+                        <el-slider
+                          v-model="editingPrompt.backgroundOpacity"
+                          :min="0.05"
+                          :max="1"
+                          :step="0.05"
+                          size="small"
+                        />
+                        <div
+                          style="
+                            display: flex;
+                            align-items: center;
+                            margin-bottom: 0px;
+                            margin-top: 4px;
+                          "
+                        >
+                          <span class="param-label" style="font-size: 12px"
+                            >{{ t('prompts.background.blurLabel') }}:
+                            {{ editingPrompt.backgroundBlur }}px</span
+                          >
                         </div>
-                        <el-slider v-model="editingPrompt.backgroundBlur" :min="0" :max="20" :step="1" size="small" />
+                        <el-slider
+                          v-model="editingPrompt.backgroundBlur"
+                          :min="0"
+                          :max="20"
+                          :step="1"
+                          size="small"
+                        />
                       </div>
                     </div>
                   </div>
-                  <el-row :gutter="20" v-if="editingPrompt.showMode === 'window'" class="dimensions-group-row">
+                  <el-row
+                    :gutter="20"
+                    v-if="editingPrompt.showMode === 'window'"
+                    class="dimensions-group-row"
+                  >
                     <el-col :span="12">
-                      <el-form-item :label="t('setting.dimensions.widthLabel')" label-position="top">
-                        <el-input-number v-model="editingPrompt.window_width" :min="200" controls-position="right"
-                          style="width: 100%;" />
+                      <el-form-item
+                        :label="t('setting.dimensions.widthLabel')"
+                        label-position="top"
+                      >
+                        <el-input-number
+                          v-model="editingPrompt.window_width"
+                          :min="200"
+                          controls-position="right"
+                          style="width: 100%"
+                        />
                       </el-form-item>
                     </el-col>
                     <el-col :span="12">
-                      <el-form-item :label="t('setting.dimensions.heightLabel')" label-position="top">
-                        <el-input-number v-model="editingPrompt.window_height" :min="150" controls-position="right"
-                          style="width: 100%;" />
+                      <el-form-item
+                        :label="t('setting.dimensions.heightLabel')"
+                        label-position="top"
+                      >
+                        <el-input-number
+                          v-model="editingPrompt.window_height"
+                          :min="150"
+                          controls-position="right"
+                          style="width: 100%"
+                        />
                       </el-form-item>
                     </el-col>
                   </el-row>
@@ -1212,10 +1567,20 @@ async function refreshPromptsConfig() {
           </el-row>
 
           <el-form-item :label="t('prompts.addToTagLabel')" label-position="top">
-            <el-select v-model="editingPrompt.selectedTag" :placeholder="t('prompts.addToTagPlaceholder')"
-              style="width: 100%;" multiple filterable clearable>
-              <el-option v-for="tagNameItem in sortedTagNames" :key="tagNameItem" :label="tagNameItem"
-                :value="tagNameItem" />
+            <el-select
+              v-model="editingPrompt.selectedTag"
+              :placeholder="t('prompts.addToTagPlaceholder')"
+              style="width: 100%"
+              multiple
+              filterable
+              clearable
+            >
+              <el-option
+                v-for="tagNameItem in sortedTagNames"
+                :key="tagNameItem"
+                :label="tagNameItem"
+                :value="tagNameItem"
+              />
             </el-select>
           </el-form-item>
         </el-form>
@@ -1227,35 +1592,69 @@ async function refreshPromptsConfig() {
     </el-dialog>
 
     <!-- 图标编辑器弹窗 -->
-    <el-dialog v-model="showIconEditDialog" :title="t('prompts.editPrompt')" width="400px" :close-on-click-modal="false"
-      append-to-body>
+    <el-dialog
+      v-model="showIconEditDialog"
+      :title="t('prompts.editPrompt')"
+      width="400px"
+      :close-on-click-modal="false"
+      append-to-body
+    >
       <div class="icon-edit-container">
         <div class="canvas-wrapper">
-          <canvas ref="editorCanvasRef" width="256" height="256" @mousedown="handleCanvasMouseDown"
-            @mousemove="handleCanvasMouseMove" @mouseup="handleCanvasMouseUp" @mouseleave="handleCanvasMouseUp"
-            @wheel="handleCanvasWheel"></canvas>
+          <canvas
+            ref="editorCanvasRef"
+            width="256"
+            height="256"
+            @mousedown="handleCanvasMouseDown"
+            @mousemove="handleCanvasMouseMove"
+            @mouseup="handleCanvasMouseUp"
+            @mouseleave="handleCanvasMouseUp"
+            @wheel="handleCanvasWheel"
+          ></canvas>
           <div class="canvas-hint">{{ t('prompts.iconEditor.hint') }}</div>
         </div>
 
         <div class="editor-controls">
           <div class="control-row">
             <span class="label">{{ t('prompts.iconEditor.scale') }}</span>
-            <el-slider v-model="iconEditorState.scale" :min="0.1" :max="3" :step="0.1" @input="drawEditorCanvas" />
+            <el-slider
+              v-model="iconEditorState.scale"
+              :min="0.1"
+              :max="3"
+              :step="0.1"
+              @input="drawEditorCanvas"
+            />
           </div>
           <div class="control-row">
             <span class="label">{{ t('prompts.iconEditor.radius') }}</span>
-            <el-slider v-model="iconEditorState.radius" :min="0" :max="50" :step="1" @input="drawEditorCanvas"
-              :format-tooltip="val => val + '%'" />
+            <el-slider
+              v-model="iconEditorState.radius"
+              :min="0"
+              :max="50"
+              :step="1"
+              @input="drawEditorCanvas"
+              :format-tooltip="(val) => val + '%'"
+            />
           </div>
         </div>
       </div>
       <template #footer>
-        <el-button @click="showIconEditDialog = false">{{ t('prompts.iconEditor.cancel') }}</el-button>
-        <el-button type="primary" @click="saveEditedIcon">{{ t('prompts.iconEditor.confirm') }}</el-button>
+        <el-button @click="showIconEditDialog = false">{{
+          t('prompts.iconEditor.cancel')
+        }}</el-button>
+        <el-button type="primary" @click="saveEditedIcon">{{
+          t('prompts.iconEditor.confirm')
+        }}</el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="showAddTagDialog" :title="t('prompts.addNewTag')" width="400px" :close-on-click-modal="false" append-to-body>
+    <el-dialog
+      v-model="showAddTagDialog"
+      :title="t('prompts.addNewTag')"
+      width="400px"
+      :close-on-click-modal="false"
+      append-to-body
+    >
       <el-form @submit.prevent="addTag">
         <el-form-item :label="t('prompts.tagNameLabel')" required>
           <el-input v-model="newTagName" />
@@ -1267,44 +1666,90 @@ async function refreshPromptsConfig() {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="showAssignPromptDialog"
-      :title="t('prompts.assignPromptsToTag', { tagName: assignPromptForm.targetTagName })" width="600px"
-      :close-on-click-modal="false" append-to-body>
+    <el-dialog
+      v-model="showAssignPromptDialog"
+      :title="t('prompts.assignPromptsToTag', { tagName: assignPromptForm.targetTagName })"
+      width="600px"
+      :close-on-click-modal="false"
+      append-to-body
+    >
       <el-form :model="assignPromptForm" label-position="top">
         <el-form-item :label="t('prompts.selectPromptsToAddLabel')">
-          <el-alert v-if="!promptsAvailableToAssign(assignPromptForm.targetTagName).length"
-            :title="t('prompts.alerts.noPromptsToAssign')" type="info" :closable="false" show-icon />
-          <el-select v-else v-model="assignPromptForm.selectedPromptKeys" multiple filterable
-            :placeholder="t('prompts.selectPromptsPlaceholder')" style="width: 100%;">
-            <el-option v-for="item in promptsAvailableToAssign(assignPromptForm.targetTagName)" :key="item.key"
-              :label="item.label" :value="item.key" />
+          <el-alert
+            v-if="!promptsAvailableToAssign(assignPromptForm.targetTagName).length"
+            :title="t('prompts.alerts.noPromptsToAssign')"
+            type="info"
+            :closable="false"
+            show-icon
+          />
+          <el-select
+            v-else
+            v-model="assignPromptForm.selectedPromptKeys"
+            multiple
+            filterable
+            :placeholder="t('prompts.selectPromptsPlaceholder')"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="item in promptsAvailableToAssign(assignPromptForm.targetTagName)"
+              :key="item.key"
+              :label="item.label"
+              :value="item.key"
+            />
           </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="showAssignPromptDialog = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="assignSelectedPromptsToTag"
-          :disabled="!assignPromptForm.selectedPromptKeys.length">{{ t('common.assignSelected') }}</el-button>
+        <el-button
+          type="primary"
+          @click="assignSelectedPromptsToTag"
+          :disabled="!assignPromptForm.selectedPromptKeys.length"
+          >{{ t('common.assignSelected') }}</el-button
+        >
       </template>
     </el-dialog>
 
-    <el-dialog v-model="showReplaceModelDialog" :title="t('prompts.replaceModelsDialog.title')" width="600px"
-      :close-on-click-modal="false" append-to-body>
+    <el-dialog
+      v-model="showReplaceModelDialog"
+      :title="t('prompts.replaceModelsDialog.title')"
+      width="600px"
+      :close-on-click-modal="false"
+      append-to-body
+    >
       <el-form :model="replaceModelForm" label-position="top">
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item :label="t('prompts.replaceModelsDialog.sourceModel')">
-              <el-select v-model="replaceModelForm.sourceModel" filterable
-                :placeholder="t('prompts.replaceModelsDialog.sourceModel')" style="width: 100%;">
-                <el-option v-for="item in usedModels" :key="item.value" :label="item.label" :value="item.value" />
+              <el-select
+                v-model="replaceModelForm.sourceModel"
+                filterable
+                :placeholder="t('prompts.replaceModelsDialog.sourceModel')"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="item in usedModels"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item :label="t('prompts.replaceModelsDialog.targetModel')">
-              <el-select v-model="replaceModelForm.targetModel" filterable :placeholder="t('prompts.selectNewModel')"
-                style="width: 100%;">
-                <el-option v-for="item in availableModels" :key="item.value" :label="item.label" :value="item.value" />
+              <el-select
+                v-model="replaceModelForm.targetModel"
+                filterable
+                :placeholder="t('prompts.selectNewModel')"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="item in availableModels"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                />
               </el-select>
             </el-form-item>
           </el-col>
@@ -1386,7 +1831,9 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
   color: var(--text-secondary);
   border-bottom: 2px solid transparent;
   flex-shrink: 0;
-  transition: color 0.3s, border-color 0.3s;
+  transition:
+    color 0.3s,
+    border-color 0.3s;
 }
 
 .custom-all-tab:hover {
@@ -1511,7 +1958,9 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
   padding: 8px 16px 4px 16px;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .prompt-card:hover {
@@ -1667,7 +2116,7 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
   color: var(--text-on-accent);
 }
 
-.edit-prompt-dialog .el-form-item[label-position="top"]> :deep(.el-form-item__label) {
+.edit-prompt-dialog .el-form-item[label-position='top'] > :deep(.el-form-item__label) {
   font-weight: 500;
   color: var(--text-secondary);
   margin-bottom: 6px !important;
@@ -1821,7 +2270,11 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
     linear-gradient(45deg, transparent 75%, #eee 75%),
     linear-gradient(-45deg, transparent 75%, #eee 75%);
   background-size: 20px 20px;
-  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+  background-position:
+    0 0,
+    0 10px,
+    10px -10px,
+    -10px 0px;
   border: 1px solid var(--border-primary);
   border-radius: 4px;
   overflow: hidden;

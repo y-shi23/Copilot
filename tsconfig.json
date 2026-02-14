@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./apps/main/tsconfig.json" },
+    { "path": "./apps/window/tsconfig.json" },
+    { "path": "./apps/backend/tsconfig.json" },
+    { "path": "./electron-src/tsconfig.json" }
+  ]
+}

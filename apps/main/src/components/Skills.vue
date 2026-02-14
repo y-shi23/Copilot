@@ -1,8 +1,26 @@
-<script setup>
+<script setup lang="ts">
+// -nocheck
 import { ref, reactive, onMounted, computed, inject, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
-import { FolderOpen as FolderOpened, RefreshCw as Refresh, Pencil as Edit, Trash2 as Delete, Plus, FileText as Document, Upload as UploadFilled, CircleQuestionMark as QuestionFilled, Search, Library as Collection, Folder, FolderPlus as FolderAdd, Cpu, TriangleAlert as Warning, X as Close, Download } from 'lucide-vue-next';
+import {
+  FolderOpen as FolderOpened,
+  RefreshCw as Refresh,
+  Pencil as Edit,
+  Trash2 as Delete,
+  Plus,
+  FileText as Document,
+  Upload as UploadFilled,
+  CircleQuestionMark as QuestionFilled,
+  Search,
+  Library as Collection,
+  Folder,
+  FolderPlus as FolderAdd,
+  Cpu,
+  TriangleAlert as Warning,
+  X as Close,
+  Download,
+} from 'lucide-vue-next';
 
 const { t } = useI18n();
 const currentConfig = inject('config');
@@ -28,10 +46,10 @@ const editingSkill = reactive({
   forkMode: false,
   allowedTools: '',
   files: [],
-  absolutePath: ''
+  absolutePath: '',
 });
 
-const pendingImportPath = ref(''); 
+const pendingImportPath = ref('');
 
 // 弹窗拖拽状态
 const isDialogDragOver = ref(false);
@@ -40,9 +58,8 @@ const isDialogDragOver = ref(false);
 const filteredSkills = computed(() => {
   if (!searchQuery.value) return skillsList.value;
   const query = searchQuery.value.toLowerCase();
-  return skillsList.value.filter(s =>
-    s.name.toLowerCase().includes(query) ||
-    s.description.toLowerCase().includes(query)
+  return skillsList.value.filter(
+    (s) => s.name.toLowerCase().includes(query) || s.description.toLowerCase().includes(query),
   );
 });
 
@@ -53,12 +70,15 @@ onMounted(async () => {
   }
 });
 
-watch(() => currentConfig.value?.skillPath, (newPath) => {
-  if (newPath && newPath !== skillPath.value) {
-    skillPath.value = newPath;
-    refreshSkills();
-  }
-});
+watch(
+  () => currentConfig.value?.skillPath,
+  (newPath) => {
+    if (newPath && newPath !== skillPath.value) {
+      skillPath.value = newPath;
+      refreshSkills();
+    }
+  },
+);
 
 async function selectSkillPath() {
   const path = await window.api.selectDirectory();
@@ -75,9 +95,9 @@ async function refreshSkills() {
   isLoading.value = true;
   try {
     const rawList = await window.api.listSkills(skillPath.value);
-    skillsList.value = rawList.map(s => ({
+    skillsList.value = rawList.map((s) => ({
       ...s,
-      enabled: !s.disabled
+      enabled: !s.disabled,
     }));
   } catch (e) {
     ElMessage.error(t('skills.alerts.listFailed') + ': ' + e.message);
@@ -89,7 +109,7 @@ async function refreshSkills() {
 function prepareAddSkill() {
   isNewSkill.value = true;
   activeEditTab.value = 'info';
-  pendingImportPath.value = ''; 
+  pendingImportPath.value = '';
   Object.assign(editingSkill, {
     id: '',
     name: '',
@@ -99,7 +119,7 @@ function prepareAddSkill() {
     forkMode: false,
     allowedTools: '',
     files: [],
-    absolutePath: ''
+    absolutePath: '',
   });
   showEditDialog.value = true;
 }
@@ -118,9 +138,11 @@ async function prepareEditSkill(skillId) {
       instructions: details.content || '',
       enabled: meta['disable-model-invocation'] !== true,
       forkMode: meta.context === 'fork',
-      allowedTools: Array.isArray(meta['allowed-tools']) ? meta['allowed-tools'].join(', ') : (meta['allowed-tools'] || ''),
+      allowedTools: Array.isArray(meta['allowed-tools'])
+        ? meta['allowed-tools'].join(', ')
+        : meta['allowed-tools'] || '',
       files: details.files || [],
-      absolutePath: details.absolutePath
+      absolutePath: details.absolutePath,
     });
     showEditDialog.value = true;
   } catch (e) {
@@ -194,7 +216,10 @@ async function saveEditDialog() {
   if (editingSkill.forkMode) metadata['context'] = 'fork';
 
   if (editingSkill.allowedTools) {
-    metadata['allowed-tools'] = editingSkill.allowedTools.split(/[,，]/).map(t => t.trim()).filter(Boolean);
+    metadata['allowed-tools'] = editingSkill.allowedTools
+      .split(/[,，]/)
+      .map((t) => t.trim())
+      .filter(Boolean);
   }
 
   let dirName = editingSkill.id;
@@ -205,27 +230,27 @@ async function saveEditDialog() {
   try {
     // 只要有 pendingImportPath，无论是新建还是编辑，都执行文件夹拷贝
     if (pendingImportPath.value) {
-        const targetDir = window.api.pathJoin(skillPath.value, dirName);
-        if (!isNewSkill.value) {
-             // 只有当 ID (文件夹名) 没变时，才需要清空当前目录。
-             // 如果 ID 变了，相当于新目录，不需要清空。
-             if (dirName === editingSkill.id) {
-                 await window.api.deleteSkill(skillPath.value, dirName);
-             }
+      const targetDir = window.api.pathJoin(skillPath.value, dirName);
+      if (!isNewSkill.value) {
+        // 只有当 ID (文件夹名) 没变时，才需要清空当前目录。
+        // 如果 ID 变了，相当于新目录，不需要清空。
+        if (dirName === editingSkill.id) {
+          await window.api.deleteSkill(skillPath.value, dirName);
         }
-        
-        // 执行全量拷贝
-        await window.api.copyLocalPath(pendingImportPath.value, targetDir);
+      }
+
+      // 执行全量拷贝
+      await window.api.copyLocalPath(pendingImportPath.value, targetDir);
     }
 
     // 保存 SKILL.md (覆盖拷贝过来的旧配置，以当前 UI 编辑的内容为准)
     const success = await saveSkillContent(dirName, metadata, editingSkill.instructions);
-    
+
     if (success) {
       ElMessage.success(t('common.saveSuccess'));
       showEditDialog.value = false;
       // 导入完成后重置 pendingImportPath
-      pendingImportPath.value = ''; 
+      pendingImportPath.value = '';
       refreshSkills();
     } else {
       throw new Error('Save returned false');
@@ -239,24 +264,30 @@ function deleteSkillFunc(skill) {
   ElMessageBox.confirm(
     t('skills.alerts.deleteConfirm', { name: skill.name }),
     t('common.warningTitle'),
-    { type: 'warning' }
-  ).then(async () => {
-    const success = await window.api.deleteSkill(skillPath.value, skill.id);
-    if (success) {
-      ElMessage.success(t('common.deleteSuccess'));
-      refreshSkills();
-    } else {
-      ElMessage.error(t('common.deleteFailed'));
-    }
-  }).catch(() => { });
+    { type: 'warning' },
+  )
+    .then(async () => {
+      const success = await window.api.deleteSkill(skillPath.value, skill.id);
+      if (success) {
+        ElMessage.success(t('common.deleteSuccess'));
+        refreshSkills();
+      } else {
+        ElMessage.error(t('common.deleteFailed'));
+      }
+    })
+    .catch(() => {});
 }
 
 // --- 文件管理 (Drag & Drop + 文件夹上传) ---
 const fileInputRef = ref(null);
 const folderInputRef = ref(null);
 
-function triggerFileUpload() { fileInputRef.value?.click(); }
-function triggerFolderUpload() { folderInputRef.value?.click(); }
+function triggerFileUpload() {
+  fileInputRef.value?.click();
+}
+function triggerFolderUpload() {
+  folderInputRef.value?.click();
+}
 
 async function processUpload(fileObj) {
   try {
@@ -289,10 +320,15 @@ async function handleBatchUpload(files) {
   }
 }
 
-function handleFileChange(event) { handleBatchUpload(event.target.files); }
+function handleFileChange(event) {
+  handleBatchUpload(event.target.files);
+}
 
 // --- 弹窗拖拽逻辑 (解析 Skill) ---
-function onDialogDragOver(e) { e.preventDefault(); isDialogDragOver.value = true; }
+function onDialogDragOver(e) {
+  e.preventDefault();
+  isDialogDragOver.value = true;
+}
 function onDialogDragLeave(e) {
   if (e.relatedTarget === null || !e.currentTarget.contains(e.relatedTarget)) {
     isDialogDragOver.value = false;
@@ -308,7 +344,7 @@ function parseFrontmatterSimple(text) {
   const body = match[2];
   const metadata = {};
 
-  yamlStr.split('\n').forEach(line => {
+  yamlStr.split('\n').forEach((line) => {
     const parts = line.split(':');
     if (parts.length >= 2) {
       const key = parts[0].trim();
@@ -316,7 +352,10 @@ function parseFrontmatterSimple(text) {
       if (value === 'true') value = true;
       else if (value === 'false') value = false;
       else if (value.startsWith('[') && value.endsWith(']')) {
-        value = value.slice(1, -1).split(',').map(s => s.trim());
+        value = value
+          .slice(1, -1)
+          .split(',')
+          .map((s) => s.trim());
       }
       metadata[key] = value;
     }
@@ -340,82 +379,87 @@ async function onDialogDrop(e) {
 
     // 情况 A: 直接拖入 SKILL.md 文件
     if (item.name.toLowerCase() === 'skill.md') {
-        importContent = await window.api.readLocalFile(item.path);
-        importPath = window.api.pathJoin(item.path, '..'); // 记录父级目录用于拷贝资源
-        isSkillPackage = true;
+      importContent = await window.api.readLocalFile(item.path);
+      importPath = window.api.pathJoin(item.path, '..'); // 记录父级目录用于拷贝资源
+      isSkillPackage = true;
     }
     // 情况 B: 拖入 .skill 文件 (Zip 包)
     else if (item.name.toLowerCase().endsWith('.skill')) {
-        const loadingInstance = ElMessage.info({ message: '正在解压 Skill 包...', duration: 0 });
-        try {
-            // 解压到临时目录
-            const tempDir = await window.api.extractSkillPackage(item.path);
-            const skillMdPath = window.api.pathJoin(tempDir, 'SKILL.md');
-            
-            if (await window.api.readLocalFile(skillMdPath).then(() => true).catch(() => false)) {
-                importContent = await window.api.readLocalFile(skillMdPath);
-                importPath = tempDir; // 记录临时目录路径
-                isSkillPackage = true;
-            } else {
-                throw new Error("无效的 .skill 包：根目录下未找到 SKILL.md");
-            }
-        } finally {
-            loadingInstance.close();
+      const loadingInstance = ElMessage.info({ message: '正在解压 Skill 包...', duration: 0 });
+      try {
+        // 解压到临时目录
+        const tempDir = await window.api.extractSkillPackage(item.path);
+        const skillMdPath = window.api.pathJoin(tempDir, 'SKILL.md');
+
+        if (
+          await window.api
+            .readLocalFile(skillMdPath)
+            .then(() => true)
+            .catch(() => false)
+        ) {
+          importContent = await window.api.readLocalFile(skillMdPath);
+          importPath = tempDir; // 记录临时目录路径
+          isSkillPackage = true;
+        } else {
+          throw new Error('无效的 .skill 包：根目录下未找到 SKILL.md');
         }
+      } finally {
+        loadingInstance.close();
+      }
     }
     // 情况 C: 拖入文件夹 (尝试查找内部的 SKILL.md)
     else {
-        const skillMdPath = window.api.pathJoin(item.path, 'SKILL.md');
-        try {
-            importContent = await window.api.readLocalFile(skillMdPath);
-            importPath = item.path; // 记录文件夹路径
-            isSkillPackage = true;
-        } catch (err) {
-            // 不是 Skill 包，忽略
-            isSkillPackage = false;
-        }
+      const skillMdPath = window.api.pathJoin(item.path, 'SKILL.md');
+      try {
+        importContent = await window.api.readLocalFile(skillMdPath);
+        importPath = item.path; // 记录文件夹路径
+        isSkillPackage = true;
+      } catch (err) {
+        // 不是 Skill 包，忽略
+        isSkillPackage = false;
+      }
     }
 
     // 逻辑分支 1：如果是 Skill 包，执行导入/替换逻辑
     if (isSkillPackage) {
-        // 记录待导入路径
-        if (importPath) {
-            pendingImportPath.value = importPath;
-        }
-        
-        const { metadata, body } = parseFrontmatterSimple(importContent);
-        applyImportedMetadata(metadata, body);
-        
-        // 如果是新 Skill 且没名字，尝试用文件名(去掉后缀)或元数据
-        if (!editingSkill.name) {
-             if (metadata.name) editingSkill.name = metadata.name;
-             else editingSkill.name = item.name.replace(/\.skill$/i, '');
-        }
+      // 记录待导入路径
+      if (importPath) {
+        pendingImportPath.value = importPath;
+      }
 
-        // 提示信息
-        const actionText = activeEditTab.value === 'files' ? " (已准备替换当前 Skill)" : " (检测到完整 Skill 包)";
-        ElMessage.success(t('skills.alerts.parseSuccess') + actionText + "，请点击保存以应用");
-        
-        return;
+      const { metadata, body } = parseFrontmatterSimple(importContent);
+      applyImportedMetadata(metadata, body);
+
+      // 如果是新 Skill 且没名字，尝试用文件名(去掉后缀)或元数据
+      if (!editingSkill.name) {
+        if (metadata.name) editingSkill.name = metadata.name;
+        else editingSkill.name = item.name.replace(/\.skill$/i, '');
+      }
+
+      // 提示信息
+      const actionText =
+        activeEditTab.value === 'files' ? ' (已准备替换当前 Skill)' : ' (检测到完整 Skill 包)';
+      ElMessage.success(t('skills.alerts.parseSuccess') + actionText + '，请点击保存以应用');
+
+      return;
     }
 
     // 逻辑分支 2：如果不是 Skill 包，且在“文件管理”Tab，则视为普通文件上传
     if (activeEditTab.value === 'files') {
-        if (!isNewSkill.value) {
-            handleBatchUpload(files);
-        } else {
-            ElMessage.warning(t('skills.alerts.saveFirstHint') || "请先保存 Skill 后再上传文件");
-        }
-        return;
+      if (!isNewSkill.value) {
+        handleBatchUpload(files);
+      } else {
+        ElMessage.warning(t('skills.alerts.saveFirstHint') || '请先保存 Skill 后再上传文件');
+      }
+      return;
     }
 
     // 逻辑分支 3：不是 Skill 包，且在“基本信息”Tab，报错
     ElMessage.warning(t('skills.alerts.noSkillMd'));
     // 仅在新建时尝试回填名字，编辑时不覆盖
     if (isNewSkill.value) {
-        editingSkill.name = item.name;
+      editingSkill.name = item.name;
     }
-
   } catch (err) {
     ElMessage.error(t('skills.alerts.parseFailed') + ': ' + err.message);
   }
@@ -431,7 +475,7 @@ function applyImportedMetadata(metadata, body) {
   }
   // 兼容布尔值和字符串的 context 配置
   if (metadata.context === 'fork') editingSkill.forkMode = true;
-  
+
   editingSkill.instructions = body.trim();
 }
 
@@ -439,13 +483,17 @@ function deleteSkillFile(fileNode) {
   ElMessageBox.confirm(
     t('skills.alerts.deleteFileConfirm', { name: fileNode.name }),
     t('common.warningTitle'),
-    { type: 'warning' }
-  ).then(async () => {
-    await window.api.deleteSkill(editingSkill.absolutePath, fileNode.path);
-    const details = await window.api.getSkillDetails(skillPath.value, editingSkill.id);
-    editingSkill.files = details.files;
-    ElMessage.success(t('common.deleteSuccess'));
-  }).catch((e) => { console.error(e); });
+    { type: 'warning' },
+  )
+    .then(async () => {
+      await window.api.deleteSkill(editingSkill.absolutePath, fileNode.path);
+      const details = await window.api.getSkillDetails(skillPath.value, editingSkill.id);
+      editingSkill.files = details.files;
+      ElMessage.success(t('common.deleteSuccess'));
+    })
+    .catch((e) => {
+      console.error(e);
+    });
 }
 
 function openExportDialog() {
@@ -455,7 +503,7 @@ function openExportDialog() {
     return;
   }
   // 重置选择状态（默认不全选，或者你可以改为默认全选）
-  skillsToExport.value = []; 
+  skillsToExport.value = [];
   // 打开弹窗
   showExportDialog.value = true;
 }
@@ -472,22 +520,22 @@ async function handleExportSkills() {
 
   isExporting.value = true;
   try {
-    const exportPromises = skillsToExport.value.map(skillId => 
-      window.api.exportSkillToPackage(skillPath.value, skillId, outputDir)
+    const exportPromises = skillsToExport.value.map((skillId) =>
+      window.api.exportSkillToPackage(skillPath.value, skillId, outputDir),
     );
 
     const results = await Promise.all(exportPromises);
-    
+
     ElMessage.success(t('skills.export.success', { count: results.length }));
     showExportDialog.value = false;
-    
+
     // 打开导出目录
     if (results.length > 0) {
       window.api.shellShowItemInFolder(results[0]);
     }
   } catch (e) {
     console.error(e);
-    ElMessage.error("导出失败: " + e.message);
+    ElMessage.error('导出失败: ' + e.message);
   } finally {
     isExporting.value = false;
   }
@@ -498,10 +546,13 @@ async function handleExportSkills() {
   <div class="page-container">
     <el-scrollbar class="main-content-scrollbar">
       <div class="content-wrapper">
-
         <div class="path-bar-container" v-if="skillPath">
-          <el-input v-model="searchQuery" :placeholder="t('skills.searchPlaceholder')" :prefix-icon="Search"
-            clearable />
+          <el-input
+            v-model="searchQuery"
+            :placeholder="t('skills.searchPlaceholder')"
+            :prefix-icon="Search"
+            clearable
+          />
         </div>
 
         <div v-if="!skillPath" class="empty-state">
@@ -543,18 +594,30 @@ async function handleExportSkills() {
 
               <div class="skill-header-actions">
                 <el-tooltip
-                  :content="skill.context === 'fork' ? t('skills.tooltips.forkOn') : t('skills.tooltips.forkOff')"
-                  placement="top">
-                  <div class="subagent-toggle-btn" :class="{ 'is-active': skill.context === 'fork' }"
-                    @click.stop="toggleSkillFork(skill, skill.context !== 'fork')">
+                  :content="
+                    skill.context === 'fork'
+                      ? t('skills.tooltips.forkOn')
+                      : t('skills.tooltips.forkOff')
+                  "
+                  placement="top"
+                >
+                  <div
+                    class="subagent-toggle-btn"
+                    :class="{ 'is-active': skill.context === 'fork' }"
+                    @click.stop="toggleSkillFork(skill, skill.context !== 'fork')"
+                  >
                     <el-icon :size="16">
                       <Cpu />
                     </el-icon>
                   </div>
                 </el-tooltip>
 
-                <el-switch :model-value="skill.enabled" @change="(val) => toggleSkillEnabled(skill, val)" size="small"
-                  class="skill-active-toggle" />
+                <el-switch
+                  :model-value="skill.enabled"
+                  @change="(val) => toggleSkillEnabled(skill, val)"
+                  size="small"
+                  class="skill-active-toggle"
+                />
               </div>
             </div>
 
@@ -564,20 +627,43 @@ async function handleExportSkills() {
 
             <div class="skill-card-footer">
               <div class="skill-tags">
-                <el-tag v-if="skill.context === 'fork'" size="small" type="warning" effect="plain"
-                  round>Sub-Agent</el-tag>
-                <el-tag v-if="skill.allowedTools && skill.allowedTools.length > 0" size="small" type="info"
-                  effect="plain" round>Tools</el-tag>
+                <el-tag
+                  v-if="skill.context === 'fork'"
+                  size="small"
+                  type="warning"
+                  effect="plain"
+                  round
+                  >Sub-Agent</el-tag
+                >
+                <el-tag
+                  v-if="skill.allowedTools && skill.allowedTools.length > 0"
+                  size="small"
+                  type="info"
+                  effect="plain"
+                  round
+                  >Tools</el-tag
+                >
               </div>
               <div class="skill-actions">
-                <el-button :icon="Edit" text circle @click="prepareEditSkill(skill.id)" class="action-btn-compact" />
-                <el-button :icon="Delete" text circle type="danger" @click="deleteSkillFunc(skill)"
-                  class="action-btn-compact" />
+                <el-button
+                  :icon="Edit"
+                  text
+                  circle
+                  @click="prepareEditSkill(skill.id)"
+                  class="action-btn-compact"
+                />
+                <el-button
+                  :icon="Delete"
+                  text
+                  circle
+                  type="danger"
+                  @click="deleteSkillFunc(skill)"
+                  class="action-btn-compact"
+                />
               </div>
             </div>
           </div>
         </div>
-
       </div>
     </el-scrollbar>
 
@@ -592,29 +678,47 @@ async function handleExportSkills() {
         {{ t('skills.setPathBtn') }}
       </el-button>
       <el-tooltip :content="t('skills.tooltips.refresh')" placement="top">
-        <el-button class="refresh-fab-button circle-action-btn" :icon="Refresh" circle @click="refreshSkills" />
+        <el-button
+          class="refresh-fab-button circle-action-btn"
+          :icon="Refresh"
+          circle
+          @click="refreshSkills"
+        />
       </el-tooltip>
     </div>
 
     <!-- 编辑弹窗 -->
-    <el-dialog v-model="showEditDialog" width="650px" :close-on-click-modal="false" class="skill-edit-dialog" append-to-body>
+    <el-dialog
+      v-model="showEditDialog"
+      width="650px"
+      :close-on-click-modal="false"
+      class="skill-edit-dialog"
+      append-to-body
+    >
       <template #header>
-        <div class="dialog-header-row" style="justify-content: space-between; width: 100%; padding-right: 30px;">
+        <div
+          class="dialog-header-row"
+          style="justify-content: space-between; width: 100%; padding-right: 30px"
+        >
           <!-- 左侧：标题 -->
-          <div style="display: flex; align-items: baseline; gap: 12px;">
-            <span class="dialog-title">{{ isNewSkill ? t('skills.addTitle') : t('skills.editTitle') }}</span>
+          <div style="display: flex; align-items: baseline; gap: 12px">
+            <span class="dialog-title">{{
+              isNewSkill ? t('skills.addTitle') : t('skills.editTitle')
+            }}</span>
             <span class="drag-hint-text" v-if="isNewSkill">
-              <el-icon style="vertical-align: middle; margin-right:4px;">
+              <el-icon style="vertical-align: middle; margin-right: 4px">
                 <FolderAdd />
               </el-icon>
               {{ t('skills.dialog.dragHint') }}
             </span>
           </div>
-          
+
           <!-- 右侧：Tab 切换器 -->
           <el-radio-group v-model="activeEditTab" size="small">
             <el-radio-button value="info">{{ t('skills.tabs.info') }}</el-radio-button>
-            <el-radio-button value="files" :disabled="isNewSkill">{{ t('skills.tabs.files') }}</el-radio-button>
+            <el-radio-button value="files" :disabled="isNewSkill">{{
+              t('skills.tabs.files')
+            }}</el-radio-button>
           </el-radio-group>
         </div>
       </template>
@@ -629,28 +733,49 @@ async function handleExportSkills() {
         </div>
       </div>
 
-      <div class="dialog-content-wrapper" @dragover="onDialogDragOver" @dragleave="onDialogDragLeave"
-        @drop="onDialogDrop">
+      <div
+        class="dialog-content-wrapper"
+        @dragover="onDialogDragOver"
+        @dragleave="onDialogDragLeave"
+        @drop="onDialogDrop"
+      >
         <el-tabs v-model="activeEditTab" class="skill-edit-tabs">
           <el-tab-pane :label="t('skills.tabs.info')" name="info">
             <!-- 滚动容器 -->
-            <el-scrollbar max-height="45vh" class="dialog-form-scrollbar" view-class="dialog-form-view">
+            <el-scrollbar
+              max-height="45vh"
+              class="dialog-form-scrollbar"
+              view-class="dialog-form-view"
+            >
               <el-form label-position="top" class="skill-form">
-
                 <!-- 左右分栏布局 -->
                 <div class="form-split-layout">
                   <!-- 左侧：基础信息 -->
                   <div class="left-col">
                     <el-form-item required>
-                      <template #label><span class="custom-label">{{ t('skills.form.name') }}</span></template>
-                      <el-input v-model="editingSkill.name" :placeholder="t('skills.form.namePlaceholder')" />
+                      <template #label
+                        ><span class="custom-label">{{ t('skills.form.name') }}</span></template
+                      >
+                      <el-input
+                        v-model="editingSkill.name"
+                        :placeholder="t('skills.form.namePlaceholder')"
+                      />
                     </el-form-item>
 
                     <el-form-item :label="t('skills.form.description')">
-                      <el-scrollbar class="textarea-scrollbar-wrapper" max-height="160px"
-                        view-class="textarea-scrollbar-view">
-                        <el-input v-model="editingSkill.description" type="textarea" :autosize="{ minRows: 5 }"
-                          resize="none" class="transparent-textarea" :placeholder="t('skills.form.descPlaceholder')" />
+                      <el-scrollbar
+                        class="textarea-scrollbar-wrapper"
+                        max-height="160px"
+                        view-class="textarea-scrollbar-view"
+                      >
+                        <el-input
+                          v-model="editingSkill.description"
+                          type="textarea"
+                          :autosize="{ minRows: 5 }"
+                          resize="none"
+                          class="transparent-textarea"
+                          :placeholder="t('skills.form.descPlaceholder')"
+                        />
                       </el-scrollbar>
                     </el-form-item>
 
@@ -661,22 +786,32 @@ async function handleExportSkills() {
                           <span class="label-subtext">{{ t('skills.form.toolsHint') }}</span>
                         </div>
                       </template>
-                      <el-input v-model="editingSkill.allowedTools" :placeholder="t('skills.form.toolsPlaceholder')" />
+                      <el-input
+                        v-model="editingSkill.allowedTools"
+                        :placeholder="t('skills.form.toolsPlaceholder')"
+                      />
                     </el-form-item>
                   </div>
 
                   <!-- 右侧：详细指令 (占据剩余高度) -->
                   <div class="right-col">
                     <el-form-item :label="t('skills.form.instructions')" class="instructions-item">
-                      <el-scrollbar class="textarea-scrollbar-wrapper full-height" view-class="textarea-scrollbar-view">
-                        <el-input v-model="editingSkill.instructions" type="textarea" :autosize="{ minRows: 15 }"
+                      <el-scrollbar
+                        class="textarea-scrollbar-wrapper full-height"
+                        view-class="textarea-scrollbar-view"
+                      >
+                        <el-input
+                          v-model="editingSkill.instructions"
+                          type="textarea"
+                          :autosize="{ minRows: 15 }"
                           :placeholder="t('skills.form.instructionPlaceholder')"
-                          class="code-font transparent-textarea full-height-textarea" resize="none" />
+                          class="code-font transparent-textarea full-height-textarea"
+                          resize="none"
+                        />
                       </el-scrollbar>
                     </el-form-item>
                   </div>
                 </div>
-
               </el-form>
             </el-scrollbar>
           </el-tab-pane>
@@ -684,22 +819,48 @@ async function handleExportSkills() {
           <el-tab-pane :label="t('skills.tabs.files')" name="files" :disabled="isNewSkill">
             <div class="files-tab-content">
               <div class="files-toolbar">
-                <el-button type="primary" size="small" :icon="UploadFilled" @click="triggerFileUpload">
+                <el-button
+                  type="primary"
+                  size="small"
+                  :icon="UploadFilled"
+                  @click="triggerFileUpload"
+                >
                   {{ t('skills.uploadFile') }}
                 </el-button>
-                <el-button type="warning" plain size="small" :icon="FolderAdd" @click="triggerFolderUpload">
+                <el-button
+                  type="warning"
+                  plain
+                  size="small"
+                  :icon="FolderAdd"
+                  @click="triggerFolderUpload"
+                >
                   {{ t('skills.uploadFolder') }}
                 </el-button>
-                <input ref="fileInputRef" type="file" multiple style="display:none" @change="handleFileChange" />
-                <input ref="folderInputRef" type="file" webkitdirectory style="display:none"
-                  @change="handleFileChange" />
+                <input
+                  ref="fileInputRef"
+                  type="file"
+                  multiple
+                  style="display: none"
+                  @change="handleFileChange"
+                />
+                <input
+                  ref="folderInputRef"
+                  type="file"
+                  webkitdirectory
+                  style="display: none"
+                  @change="handleFileChange"
+                />
                 <span class="file-hint-text">{{ t('skills.filesTab.hint') }}</span>
               </div>
 
               <div class="files-tree-container">
                 <el-scrollbar max-height="35vh">
-                  <el-tree :data="editingSkill.files" node-key="path" :props="{ label: 'name', children: 'children' }"
-                    :empty-text="t('skills.filesTab.empty')">
+                  <el-tree
+                    :data="editingSkill.files"
+                    node-key="path"
+                    :props="{ label: 'name', children: 'children' }"
+                    :empty-text="t('skills.filesTab.empty')"
+                  >
                     <template #default="{ node, data }">
                       <span class="custom-tree-node">
                         <span class="tree-icon">
@@ -713,7 +874,13 @@ async function handleExportSkills() {
                         <span class="tree-label">{{ node.label }}</span>
                         <span v-if="data.type === 'file'" class="tree-meta">{{ data.size }}</span>
                         <span class="tree-actions" @click.stop>
-                          <el-button link type="danger" :icon="Delete" size="small" @click="deleteSkillFile(data)" />
+                          <el-button
+                            link
+                            type="danger"
+                            :icon="Delete"
+                            size="small"
+                            @click="deleteSkillFile(data)"
+                          />
                         </span>
                       </span>
                     </template>
@@ -730,13 +897,22 @@ async function handleExportSkills() {
         <el-button type="primary" @click="saveEditDialog">{{ t('common.save') }}</el-button>
       </template>
     </el-dialog>
-    <el-dialog v-model="showExportDialog" :title="t('skills.export.title')" width="500px" :close-on-click-modal="false" append-to-body>
+    <el-dialog
+      v-model="showExportDialog"
+      :title="t('skills.export.title')"
+      width="500px"
+      :close-on-click-modal="false"
+      append-to-body
+    >
       <div class="export-dialog-content">
-        <p style="margin-top:0; color:var(--el-text-color-secondary); font-size:13px;">
+        <p style="margin-top: 0; color: var(--el-text-color-secondary); font-size: 13px">
           {{ t('skills.export.hint') }}
         </p>
         <el-scrollbar max-height="35vh" class="export-list-scroll">
-          <div v-if="skillsList.length === 0" style="text-align: center; padding: 20px; color: var(--text-tertiary);">
+          <div
+            v-if="skillsList.length === 0"
+            style="text-align: center; padding: 20px; color: var(--text-tertiary)"
+          >
             {{ t('skills.export.empty') }}
           </div>
           <el-checkbox-group v-model="skillsToExport" v-else>
@@ -748,14 +924,26 @@ async function handleExportSkills() {
             </div>
           </el-checkbox-group>
         </el-scrollbar>
-        <div class="export-actions-bar" style="margin-top:10px; display:flex; justify-content:space-between;">
-           <el-button size="small" @click="skillsToExport = skillsList.map(s=>s.id)">{{ t('skills.export.selectAll') }}</el-button>
-           <el-button size="small" @click="skillsToExport = []">{{ t('skills.export.clear') }}</el-button>
+        <div
+          class="export-actions-bar"
+          style="margin-top: 10px; display: flex; justify-content: space-between"
+        >
+          <el-button size="small" @click="skillsToExport = skillsList.map((s) => s.id)">{{
+            t('skills.export.selectAll')
+          }}</el-button>
+          <el-button size="small" @click="skillsToExport = []">{{
+            t('skills.export.clear')
+          }}</el-button>
         </div>
       </div>
       <template #footer>
         <el-button @click="showExportDialog = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" @click="handleExportSkills" :loading="isExporting" :disabled="skillsToExport.length === 0">
+        <el-button
+          type="primary"
+          @click="handleExportSkills"
+          :loading="isExporting"
+          :disabled="skillsToExport.length === 0"
+        >
           {{ t('skills.export.confirmBtn') }}
         </el-button>
       </template>
@@ -822,7 +1010,9 @@ async function handleExportSkills() {
   padding: 10px 16px 6px 16px;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.2s ease, background-color 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .skill-card:hover {
@@ -901,7 +1091,7 @@ async function handleExportSkills() {
 }
 
 .subagent-toggle-btn.is-active {
-  color: #E6A23C;
+  color: #e6a23c;
   background-color: rgba(230, 162, 60, 0.1);
   border-color: rgba(230, 162, 60, 0.3);
 }
@@ -1123,13 +1313,13 @@ async function handleExportSkills() {
 .transparent-textarea :deep(.el-textarea__inner),
 .transparent-textarea :deep(.el-textarea__inner:focus),
 .transparent-textarea :deep(.el-textarea__inner:hover) {
-    background-color: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    padding: 8px 12px;
-    color: var(--text-primary);
-    font-size: 13px;
-    line-height: 1.6;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 8px 12px;
+  color: var(--text-primary);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 /* 移除 Input 自身可能的原生滚动条 */
