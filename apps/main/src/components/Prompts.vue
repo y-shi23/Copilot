@@ -1977,6 +1977,15 @@ html.dark .canvas-wrapper {
 
 .prompt-dialog-scrollbar :deep(.el-scrollbar__view) {
   padding: 5px 20px 5px 5px;
+  overflow-x: hidden;
+}
+
+.prompt-dialog-scrollbar :deep(.el-scrollbar__bar.is-horizontal) {
+  display: none;
+}
+
+.prompt-dialog-scrollbar :deep(.el-scrollbar__bar.is-vertical) {
+  display: none;
 }
 
 .prompt-textarea-scrollbar {

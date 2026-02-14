@@ -1038,6 +1038,18 @@ async function handleExportSkills() {
   width: 100%;
 }
 
+.dialog-form-scrollbar :deep(.el-scrollbar__view) {
+  overflow-x: hidden;
+}
+
+.dialog-form-scrollbar :deep(.el-scrollbar__bar.is-horizontal) {
+  display: none;
+}
+
+.dialog-form-scrollbar :deep(.el-scrollbar__bar.is-vertical) {
+  display: none;
+}
+
 :deep(.dialog-form-view) {
   padding: 4px 16px 4px 4px;
 }
