@@ -248,6 +248,7 @@ function createLauncherWindow() {
     alwaysOnTop: true,
     skipTaskbar: true,
     backgroundColor: '#00000000',
+    roundedCorners: false,
     webPreferences: {
       preload: launcherPreload,
       contextIsolation: false,
@@ -272,12 +273,6 @@ function createLauncherWindow() {
     launcherWindow = null;
   });
 
-  applyMacVibrancy(launcherWindow, {
-    vibrancy: 'sidebar',
-    visualEffectState: 'active',
-    animationDuration: 120,
-  });
-
   launcherWindow.loadURL(resolveLauncherEntryUrl());
   return launcherWindow;
 }
@@ -290,11 +285,6 @@ function hideLauncherWindow() {
 function showLauncherWindow() {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const launcher = createLauncherWindow();
-  applyMacVibrancy(launcher, {
-    vibrancy: 'sidebar',
-    visualEffectState: 'active',
-    animationDuration: 0,
-  });
   const bounds = getLauncherBounds();
   launcher.setBounds(bounds, false);
   launcher.show();

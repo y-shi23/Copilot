@@ -671,7 +671,7 @@ onBeforeUnmount(() => {
   height: 100%;
   position: relative;
   isolation: isolate;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   cursor: default;
@@ -699,23 +699,13 @@ onBeforeUnmount(() => {
   border-radius: inherit;
 }
 
-.launcher-shell.native-vibrancy .launcher-container {
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-.launcher-shell.native-vibrancy .launcher-container::before {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.launcher-shell.fallback-vibrancy .launcher-container {
-  background: color-mix(in srgb, var(--bg-secondary) 44%, transparent);
+.launcher-shell .launcher-container {
+  background: var(--bg-secondary);
   backdrop-filter: saturate(145%) blur(28px);
   -webkit-backdrop-filter: saturate(145%) blur(28px);
 }
 
-.launcher-shell.fallback-vibrancy .launcher-container::before {
+.launcher-shell .launcher-container::before {
   background: color-mix(in srgb, #ffffff 5%, transparent);
 }
 
