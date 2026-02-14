@@ -1,11 +1,152 @@
 <script setup>
 import { ref, reactive, onMounted, computed, inject, watch } from 'vue'
-import { Plus, Trash2 as Delete, Pencil as Edit, RefreshCw as Refresh, Search, ListCheck, Minus, Eye, EyeOff } from 'lucide-vue-next';
+import { Plus, Trash2 as Delete, Pencil as Edit, Search, ListCheck, Minus, Eye, EyeOff, Globe, Brain, Wrench, Binary, Settings } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { ElMessage } from 'element-plus';
 import draggable from 'vuedraggable';
 
 const { t } = useI18n();
+
+const MODELS_DEV_API_URL = 'https://models.dev/api.json';
+const MODELS_DEV_CACHE_KEY = 'sanft_modelsdev_cache_v1';
+const MODELS_DEV_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const WEB_KEYWORD_PATTERN = /\b(web|www|search|browse|internet|research)\b/i;
+const EMBEDDING_KEYWORD_PATTERN = /\b(embed|embedding|text-embedding|bge|e5)\b/i;
+const LOCAL_ICON_PRIORITY = ['openai', 'claude', 'gemini', 'deepseek', 'moonshot', 'qwen', 'zhipu', 'doubao', 'stepfun', 'minimax', 'xiaomimimo'];
+const LOCAL_ICON_MATCH_RULES = {
+  openai: {
+    strongPatterns: [/^gpt/i, /^o[1-9]/i, /codex/i, /chatgpt/i, /text-embedding/i, /whisper/i, /dall-e/i, /openai\//i],
+    weakKeywords: ['gpt', 'o1', 'o2', 'o3', 'o4', 'o5', 'codex', 'chatgpt', 'text-embedding', 'whisper', 'dall-e', 'openai/'],
+    metadataProviderAliases: ['openai', 'azure'],
+    providerHintKeywords: ['openai', 'chatgpt', 'azure openai'],
+  },
+  claude: {
+    strongPatterns: [/^claude/i, /anthropic\//i],
+    weakKeywords: ['claude', 'anthropic/'],
+    metadataProviderAliases: ['anthropic'],
+    providerHintKeywords: ['anthropic', 'claude'],
+  },
+  gemini: {
+    strongPatterns: [/^gemini/i, /google\//i],
+    weakKeywords: ['gemini', 'google/'],
+    metadataProviderAliases: ['google'],
+    providerHintKeywords: ['google', 'gemini'],
+  },
+  deepseek: {
+    strongPatterns: [/^deepseek/i, /deepseek\//i],
+    weakKeywords: ['deepseek'],
+    metadataProviderAliases: ['deepseek'],
+    providerHintKeywords: ['deepseek'],
+  },
+  moonshot: {
+    strongPatterns: [/^kimi/i, /kimi\//i, /moonshot\//i],
+    weakKeywords: ['kimi', 'moonshot'],
+    metadataProviderAliases: ['moonshot'],
+    providerHintKeywords: ['moonshot', 'kimi', 'kimi.ai'],
+  },
+  qwen: {
+    strongPatterns: [/^qwen/i, /qwen\//i, /tongyi/i, /alibaba\//i],
+    weakKeywords: ['qwen', 'tongyi', 'alibaba/'],
+    metadataProviderAliases: ['alibaba', 'alibaba-cn', 'qwen'],
+    providerHintKeywords: ['qwen', 'tongyi', 'alibaba', 'dashscope', 'aliyun'],
+  },
+  zhipu: {
+    strongPatterns: [/^glm/i, /zhipu/i, /z-ai\//i, /zai\//i],
+    weakKeywords: ['glm', 'zhipu', 'z-ai/', 'zai/'],
+    metadataProviderAliases: ['zai', 'z-ai', 'zhipu'],
+    providerHintKeywords: ['zhipu', 'z.ai', 'z-ai', 'glm'],
+  },
+  doubao: {
+    strongPatterns: [/^doubao/i, /doubao-/i, /volcengine\/doubao/i],
+    weakKeywords: ['doubao', 'volcengine/doubao'],
+    metadataProviderAliases: ['doubao', 'volcengine'],
+    providerHintKeywords: ['doubao', 'volcengine', 'ark.cn-beijing', 'bytedance'],
+  },
+  stepfun: {
+    strongPatterns: [/^step-/i, /stepfun\//i],
+    weakKeywords: ['step-', 'stepfun/'],
+    metadataProviderAliases: ['stepfun'],
+    providerHintKeywords: ['stepfun', 'step-'],
+  },
+  minimax: {
+    strongPatterns: [/^minimax/i, /abab/i],
+    weakKeywords: ['minimax', 'abab'],
+    metadataProviderAliases: ['minimax'],
+    providerHintKeywords: ['minimax', 'abab'],
+  },
+  xiaomimimo: {
+    strongPatterns: [/^mimo/i, /xiaomi\/mimo/i, /xiaomi\//i],
+    weakKeywords: ['mimo', 'xiaomi/mimo', 'xiaomi/'],
+    metadataProviderAliases: ['xiaomi'],
+    providerHintKeywords: ['xiaomi', 'mimo'],
+  },
+};
+
+const localSvgModules = import.meta.glob('@/assets/model-svgs/*.svg', { eager: true, import: 'default' });
+
+function normalizeLocalSvgKey(filePath) {
+  const fileName = String(filePath || '').split('/').pop() || '';
+  return fileName.toLowerCase().replace(/\.svg$/i, '').replace(/-color$/i, '');
+}
+
+const localSvgMap = Object.entries(localSvgModules).reduce((acc, [filePath, moduleValue]) => {
+  const iconKey = normalizeLocalSvgKey(filePath);
+  if (iconKey) {
+    acc[iconKey] = moduleValue;
+  }
+  return acc;
+}, {});
+
+const DEFAULT_LOCAL_ICON_KEY = localSvgMap.openai
+  ? 'openai'
+  : (LOCAL_ICON_PRIORITY.find((key) => !!localSvgMap[key]) || Object.keys(localSvgMap)[0] || '');
+const FALLBACK_MODEL_LOGO_URL = DEFAULT_LOCAL_ICON_KEY ? localSvgMap[DEFAULT_LOCAL_ICON_KEY] : '';
+
+const MODEL_FAMILY_PROVIDER_HINTS = [
+  { providerId: 'openai', pattern: /^(gpt|o[1-9]|codex|chatgpt|text-embedding|whisper|dall-e|tts)/i },
+  { providerId: 'anthropic', pattern: /^claude/i },
+  { providerId: 'google', pattern: /^gemini/i },
+  { providerId: 'deepseek', pattern: /^deepseek/i },
+  { providerId: 'xai', pattern: /^grok/i },
+  { providerId: 'moonshot', pattern: /^kimi/i },
+  { providerId: 'zai', pattern: /^(glm|z-ai\/glm|zhipu)/i },
+  { providerId: 'alibaba', pattern: /^(qwen|tongyi)/i },
+  { providerId: 'mistral', pattern: /^(mistral|ministral|codestral|pixtral|devstral)/i },
+  { providerId: 'cohere', pattern: /^(command|embed-)/i },
+];
+
+const capabilityOrder = ['vision', 'web', 'reasoning', 'tools', 'embedding'];
+const capabilityIconMap = {
+  vision: { icon: Eye, className: 'capability-vision', labelKey: 'providers.capabilities.vision' },
+  web: { icon: Globe, className: 'capability-web', labelKey: 'providers.capabilities.web' },
+  reasoning: { icon: Brain, className: 'capability-reasoning', labelKey: 'providers.capabilities.reasoning' },
+  tools: { icon: Wrench, className: 'capability-tools', labelKey: 'providers.capabilities.tools' },
+  embedding: { icon: Binary, className: 'capability-embedding', labelKey: 'providers.capabilities.embedding' },
+};
+
+function createEmptyCapabilities() {
+  return {
+    vision: false,
+    web: false,
+    reasoning: false,
+    tools: false,
+    embedding: false,
+  };
+}
+
+function sanitizeCapabilities(raw) {
+  return {
+    vision: !!raw?.vision,
+    web: !!raw?.web,
+    reasoning: !!raw?.reasoning,
+    tools: !!raw?.tools,
+    embedding: !!raw?.embedding,
+  };
+}
+
+function normalizeModelId(modelId) {
+  return String(modelId || '').trim().toLowerCase();
+}
 
 const currentConfig = inject('config');
 const provider_key = ref(null);
@@ -15,6 +156,446 @@ const contextMenuVisible = ref(false);
 const contextMenuPosition = ref({ x: 0, y: 0 });
 const contextMenuProviderKey = ref(null);
 
+const modelsMetadata = reactive({
+  providers: {},
+  modelIndex: {},
+  providerIds: [],
+  loaded: false,
+  isLoading: false,
+  error: null,
+});
+
+const modelCapabilityDialogVisible = ref(false);
+const modelCapabilityDialogForm = reactive({
+  modelId: '',
+  vision: false,
+  web: false,
+  reasoning: false,
+  tools: false,
+  embedding: false,
+});
+const modelCapabilityDialogHasOverride = ref(false);
+
+const modelCapabilityDialogItems = capabilityOrder.map((key) => ({
+  key,
+  ...capabilityIconMap[key],
+}));
+
+function isValidModelsPayload(payload) {
+  return !!payload && typeof payload === 'object' && !Array.isArray(payload);
+}
+
+function readModelsMetadataCache() {
+  try {
+    const raw = localStorage.getItem(MODELS_DEV_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    if (typeof parsed.cachedAt !== 'number' || !isValidModelsPayload(parsed.data)) return null;
+    return parsed;
+  } catch (_error) {
+    return null;
+  }
+}
+
+function writeModelsMetadataCache(data) {
+  try {
+    localStorage.setItem(MODELS_DEV_CACHE_KEY, JSON.stringify({
+      cachedAt: Date.now(),
+      data,
+    }));
+  } catch (_error) {
+    // Ignore localStorage write errors; runtime data is still usable.
+  }
+}
+
+function applyModelsMetadataData(data) {
+  const providersData = isValidModelsPayload(data) ? data : {};
+  const nextModelIndex = {};
+
+  for (const [providerIdRaw, providerData] of Object.entries(providersData)) {
+    if (!providerData || typeof providerData !== 'object') continue;
+
+    const providerId = String(providerIdRaw);
+    const providerIdNormalized = providerId.toLowerCase();
+    const providerName = String(providerData.name || providerId);
+    const models = providerData.models;
+    if (!models || typeof models !== 'object') continue;
+
+    for (const modelData of Object.values(models)) {
+      if (!modelData || typeof modelData !== 'object') continue;
+      const modelId = modelData.id ? String(modelData.id) : '';
+      if (!modelId) continue;
+      const normalizedId = normalizeModelId(modelId);
+      if (!normalizedId) continue;
+
+      if (!nextModelIndex[normalizedId]) {
+        nextModelIndex[normalizedId] = [];
+      }
+
+      nextModelIndex[normalizedId].push({
+        providerId,
+        providerIdNormalized,
+        providerName,
+        modelId,
+        modelData,
+      });
+    }
+  }
+
+  modelsMetadata.providers = providersData;
+  modelsMetadata.modelIndex = nextModelIndex;
+  modelsMetadata.providerIds = Object.keys(providersData).map((providerId) => String(providerId).toLowerCase());
+  modelsMetadata.loaded = true;
+  modelsMetadata.error = null;
+}
+
+async function loadModelsMetadata() {
+  if (modelsMetadata.isLoading) return;
+
+  const now = Date.now();
+  const cached = readModelsMetadataCache();
+  const hasCachedData = !!cached?.data;
+
+  if (hasCachedData) {
+    applyModelsMetadataData(cached.data);
+    const cacheAge = now - cached.cachedAt;
+    if (cacheAge <= MODELS_DEV_CACHE_TTL_MS) {
+      return;
+    }
+  }
+
+  modelsMetadata.isLoading = true;
+  try {
+    const response = await fetch(MODELS_DEV_API_URL);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const payload = await response.json();
+    if (!isValidModelsPayload(payload)) {
+      throw new Error('Invalid models metadata payload.');
+    }
+    applyModelsMetadataData(payload);
+    writeModelsMetadataCache(payload);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.warn('Failed to load models metadata:', message);
+    modelsMetadata.error = message;
+    if (!hasCachedData) {
+      modelsMetadata.loaded = true;
+      ElMessage.warning(t('providers.alerts.modelMetadataLoadFailed'));
+    }
+  } finally {
+    modelsMetadata.isLoading = false;
+  }
+}
+
+function inferProviderHints(provider, normalizedModelId = '') {
+  const hints = new Set();
+
+  if (normalizedModelId.includes('/')) {
+    hints.add(normalizedModelId.split('/')[0]);
+  }
+
+  const modelIdWithoutPrefix = normalizedModelId.includes('/')
+    ? normalizedModelId.split('/').slice(1).join('/')
+    : normalizedModelId;
+  for (const { providerId, pattern } of MODEL_FAMILY_PROVIDER_HINTS) {
+    if (pattern.test(normalizedModelId) || pattern.test(modelIdWithoutPrefix)) {
+      hints.add(providerId);
+    }
+  }
+
+  const providerName = String(provider?.name || '').toLowerCase();
+  const providerUrl = String(provider?.url || '').toLowerCase();
+
+  const textParts = [providerName, providerUrl];
+  try {
+    const hostname = new URL(provider?.url || '').hostname.toLowerCase();
+    if (hostname) textParts.push(hostname);
+  } catch (_error) {
+    // Ignore invalid URL.
+  }
+  const fullText = textParts.join(' ');
+
+  const providerKeywordMap = {
+    openai: ['openai', 'chatgpt'],
+    anthropic: ['anthropic', 'claude'],
+    google: ['google', 'gemini'],
+    deepseek: ['deepseek'],
+    xai: ['x.ai', 'xai', 'grok'],
+    moonshot: ['moonshot', 'kimi'],
+    zai: ['z.ai', 'zhipu', 'glm'],
+    alibaba: ['alibaba', 'aliyun', 'dashscope', 'qwen', 'tongyi'],
+    azure: ['azure'],
+    ollama: ['ollama'],
+    cohere: ['cohere'],
+    mistral: ['mistral'],
+  };
+
+  for (const [providerId, keywords] of Object.entries(providerKeywordMap)) {
+    if (keywords.some((keyword) => fullText.includes(keyword))) {
+      hints.add(providerId);
+    }
+  }
+
+  for (const providerId of modelsMetadata.providerIds) {
+    if (providerId && fullText.includes(providerId)) {
+      hints.add(providerId);
+    }
+  }
+
+  return hints;
+}
+
+function getCandidateScore(candidate, hints, normalizedModelId) {
+  let score = 0;
+  const providerId = String(candidate?.providerIdNormalized || '');
+  const candidateModelId = normalizeModelId(candidate?.modelId || candidate?.modelData?.id);
+
+  if (hints.has(providerId)) score += 120;
+  if (normalizedModelId.startsWith(`${providerId}/`)) score += 90;
+  if (candidateModelId === normalizedModelId) score += 40;
+
+  if (normalizedModelId.includes('/')) {
+    const suffixId = normalizedModelId.split('/').slice(1).join('/');
+    if (candidateModelId === suffixId) score += 25;
+  }
+
+  return score;
+}
+
+function pickCandidateByHints(candidates, hints, normalizedModelId) {
+  if (!Array.isArray(candidates) || candidates.length === 0) return null;
+  if (candidates.length === 1) return candidates[0];
+
+  // Prefer the highest scoring candidate; if tied, keep deterministic order.
+  const scored = candidates
+    .map((candidate) => ({
+      candidate,
+      score: getCandidateScore(candidate, hints, normalizedModelId),
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const aProvider = String(a.candidate.providerIdNormalized || '');
+      const bProvider = String(b.candidate.providerIdNormalized || '');
+      if (aProvider !== bProvider) return aProvider.localeCompare(bProvider);
+      return String(a.candidate.modelId || '').localeCompare(String(b.candidate.modelId || ''));
+    });
+
+  return scored[0]?.candidate || null;
+}
+
+function resolveModelMetadata(modelId, provider) {
+  const normalizedId = normalizeModelId(modelId);
+  if (!normalizedId) {
+    return { matched: false, entry: null };
+  }
+
+  const hints = inferProviderHints(provider, normalizedId);
+  const directCandidates = modelsMetadata.modelIndex[normalizedId] || [];
+  const directPick = pickCandidateByHints(directCandidates, hints, normalizedId);
+  if (directPick) {
+    return { matched: true, entry: directPick };
+  }
+
+  if (normalizedId.includes('/')) {
+    const suffixId = normalizedId.split('/').slice(1).join('/');
+    const suffixCandidates = modelsMetadata.modelIndex[suffixId] || [];
+    const suffixPick = pickCandidateByHints(suffixCandidates, hints, normalizedId);
+    if (suffixPick) {
+      return { matched: true, entry: suffixPick };
+    }
+  }
+
+  return { matched: false, entry: null };
+}
+
+function getAutomaticCapabilities(entry, modelId) {
+  const base = createEmptyCapabilities();
+  if (!entry?.modelData) return base;
+
+  const modelData = entry.modelData;
+  const inputModalities = Array.isArray(modelData.modalities?.input)
+    ? modelData.modalities.input.map((item) => String(item).toLowerCase())
+    : [];
+
+  const textForKeywordMatch = `${modelId} ${modelData.name || ''}`;
+
+  base.vision = inputModalities.includes('image') || inputModalities.includes('video');
+  base.reasoning = !!modelData.reasoning;
+  base.tools = !!modelData.tool_call;
+  base.web = WEB_KEYWORD_PATTERN.test(textForKeywordMatch);
+  base.embedding = EMBEDDING_KEYWORD_PATTERN.test(textForKeywordMatch);
+
+  return base;
+}
+
+function getProviderHintText(provider) {
+  const providerName = String(provider?.name || '').toLowerCase();
+  const providerUrl = String(provider?.url || '').toLowerCase();
+  let providerHost = '';
+
+  try {
+    providerHost = new URL(provider?.url || '').hostname.toLowerCase();
+  } catch (_error) {
+    providerHost = '';
+  }
+
+  return `${providerName} ${providerUrl} ${providerHost}`.trim();
+}
+
+function isStrongIconMatch(rule, normalizedModelId) {
+  if (!rule?.strongPatterns) return false;
+  return rule.strongPatterns.some((pattern) => pattern.test(normalizedModelId));
+}
+
+function isWeakIconMatch(rule, normalizedModelId) {
+  if (!rule?.weakKeywords) return false;
+  return rule.weakKeywords.some((keyword) => normalizedModelId.includes(keyword));
+}
+
+function isMetadataProviderIconMatch(rule, metadataProviderId) {
+  if (!rule?.metadataProviderAliases || !metadataProviderId) return false;
+  return rule.metadataProviderAliases.some((alias) => (
+    metadataProviderId === alias || metadataProviderId.includes(alias)
+  ));
+}
+
+function isProviderHintIconMatch(rule, providerHintText) {
+  if (!rule?.providerHintKeywords || !providerHintText) return false;
+  return rule.providerHintKeywords.some((keyword) => providerHintText.includes(keyword));
+}
+
+function getLocalIconScore(iconKey, normalizedModelId, providerHintText, metadataProviderId) {
+  const rule = LOCAL_ICON_MATCH_RULES[iconKey];
+  if (!rule) return 0;
+
+  let score = 0;
+  if (isStrongIconMatch(rule, normalizedModelId)) {
+    score += 120;
+  } else if (isWeakIconMatch(rule, normalizedModelId)) {
+    score += 60;
+  }
+  if (isMetadataProviderIconMatch(rule, metadataProviderId)) {
+    score += 45;
+  }
+  if (isProviderHintIconMatch(rule, providerHintText)) {
+    score += 25;
+  }
+
+  return score;
+}
+
+function resolveLocalIconKey(modelId, provider, metadataEntry) {
+  const normalizedModelId = normalizeModelId(modelId);
+  const providerHintText = getProviderHintText(provider);
+  const metadataProviderId = normalizeModelId(metadataEntry?.providerId);
+
+  const ranked = LOCAL_ICON_PRIORITY
+    .filter((iconKey) => !!localSvgMap[iconKey])
+    .map((iconKey) => ({
+      iconKey,
+      score: getLocalIconScore(iconKey, normalizedModelId, providerHintText, metadataProviderId),
+    }))
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      return LOCAL_ICON_PRIORITY.indexOf(a.iconKey) - LOCAL_ICON_PRIORITY.indexOf(b.iconKey);
+    });
+
+  const best = ranked[0];
+  if (best && best.score >= 25) {
+    return best.iconKey;
+  }
+
+  return DEFAULT_LOCAL_ICON_KEY || 'openai';
+}
+
+function resolveLocalLogoUrl(modelId, provider, metadataEntry) {
+  const iconKey = resolveLocalIconKey(modelId, provider, metadataEntry);
+  return localSvgMap[iconKey] || FALLBACK_MODEL_LOGO_URL;
+}
+
+function getModelCapabilityOverride(provider, modelId) {
+  const overrides = provider?.modelCapabilityOverrides;
+  if (!overrides || typeof overrides !== 'object') return null;
+
+  if (Object.prototype.hasOwnProperty.call(overrides, modelId)) {
+    return sanitizeCapabilities(overrides[modelId]);
+  }
+
+  const normalizedModelId = normalizeModelId(modelId);
+  for (const [key, value] of Object.entries(overrides)) {
+    if (normalizeModelId(key) === normalizedModelId) {
+      return sanitizeCapabilities(value);
+    }
+  }
+
+  return null;
+}
+
+function removeModelCapabilityOverride(provider, modelId) {
+  if (!provider?.modelCapabilityOverrides || typeof provider.modelCapabilityOverrides !== 'object') return;
+
+  if (Object.prototype.hasOwnProperty.call(provider.modelCapabilityOverrides, modelId)) {
+    delete provider.modelCapabilityOverrides[modelId];
+  } else {
+    const normalizedModelId = normalizeModelId(modelId);
+    for (const key of Object.keys(provider.modelCapabilityOverrides)) {
+      if (normalizeModelId(key) === normalizedModelId) {
+        delete provider.modelCapabilityOverrides[key];
+      }
+    }
+  }
+
+  if (Object.keys(provider.modelCapabilityOverrides).length === 0) {
+    delete provider.modelCapabilityOverrides;
+  }
+}
+
+function getEffectiveModelCapabilities(modelId, provider) {
+  const override = getModelCapabilityOverride(provider, modelId);
+  const resolved = resolveModelMetadata(modelId, provider);
+
+  let capabilities = createEmptyCapabilities();
+  if (override) {
+    capabilities = override;
+  } else if (resolved.matched) {
+    capabilities = getAutomaticCapabilities(resolved.entry, modelId);
+  }
+
+  return {
+    capabilities,
+    hasOverride: !!override,
+    matched: resolved.matched,
+    entry: resolved.entry,
+  };
+}
+
+function buildModelRenderMeta(modelId, provider) {
+  const effective = getEffectiveModelCapabilities(modelId, provider);
+  const capabilityEntries = capabilityOrder
+    .filter((capabilityKey) => effective.capabilities[capabilityKey])
+    .map((capabilityKey) => ({
+      key: capabilityKey,
+      ...capabilityIconMap[capabilityKey],
+    }));
+
+  return {
+    ...effective,
+    capabilityEntries,
+    logoUrl: resolveLocalLogoUrl(modelId, provider, effective.entry),
+  };
+}
+
+function handleModelLogoError(event) {
+  const img = event?.target;
+  if (!img || !FALLBACK_MODEL_LOGO_URL) return;
+  if (img.dataset.logoFallbackApplied === '1') return;
+  img.dataset.logoFallbackApplied = '1';
+  img.src = FALLBACK_MODEL_LOGO_URL;
+}
+
 onMounted(() => {
   if (currentConfig.value.providerOrder && currentConfig.value.providerOrder.length > 0) {
     provider_key.value = currentConfig.value.providerOrder[0];
@@ -23,6 +604,8 @@ onMounted(() => {
   } else {
     provider_key.value = null;
   }
+
+  loadModelsMetadata();
 });
 
 const selectedProvider = computed(() => {
@@ -30,6 +613,19 @@ const selectedProvider = computed(() => {
     return currentConfig.value.providers[provider_key.value];
   }
   return null;
+});
+
+const modelRenderMetaMap = computed(() => {
+  const output = {};
+  const provider = selectedProvider.value;
+  if (!provider?.modelList || !Array.isArray(provider.modelList)) {
+    return output;
+  }
+
+  for (const modelId of provider.modelList) {
+    output[modelId] = buildModelRenderMeta(modelId, provider);
+  }
+  return output;
 });
 
 const localProviderOrder = ref([]);
@@ -141,6 +737,7 @@ function delete_model(model) {
     const provider = config.providers[keyToUpdate];
     if (provider) {
       provider.modelList = provider.modelList.filter(m => m !== model);
+      removeModelCapabilityOverride(provider, model);
     }
   });
 }
@@ -245,6 +842,7 @@ function get_model_function(add, modelId) {
         }
       } else {
         provider.modelList = provider.modelList.filter(m => m !== modelId);
+        removeModelCapabilityOverride(provider, modelId);
       }
     }
   });
@@ -283,6 +881,76 @@ const apiKeyCount = computed(() => {
   const keys = selectedProvider.value.api_key.split(/[,，]/).filter(k => k.trim() !== '');
   return keys.length;
 });
+
+function fillModelCapabilityDialogForm(capabilities) {
+  const normalized = sanitizeCapabilities(capabilities);
+  modelCapabilityDialogForm.vision = normalized.vision;
+  modelCapabilityDialogForm.web = normalized.web;
+  modelCapabilityDialogForm.reasoning = normalized.reasoning;
+  modelCapabilityDialogForm.tools = normalized.tools;
+  modelCapabilityDialogForm.embedding = normalized.embedding;
+}
+
+function getModelCapabilityDialogFormData() {
+  return {
+    vision: !!modelCapabilityDialogForm.vision,
+    web: !!modelCapabilityDialogForm.web,
+    reasoning: !!modelCapabilityDialogForm.reasoning,
+    tools: !!modelCapabilityDialogForm.tools,
+    embedding: !!modelCapabilityDialogForm.embedding,
+  };
+}
+
+function openModelCapabilityDialog(modelId) {
+  const provider = selectedProvider.value;
+  if (!provider || !provider_key.value) return;
+
+  const effective = getEffectiveModelCapabilities(modelId, provider);
+  modelCapabilityDialogForm.modelId = modelId;
+  fillModelCapabilityDialogForm(effective.capabilities);
+  modelCapabilityDialogHasOverride.value = effective.hasOverride;
+  modelCapabilityDialogVisible.value = true;
+}
+
+async function saveModelCapabilityOverride() {
+  if (!provider_key.value || !modelCapabilityDialogForm.modelId) return;
+  const keyToUpdate = provider_key.value;
+  const modelId = modelCapabilityDialogForm.modelId;
+  const capabilities = getModelCapabilityDialogFormData();
+
+  await atomicSave(config => {
+    const provider = config.providers[keyToUpdate];
+    if (!provider) return;
+    if (!provider.modelCapabilityOverrides || typeof provider.modelCapabilityOverrides !== 'object') {
+      provider.modelCapabilityOverrides = {};
+    }
+    provider.modelCapabilityOverrides[modelId] = capabilities;
+  });
+
+  modelCapabilityDialogHasOverride.value = true;
+  modelCapabilityDialogVisible.value = false;
+}
+
+async function resetModelCapabilityOverride() {
+  if (!provider_key.value || !modelCapabilityDialogForm.modelId) return;
+  const keyToUpdate = provider_key.value;
+  const modelId = modelCapabilityDialogForm.modelId;
+
+  await atomicSave(config => {
+    const provider = config.providers[keyToUpdate];
+    if (!provider) return;
+    removeModelCapabilityOverride(provider, modelId);
+  });
+
+  const provider = selectedProvider.value;
+  if (provider) {
+    const refreshed = getEffectiveModelCapabilities(modelId, provider);
+    fillModelCapabilityDialogForm(refreshed.capabilities);
+  } else {
+    fillModelCapabilityDialogForm(createEmptyCapabilities());
+  }
+  modelCapabilityDialogHasOverride.value = false;
+}
 
 function handleProviderContextMenu(event, key_id) {
   event.preventDefault();
@@ -417,8 +1085,40 @@ watch(contextMenuVisible, (val) => {
                     ghost-class="sortable-ghost">
                     <template #item="{ element: model }">
                       <div class="model-tag">
-                        <span class="model-name">{{ model }}</span>
-                        <Minus class="model-remove-icon" :size="16" @click.stop="delete_model(model)" />
+                        <div class="model-main">
+                          <img
+                            class="model-logo"
+                            :src="modelRenderMetaMap[model]?.logoUrl || FALLBACK_MODEL_LOGO_URL"
+                            :alt="model"
+                            loading="lazy"
+                            @error="handleModelLogoError"
+                          />
+                          <span class="model-name">{{ model }}</span>
+                          <div v-if="modelRenderMetaMap[model]?.capabilityEntries?.length" class="model-capabilities">
+                            <el-tooltip
+                              v-for="capability in modelRenderMetaMap[model].capabilityEntries"
+                              :key="`${model}-${capability.key}`"
+                              :content="t(capability.labelKey)"
+                              placement="top"
+                            >
+                              <span class="model-capability-pill" :class="capability.className">
+                                <component :is="capability.icon" :size="12" />
+                              </span>
+                            </el-tooltip>
+                          </div>
+                        </div>
+                        <div class="model-actions">
+                          <el-tooltip :content="t('providers.modelCapabilitySettingsTooltip')" placement="top">
+                            <button type="button" class="model-icon-btn model-settings-btn" @click.stop="openModelCapabilityDialog(model)">
+                              <Settings :size="14" />
+                            </button>
+                          </el-tooltip>
+                          <el-tooltip :content="t('providers.removeModelTooltip')" placement="top">
+                            <button type="button" class="model-icon-btn model-remove-btn" @click.stop="delete_model(model)">
+                              <Minus :size="16" />
+                            </button>
+                          </el-tooltip>
+                        </div>
                       </div>
                     </template>
                   </draggable>
@@ -510,6 +1210,33 @@ watch(contextMenuVisible, (val) => {
         <div class="dialog-footer">
           <el-button @click="getModel_page = false">{{ t('common.close') }}</el-button>
         </div>
+      </template>
+    </el-dialog>
+
+    <el-dialog
+      v-model="modelCapabilityDialogVisible"
+      :title="t('providers.modelCapabilityDialogTitle')"
+      width="500px"
+      :close-on-click-modal="false"
+      append-to-body
+    >
+      <div class="model-capability-dialog-model">{{ modelCapabilityDialogForm.modelId }}</div>
+      <div class="model-capability-dialog-tip">{{ t('providers.modelCapabilityDialogTip') }}</div>
+      <div class="model-capability-grid">
+        <label v-for="item in modelCapabilityDialogItems" :key="item.key" class="model-capability-grid-item">
+          <el-checkbox v-model="modelCapabilityDialogForm[item.key]" />
+          <span class="model-capability-grid-icon" :class="item.className">
+            <component :is="item.icon" :size="14" />
+          </span>
+          <span>{{ t(item.labelKey) }}</span>
+        </label>
+      </div>
+      <template #footer>
+        <el-button @click="modelCapabilityDialogVisible = false">{{ t('common.cancel') }}</el-button>
+        <el-button @click="resetModelCapabilityOverride" :disabled="!modelCapabilityDialogHasOverride">
+          {{ t('providers.modelCapabilityResetToAuto') }}
+        </el-button>
+        <el-button type="primary" @click="saveModelCapabilityOverride">{{ t('common.confirm') }}</el-button>
       </template>
     </el-dialog>
 
@@ -804,35 +1531,118 @@ watch(contextMenuVisible, (val) => {
   color: var(--text-primary);
   border: 1px solid var(--border-primary);
   font-weight: 500;
-  border-radius: var(--radius-md);
+  border-radius: 9999px;
   width: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 36px;
-  padding: 0 12px;
+  height: 40px;
+  padding: 0 10px 0 12px;
   box-sizing: border-box;
   cursor: move;
+  gap: 8px;
+}
+
+.model-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.model-logo {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border-radius: 50%;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .model-name {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.model-remove-icon {
-  color: var(--text-secondary);
-  padding: 4px;
+.model-capabilities {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.model-capability-pill {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+}
+
+.model-capability-pill.capability-vision {
+  color: #2563eb;
+}
+
+.model-capability-pill.capability-web {
+  color: #059669;
+}
+
+.model-capability-pill.capability-reasoning {
+  color: #d97706;
+}
+
+.model-capability-pill.capability-tools {
+  color: #dc2626;
+}
+
+.model-capability-pill.capability-embedding {
+  color: #0891b2;
+}
+
+.model-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.model-icon-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
   border-radius: var(--radius-sm, 4px);
+  background-color: transparent;
+  color: var(--text-secondary);
   cursor: pointer;
   transition: all 0.2s ease;
-  display: flex;
+  padding: 0;
+  flex-shrink: 0;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
-.model-remove-icon:hover {
-  color: var(--color-danger, #ef4444);
+.model-icon-btn:hover {
   background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.model-icon-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--bg-accent) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.model-settings-btn:hover {
+  color: #2563eb;
+}
+
+.model-remove-btn:hover {
+  color: var(--color-danger, #ef4444);
 }
 
 /* Provider list drag & drop */
@@ -1002,6 +1812,78 @@ watch(contextMenuVisible, (val) => {
 
 .models-list-wrapper {
   margin-bottom: 18px;
+}
+
+.model-capability-dialog-model {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+
+.model-capability-dialog-tip {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+}
+
+.model-capability-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.model-capability-grid-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-primary);
+  background-color: var(--bg-primary);
+  padding: 0 10px;
+  color: var(--text-primary);
+}
+
+.model-capability-grid-icon {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+}
+
+.model-capability-grid-icon.capability-vision {
+  color: #2563eb;
+  border-color: color-mix(in srgb, #2563eb 35%, transparent);
+  background: color-mix(in srgb, #2563eb 15%, transparent);
+}
+
+.model-capability-grid-icon.capability-web {
+  color: #059669;
+  border-color: color-mix(in srgb, #059669 35%, transparent);
+  background: color-mix(in srgb, #059669 15%, transparent);
+}
+
+.model-capability-grid-icon.capability-reasoning {
+  color: #d97706;
+  border-color: color-mix(in srgb, #d97706 35%, transparent);
+  background: color-mix(in srgb, #d97706 15%, transparent);
+}
+
+.model-capability-grid-icon.capability-tools {
+  color: #dc2626;
+  border-color: color-mix(in srgb, #dc2626 35%, transparent);
+  background: color-mix(in srgb, #dc2626 15%, transparent);
+}
+
+.model-capability-grid-icon.capability-embedding {
+  color: #0891b2;
+  border-color: color-mix(in srgb, #0891b2 35%, transparent);
+  background: color-mix(in srgb, #0891b2 15%, transparent);
 }
 
 .provider-context-menu {

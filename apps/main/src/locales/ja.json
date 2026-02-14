@@ -480,12 +480,24 @@
     "noModelsMatchSearch": "一致するモデルが見つかりませんでした。",
     "addModelTooltip": "モデルを追加",
     "removeModelTooltip": "モデルを削除",
+    "modelCapabilitySettingsTooltip": "モデル属性を設定",
+    "modelCapabilityDialogTitle": "モデル属性設定",
+    "modelCapabilityDialogTip": "手動設定は自動判定より優先されます。",
+    "modelCapabilityResetToAuto": "自動判定に戻す",
+    "capabilities": {
+      "vision": "視覚",
+      "web": "Web",
+      "reasoning": "推論",
+      "tools": "ツール",
+      "embedding": "埋め込み"
+    },
     "alerts": {
       "providerUrlNotSet": "サービスプロバイダーURLが設定されていません。",
       "fetchModelsError": "エラー {status}: {message}",
       "fetchModelsFailedDefault": "モデルの取得に失敗しました。",
       "configSaveFailed": "設定の保存に失敗しました。",
-      "saveFailed": "保存に失敗しました"
+      "saveFailed": "保存に失敗しました",
+      "modelMetadataLoadFailed": "モデルメタデータの読み込みに失敗したため、既定表示を使用します。"
     }
   },
   "setting": {

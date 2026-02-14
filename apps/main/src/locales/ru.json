@@ -480,12 +480,24 @@
     "noModelsMatchSearch": "Соответствующие модели не найдены.",
     "addModelTooltip": "Добавить модель",
     "removeModelTooltip": "Удалить модель",
+    "modelCapabilitySettingsTooltip": "Настроить свойства модели",
+    "modelCapabilityDialogTitle": "Настройки свойств модели",
+    "modelCapabilityDialogTip": "Ручные настройки имеют приоритет над автоопределением.",
+    "modelCapabilityResetToAuto": "Сбросить к автоопределению",
+    "capabilities": {
+      "vision": "Зрение",
+      "web": "Интернет",
+      "reasoning": "Рассуждение",
+      "tools": "Инструменты",
+      "embedding": "Эмбеддинги"
+    },
     "alerts": {
       "providerUrlNotSet": "URL провайдера не установлен.",
       "fetchModelsError": "Ошибка {status}: {message}",
       "fetchModelsFailedDefault": "Не удалось получить модели.",
       "configSaveFailed": "Не удалось сохранить конфигурацию.",
-      "saveFailed": "Ошибка сохранения"
+      "saveFailed": "Ошибка сохранения",
+      "modelMetadataLoadFailed": "Не удалось загрузить метаданные моделей. Используется отображение по умолчанию."
     }
   },
   "setting": {

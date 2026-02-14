@@ -480,12 +480,24 @@
     "noModelsMatchSearch": "No models match search.",
     "addModelTooltip": "Add Model",
     "removeModelTooltip": "Remove Model",
+    "modelCapabilitySettingsTooltip": "Configure Model Capabilities",
+    "modelCapabilityDialogTitle": "Model Capability Settings",
+    "modelCapabilityDialogTip": "Manual settings take priority over automatic detection.",
+    "modelCapabilityResetToAuto": "Reset to Auto Detection",
+    "capabilities": {
+      "vision": "Vision",
+      "web": "Web",
+      "reasoning": "Reasoning",
+      "tools": "Tools",
+      "embedding": "Embedding"
+    },
     "alerts": {
       "providerUrlNotSet": "Provider URL is not set.",
       "fetchModelsError": "Error {status}: {message}",
       "fetchModelsFailedDefault": "Failed to fetch models.",
       "configSaveFailed": "Failed to save configuration.",
-      "saveFailed": "Save failed"
+      "saveFailed": "Save failed",
+      "modelMetadataLoadFailed": "Failed to load model metadata. Falling back to default display."
     }
   },
   "setting": {

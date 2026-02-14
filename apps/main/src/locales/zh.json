@@ -480,12 +480,24 @@
     "noModelsMatchSearch": "未找到匹配的模型",
     "addModelTooltip": "添加模型",
     "removeModelTooltip": "移除模型",
+    "modelCapabilitySettingsTooltip": "设置模型属性",
+    "modelCapabilityDialogTitle": "模型属性设置",
+    "modelCapabilityDialogTip": "手动设置优先于自动识别结果",
+    "modelCapabilityResetToAuto": "恢复自动识别",
+    "capabilities": {
+      "vision": "视觉",
+      "web": "联网",
+      "reasoning": "推理",
+      "tools": "工具",
+      "embedding": "嵌入"
+    },
     "alerts": {
       "providerUrlNotSet": "服务商 URL 未设置",
       "fetchModelsError": "错误 {status}: {message}",
       "fetchModelsFailedDefault": "获取模型失败",
       "configSaveFailed": "保存配置失败",
-      "saveFailed": "保存失败"
+      "saveFailed": "保存失败",
+      "modelMetadataLoadFailed": "模型元数据加载失败，将使用默认展示。"
     }
   },
   "setting": {
