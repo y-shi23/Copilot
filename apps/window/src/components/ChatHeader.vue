@@ -211,9 +211,9 @@ const logoTransformStyle = computed(() => ({
   white-space: nowrap;
   pointer-events: none;
   transition:
-    max-width 0.28s linear,
-    opacity 0.28s linear,
-    transform 0.28s linear;
+    max-width 0.22s cubic-bezier(0.4, 0, 0.8, 1),
+    opacity 0.14s linear,
+    transform 0.22s cubic-bezier(0.4, 0, 0.8, 1);
 }
 
 .expandable-pill {
@@ -225,11 +225,11 @@ const logoTransformStyle = computed(() => ({
   justify-content: flex-start;
   overflow: hidden;
   transition:
-    max-width 0.28s linear,
-    padding 0.28s linear,
-    gap 0.28s linear,
-    border-color 0.28s linear,
-    background-color 0.28s linear;
+    max-width 0.22s cubic-bezier(0.4, 0, 0.8, 1),
+    padding 0.22s cubic-bezier(0.4, 0, 0.8, 1),
+    gap 0.22s cubic-bezier(0.4, 0, 0.8, 1),
+    border-color 0.16s linear,
+    background-color 0.16s linear;
 }
 
 .expandable-pill.is-expanded .expandable-content,
@@ -237,6 +237,10 @@ const logoTransformStyle = computed(() => ({
   max-width: 260px;
   opacity: 1;
   transform: translateX(0);
+  transition:
+    max-width 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.22s linear,
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .expandable-pill.is-expanded,
@@ -246,6 +250,12 @@ const logoTransformStyle = computed(() => ({
   padding: 0 12px 0 10px;
   border-color: var(--border-primary);
   background-color: var(--bg-secondary);
+  transition:
+    max-width 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    padding 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    gap 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.18s linear,
+    background-color 0.18s linear;
 }
 
 @keyframes rotate-logo {
