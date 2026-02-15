@@ -23,11 +23,15 @@ import {
   FileText,
   Wrench,
   Square,
+  ArrowUp,
+  ArrowDown,
+  AlarmClockCheck,
 } from 'lucide-vue-next';
 import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
 
 import { formatTimestamp, formatMessageText, sanitizeToolArgs } from '../utils/formatters';
+import { handleModelLogoError, resolveModelLogoUrl } from '../utils/modelLogos';
 
 const props = defineProps({
   message: Object,
@@ -320,18 +324,10 @@ const assistantResponseMetrics = computed(() => {
   };
 });
 
-const assistantResponseTokensDisplay = computed(() => {
+const assistantResponseTotalTokensDisplay = computed(() => {
   const metrics = assistantResponseMetrics.value;
   if (!metrics) return '';
-  return `${metrics.isEstimated ? '~' : ''}总 ${metrics.totalTokens} · 上 ${metrics.promptTokens} / 下 ${metrics.completionTokens}`;
-});
-
-const assistantResponseTokensTitle = computed(() => {
-  const metrics = assistantResponseMetrics.value;
-  if (!metrics) return '';
-  return metrics.isEstimated
-    ? '本次响应 Tokens（总/上行/下行，估算值）'
-    : '本次响应 Tokens（总/上行/下行）';
+  return `${metrics.isEstimated ? '~' : ''}${metrics.totalTokens}Tokens`;
 });
 
 const assistantFirstTokenLatencyDisplay = computed(() => {
@@ -343,8 +339,48 @@ const assistantFirstTokenLatencyDisplay = computed(() => {
 const assistantTokenSpeedDisplay = computed(() => {
   const metrics = assistantResponseMetrics.value;
   if (!metrics || !Number.isFinite(metrics.tokenSpeed) || metrics.tokenSpeed < 0) return '-';
-  return `${metrics.tokenSpeed.toFixed(1)} tok/s`;
+  return `${metrics.tokenSpeed.toFixed(1)} Tokens/s`;
 });
+
+const assistantAvatarMeta = computed(() => {
+  const fallbackAvatar = props.aiAvatar || 'ai.svg';
+  if (props.message?.role !== 'assistant') {
+    return { src: fallbackAvatar, isModelLogo: false };
+  }
+
+  const messageModelKey = String(props.message?.modelKey || props.message?.model || '');
+  const messageModelLabel = String(props.message?.modelLabel || props.message?.aiName || '');
+  const hasReliableModelInfo = messageModelKey.includes('|') || messageModelLabel.includes('|');
+  if (!hasReliableModelInfo) {
+    return { src: fallbackAvatar, isModelLogo: false };
+  }
+
+  const [providerId = '', ...modelFromKeyParts] = messageModelKey.split('|');
+  const [providerName = '', ...modelFromLabelParts] = messageModelLabel.split('|');
+  const modelName = modelFromKeyParts.join('|') || modelFromLabelParts.join('|');
+  if (!modelName) {
+    return { src: fallbackAvatar, isModelLogo: false };
+  }
+
+  return {
+    src: resolveModelLogoUrl(modelName, {
+      providerName,
+      metadataProviderId: providerId,
+    }),
+    isModelLogo: true,
+  };
+});
+
+const onAssistantAvatarError = (event) => {
+  if (assistantAvatarMeta.value.isModelLogo) {
+    handleModelLogoError(event);
+    return;
+  }
+  const img = event?.target;
+  if (!img || img.dataset.avatarFallbackApplied === '1') return;
+  img.dataset.avatarFallbackApplied = '1';
+  img.src = 'ai.svg';
+};
 
 const switchToEditMode = () => {
   editedContent.value = formatMessageText(props.message.content);
@@ -678,9 +714,10 @@ onBeforeUnmount(() => {
     <div v-if="message.role === 'assistant'" class="message-wrapper ai-wrapper">
       <div class="message-meta-header ai-meta-header">
         <img
-          :src="aiAvatar"
+          :src="assistantAvatarMeta.src"
           alt="AI Avatar"
           @click="onAvatarClick('assistant', $event)"
+          @error="onAssistantAvatarError"
           class="chat-avatar-top ai-avatar"
         />
         <div class="meta-info-column">
@@ -931,7 +968,7 @@ onBeforeUnmount(() => {
               </button>
             </div>
             <el-tooltip
-              v-if="assistantResponseTokensDisplay"
+              v-if="assistantResponseMetrics"
               placement="top-end"
               effect="light"
               popper-class="token-metrics-tooltip"
@@ -939,17 +976,24 @@ onBeforeUnmount(() => {
               <template #content>
                 <div class="token-tooltip-content">
                   <div class="token-tooltip-row">
-                    <span>首字时延</span>
+                    <AlarmClockCheck :size="13" class="token-tooltip-icon" />
                     <span>{{ assistantFirstTokenLatencyDisplay }}</span>
                   </div>
                   <div class="token-tooltip-row">
-                    <span>每秒 Tokens</span>
-                    <span>{{ assistantTokenSpeedDisplay }}</span>
+                    <span class="token-tooltip-speed">{{ assistantTokenSpeedDisplay }}</span>
                   </div>
                 </div>
               </template>
-              <div class="footer-token-metrics" :title="assistantResponseTokensTitle">
-                {{ assistantResponseTokensDisplay }}
+              <div class="footer-token-metrics">
+                <span class="token-total">{{ assistantResponseTotalTokensDisplay }}</span>
+                <ArrowUp :size="12" class="token-direction-icon" />
+                <span class="token-direction-value">{{
+                  assistantResponseMetrics.promptTokens
+                }}</span>
+                <ArrowDown :size="12" class="token-direction-icon" />
+                <span class="token-direction-value">{{
+                  assistantResponseMetrics.completionTokens
+                }}</span>
               </div>
             </el-tooltip>
           </div>
@@ -1087,6 +1131,11 @@ html.dark .chat-message .user-bubble {
     box-shadow: none;
     border: none;
     padding: 0;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: fit-content;
+    max-width: 100%;
   }
 
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
@@ -1095,6 +1144,7 @@ html.dark .chat-message .user-bubble {
     border-radius: 0;
     padding: 0;
     box-shadow: none;
+    width: 100%;
   }
 
   :deep(.el-bubble-content-wrapper .el-bubble-arrow),
@@ -1105,6 +1155,7 @@ html.dark .chat-message .user-bubble {
 
   :deep(.el-bubble-content-wrapper .el-bubble-footer) {
     margin-top: 0;
+    width: 100%;
   }
 }
 
@@ -1757,11 +1808,12 @@ html.dark .ai-name {
   align-items: center;
   width: 100%;
   margin-top: 6px;
-  min-height: 20px;
+  min-height: 22px;
 }
 
 .ai-footer {
   justify-content: flex-start;
+  gap: 8px;
 }
 
 .ai-bubble .ai-footer .footer-actions {
@@ -1841,18 +1893,20 @@ html.dark .ai-name {
 .footer-token-metrics {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  min-height: 20px;
-  padding: 0 8px;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--el-text-color-secondary);
-  font-size: 12px;
+  justify-content: flex-end;
+  gap: 4px;
+  min-height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background-color: color-mix(in srgb, var(--el-fill-color-light) 88%, transparent);
+  color: var(--text-secondary);
+  font-size: 11px;
   line-height: 1;
   white-space: nowrap;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+  font-variant-numeric: tabular-nums;
   transition:
     color 0.16s ease,
     opacity 0.16s ease,
@@ -1863,9 +1917,22 @@ html.dark .ai-name {
 
 .message-wrapper:hover .footer-token-metrics,
 .message-wrapper:focus-within .footer-token-metrics {
-  opacity: 0.82;
+  opacity: 0.86;
   visibility: visible;
   pointer-events: auto;
+}
+
+.token-total {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.token-direction-icon {
+  color: var(--text-tertiary);
+}
+
+.token-direction-value {
+  color: var(--text-secondary);
 }
 
 .footer-token-metrics:hover {
@@ -1883,23 +1950,30 @@ html.dark .ai-name {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 150px;
+  min-width: 132px;
 }
 
 :deep(.token-metrics-tooltip .token-tooltip-row) {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-start;
+  gap: 8px;
   font-size: 12px;
   line-height: 1.4;
-}
-
-:deep(.token-metrics-tooltip .token-tooltip-row > span:first-child) {
-  color: var(--el-text-color-secondary);
+  color: var(--el-text-color-primary);
 }
 
 :deep(.token-metrics-tooltip .token-tooltip-row > span:last-child) {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+:deep(.token-metrics-tooltip .token-tooltip-icon) {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+:deep(.token-metrics-tooltip .token-tooltip-speed) {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }

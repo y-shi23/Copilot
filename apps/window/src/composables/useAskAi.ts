@@ -235,6 +235,8 @@ export function useAskAi(options: any) {
         }
 
         const assistantMessageId = messageIdCounter.value++;
+        const currentModelKey = model.value;
+        const currentModelLabel = modelMap.value[model.value] || model.value;
         chat_show.value.push({
           id: assistantMessageId,
           role: 'assistant',
@@ -242,7 +244,9 @@ export function useAskAi(options: any) {
           metrics: null,
           reasoning_content: '',
           status: '',
-          aiName: modelMap.value[model.value] || model.value.split('|')[1],
+          aiName: currentModelLabel,
+          modelKey: currentModelKey,
+          modelLabel: currentModelLabel,
           voiceName: selectedVoice.value,
           tool_calls: [],
         });
@@ -682,11 +686,15 @@ export function useAskAi(options: any) {
       const errorBubbleIndex =
         currentAssistantChatShowIndex > -1 ? currentAssistantChatShowIndex : chat_show.value.length;
       if (currentAssistantChatShowIndex === -1) {
+        const currentModelKey = model.value;
+        const currentModelLabel = modelMap.value[model.value] || model.value;
         chat_show.value.push({
           id: messageIdCounter.value++,
           role: 'assistant',
           content: [],
-          aiName: modelMap.value[model.value] || model.value.split('|')[1],
+          aiName: currentModelLabel,
+          modelKey: currentModelKey,
+          modelLabel: currentModelLabel,
           voiceName: selectedVoice.value,
         });
       }

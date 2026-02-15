@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue';
 import { ElDialog, ElButton, ElInput } from 'element-plus';
 import { Search } from 'lucide-vue-next';
+import { handleModelLogoError, resolveModelLogoUrl } from '../utils/modelLogos';
 
 const props = defineProps({
   modelValue: Boolean,
@@ -35,14 +36,21 @@ const groupedModelList = computed(() => {
   const groups = new Map();
   for (const model of filteredModelList.value) {
     const [provider = '', ...nameParts] = String(model.label || '').split('|');
+    const [providerId = '', ...idParts] = String(model.value || '').split('|');
     const modelName = nameParts.join('|') || model.value || model.label;
+    const modelId = idParts.join('|') || modelName;
     if (!groups.has(provider)) {
       groups.set(provider, []);
     }
     groups.get(provider).push({
       ...model,
       provider,
+      providerId,
       modelName,
+      logoUrl: resolveModelLogoUrl(modelId, {
+        providerName: provider,
+        metadataProviderId: providerId,
+      }),
     });
   }
 
@@ -102,14 +110,25 @@ const handleClose = () => {
           v-for="model in group.models"
           :key="model.value"
           type="button"
-          class="app-dropdown-item model-option"
+          class="app-dropdown-item model-option model-tag"
           :class="{ 'is-selected': model.value === currentModel }"
           @click="onModelClick(model)"
         >
-          <span class="model-name">{{ model.modelName }}</span>
-          <span class="model-hint">{{
-            model.value === currentModel ? '当前模型（点击保存默认）' : '点击切换'
-          }}</span>
+          <div class="model-main">
+            <img
+              class="model-logo"
+              :src="model.logoUrl"
+              :alt="model.modelName"
+              loading="lazy"
+              @error="handleModelLogoError"
+            />
+            <span class="model-name">{{ model.modelName }}</span>
+          </div>
+          <div class="model-actions">
+            <span class="model-hint">{{
+              model.value === currentModel ? '当前模型（点击保存默认）' : '点击切换'
+            }}</span>
+          </div>
         </button>
       </div>
     </div>
@@ -151,34 +170,70 @@ const handleClose = () => {
 }
 
 .model-option {
-  min-height: 38px;
+  min-height: 40px;
   height: auto;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  line-height: 1.3;
-  padding-top: 8px;
-  padding-bottom: 8px;
+  gap: 10px;
+  line-height: 1.2;
+  padding: 0 10px 0 12px;
+}
+
+.model-tag {
+  width: 100%;
+  border-radius: 9999px;
+  border: 1px solid var(--border-primary);
+  background-color: var(--bg-tertiary);
+  margin-bottom: 6px;
+}
+
+.model-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.model-logo {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border-radius: 50%;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .model-name {
-  color: var(--text-primary);
+  color: var(--text-primary) !important;
   font-weight: 500;
   font-size: 13px;
-  text-align: left;
+  text-align: left !important;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  flex: 1;
+}
+
+.model-actions {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .model-hint {
   color: var(--text-tertiary);
   font-size: 11px;
-  flex-shrink: 0;
   text-align: right;
+  white-space: nowrap;
 }
 
 .model-option.is-selected {
-  background-color: var(--bg-tertiary);
+  border-color: color-mix(in srgb, var(--text-accent) 38%, var(--border-primary));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-accent) 14%, transparent);
+}
+
+.model-option.model-tag:hover {
+  background-color: color-mix(in srgb, var(--bg-tertiary) 82%, var(--bg-secondary));
 }
 </style>
