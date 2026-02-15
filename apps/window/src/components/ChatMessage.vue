@@ -635,9 +635,6 @@ onBeforeUnmount(() => {
     <!-- 用户消息 -->
     <div v-if="message.role === 'user'" class="message-wrapper user-wrapper">
       <div class="message-meta-header user-meta-header">
-        <span class="timestamp" v-if="message.timestamp">{{
-          formatTimestamp(message.timestamp)
-        }}</span>
         <img
           :src="userAvatar"
           alt="User Avatar"
