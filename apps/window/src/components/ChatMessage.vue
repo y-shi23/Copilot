@@ -342,30 +342,58 @@ const assistantTokenSpeedDisplay = computed(() => {
   return `${metrics.tokenSpeed.toFixed(1)} Tokens/s`;
 });
 
+const assistantModelDisplayMeta = computed(() => {
+  const fallbackName = String(props.message?.aiName || 'AI').trim() || 'AI';
+  const modelKey = String(props.message?.modelKey || props.message?.model || '');
+  const modelLabel = String(props.message?.modelLabel || props.message?.aiName || '');
+
+  let providerName = '';
+  let providerId = '';
+  let modelNameFromLabel = '';
+  let modelNameFromKey = '';
+
+  if (modelLabel.includes('|')) {
+    const [provider = '', ...modelParts] = modelLabel.split('|');
+    providerName = provider.trim();
+    modelNameFromLabel = modelParts.join('|').trim();
+  }
+
+  if (modelKey.includes('|')) {
+    const [provider = '', ...modelParts] = modelKey.split('|');
+    providerId = provider.trim();
+    modelNameFromKey = modelParts.join('|').trim();
+  }
+
+  const modelName = modelNameFromKey || modelNameFromLabel || fallbackName;
+  const provider = providerName || providerId;
+
+  return {
+    modelName,
+    providerName: provider,
+    providerId,
+    providerInitial: provider ? provider.charAt(0).toUpperCase() : '',
+    hasModelIdentity: Boolean((modelNameFromKey || modelNameFromLabel) && provider),
+  };
+});
+
 const assistantAvatarMeta = computed(() => {
   const fallbackAvatar = props.aiAvatar || 'ai.svg';
   if (props.message?.role !== 'assistant') {
     return { src: fallbackAvatar, isModelLogo: false };
   }
 
-  const messageModelKey = String(props.message?.modelKey || props.message?.model || '');
-  const messageModelLabel = String(props.message?.modelLabel || props.message?.aiName || '');
-  const hasReliableModelInfo = messageModelKey.includes('|') || messageModelLabel.includes('|');
-  if (!hasReliableModelInfo) {
+  if (!assistantModelDisplayMeta.value.hasModelIdentity) {
     return { src: fallbackAvatar, isModelLogo: false };
   }
 
-  const [providerId = '', ...modelFromKeyParts] = messageModelKey.split('|');
-  const [providerName = '', ...modelFromLabelParts] = messageModelLabel.split('|');
-  const modelName = modelFromKeyParts.join('|') || modelFromLabelParts.join('|');
-  if (!modelName) {
+  if (!assistantModelDisplayMeta.value.modelName) {
     return { src: fallbackAvatar, isModelLogo: false };
   }
 
   return {
-    src: resolveModelLogoUrl(modelName, {
-      providerName,
-      metadataProviderId: providerId,
+    src: resolveModelLogoUrl(assistantModelDisplayMeta.value.modelName, {
+      providerName: assistantModelDisplayMeta.value.providerName,
+      metadataProviderId: assistantModelDisplayMeta.value.providerId,
     }),
     isModelLogo: true,
   };
@@ -722,7 +750,15 @@ onBeforeUnmount(() => {
         />
         <div class="meta-info-column">
           <div class="meta-name-row">
-            <span class="ai-name">{{ message.aiName }}</span>
+            <span class="ai-name">{{ assistantModelDisplayMeta.modelName }}</span>
+            <span
+              v-if="assistantModelDisplayMeta.providerInitial"
+              class="circle-action-btn meta-provider-badge"
+              :title="assistantModelDisplayMeta.providerName"
+              :aria-label="`Provider: ${assistantModelDisplayMeta.providerName}`"
+            >
+              {{ assistantModelDisplayMeta.providerInitial }}
+            </span>
             <span v-if="message.voiceName" class="voice-name">({{ message.voiceName }})</span>
           </div>
           <span class="timestamp-row" v-if="message.completedTimestamp">{{
@@ -1099,6 +1135,22 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.meta-provider-badge.circle-action-btn {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  padding: 0 !important;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-accent) !important;
+  user-select: none;
 }
 
 .chat-message .user-bubble {

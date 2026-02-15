@@ -188,6 +188,14 @@ const currentModelLogo = computed(() => {
     opacity 0.2s ease;
 }
 
+.expandable-pill {
+  width: 32px;
+  min-width: 32px;
+  padding: 0;
+  gap: 0;
+  justify-content: center;
+}
+
 .expandable-pill:hover .expandable-content,
 .expandable-pill.is-loading .expandable-content {
   max-width: 260px;
@@ -196,7 +204,11 @@ const currentModelLogo = computed(() => {
 
 .expandable-pill:hover,
 .expandable-pill.is-loading {
-  padding-right: 12px;
+  width: auto;
+  min-width: 32px;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 0 12px 0 10px;
   border-color: var(--border-primary);
   background-color: var(--bg-secondary);
 }
