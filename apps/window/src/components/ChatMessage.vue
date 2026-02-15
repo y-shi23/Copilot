@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // -nocheck
-import { computed, ref, nextTick, onBeforeUnmount } from 'vue';
-import { Bubble, Thinking, XMarkdown } from 'vue-element-plus-x';
+import { computed, ref, nextTick, onBeforeUnmount, watch } from 'vue';
+import { Bubble, XMarkdown } from 'vue-element-plus-x';
 import {
   ElTooltip,
   ElButton,
@@ -30,6 +30,7 @@ import {
 import 'katex/dist/katex.min.css';
 import DOMPurify from 'dompurify';
 
+import DeepThinkingCard from './reasoning/DeepThinkingCard.vue';
 import { formatTimestamp, formatMessageText, sanitizeToolArgs } from '../utils/formatters';
 import { handleModelLogoError, resolveModelLogoUrl } from '../utils/modelLogos';
 
@@ -63,6 +64,7 @@ const editInputRef = ref(null);
 const isEditing = ref(false);
 const editedContent = ref('');
 const isCopied = ref(false);
+const reasoningExpanded = ref(false);
 
 let copyFeedbackTimer = null;
 const RENDER_CACHE_LIMIT = 500;
@@ -556,6 +558,35 @@ const renderedMarkdownContent = computed(() => {
   return rendered;
 });
 
+const normalizedReasoningContent = computed(() =>
+  String(props.message?.reasoning_content || '').trim(),
+);
+
+const shouldShowReasoningCard = computed(
+  () => props.message?.status === 'thinking' || normalizedReasoningContent.value.length > 0,
+);
+
+const reasoningLoading = computed(() => props.message?.status === 'thinking');
+
+watch(
+  () => props.message?.status,
+  (status, prevStatus) => {
+    if (status === 'thinking' && prevStatus !== 'thinking') {
+      reasoningExpanded.value = true;
+      return;
+    }
+
+    if ((status === 'end' || status === 'error') && prevStatus === 'thinking') {
+      reasoningExpanded.value = false;
+    }
+  },
+  { immediate: true },
+);
+
+const toggleReasoningExpanded = () => {
+  reasoningExpanded.value = !reasoningExpanded.value;
+};
+
 const shouldShowCollapseButton = computed(() => {
   if (!props.isLastMessage) return true;
   if (props.isLastMessage) return !props.isLoading;
@@ -780,14 +811,17 @@ onBeforeUnmount(() => {
         "
       >
         <template #header>
-          <Thinking
-            v-if="message.reasoning_content && message.reasoning_content.trim().length > 0"
-            maxWidth="90%"
-            :content="(message.reasoning_content || '').trim()"
-            :modelValue="false"
+          <DeepThinkingCard
+            v-if="shouldShowReasoningCard"
+            :content="normalizedReasoningContent"
+            :loading="reasoningLoading"
             :status="message.status"
-          >
-          </Thinking>
+            :expanded="reasoningExpanded"
+            :reasoning-started-at="message.reasoningStartedAt"
+            :reasoning-finished-at="message.reasoningFinishedAt"
+            :is-dark-mode="isDarkMode"
+            @toggle="toggleReasoningExpanded"
+          />
         </template>
         <template #content>
           <div v-if="!isEditing" class="markdown-wrapper" :class="{ collapsed: isCollapsed }">
@@ -2078,68 +2112,6 @@ html.dark .ai-name {
   opacity: 0.8;
   white-space: nowrap;
   flex-shrink: 0;
-}
-
-.ai-bubble :deep(.el-thinking .trigger) {
-  background-color: color-mix(in srgb, var(--el-fill-color-light) 86%, var(--el-bg-color) 14%);
-  color: var(--el-text-color-regular);
-  border-color: var(--el-border-color-lighter);
-}
-
-.ai-bubble :deep(.el-thinking .el-icon) {
-  color: var(--el-text-color-secondary);
-}
-
-.ai-bubble :deep(.el-thinking-popper) {
-  max-width: 85vw;
-  background-color: color-mix(
-    in srgb,
-    var(--el-fill-color-light) 90%,
-    var(--el-bg-color) 10%
-  ) !important;
-  border-color: var(--el-border-color) !important;
-}
-
-.ai-bubble :deep(.el-thinking-popper .el-popper__arrow::before) {
-  background: color-mix(in srgb, var(--el-fill-color-light) 90%, var(--el-bg-color) 10%) !important;
-  border-color: var(--el-border-color) !important;
-}
-
-html.dark .ai-bubble :deep(.el-thinking .trigger) {
-  background-color: var(--el-fill-color-darker, #2c2e33);
-  color: var(--el-text-color-primary, #f9fafb);
-  border-color: var(--el-border-color-dark, #373a40);
-}
-
-html.dark .ai-bubble :deep(.el-thinking .el-icon) {
-  color: var(--el-text-color-secondary, #a0a5b1);
-}
-
-html.dark .ai-bubble :deep(.el-thinking-popper) {
-  max-width: 85vw;
-  background-color: var(--bg-tertiary, #2c2e33) !important;
-  border-color: var(--border-primary, #373a40) !important;
-}
-
-html.dark .ai-bubble :deep(.el-thinking-popper .el-popper__arrow::before) {
-  background: var(--bg-tertiary, #2c2e33) !important;
-  border-color: var(--border-primary, #373a40) !important;
-}
-
-.ai-bubble :deep(.el-thinking .content pre) {
-  max-width: 100%;
-  margin-bottom: 10px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  box-sizing: border-box;
-  background-color: color-mix(in srgb, var(--el-fill-color-light) 94%, var(--el-bg-color) 6%);
-  border: 1px solid var(--el-border-color-lighter);
-}
-
-html.dark .ai-bubble :deep(.el-thinking .content pre) {
-  background-color: var(--el-fill-color-darker);
-  color: var(--el-text-color-regular, #e5e7eb);
-  border: 1px solid var(--border-primary, #373a40);
 }
 
 .tool-calls-container {

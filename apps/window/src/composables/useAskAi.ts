@@ -111,6 +111,28 @@ export function useAskAi(options: any) {
     const isVoiceReply = !!selectedVoice.value;
     let useStream = currentPromptConfig?.stream && !isVoiceReply;
     let currentAssistantChatShowIndex = -1;
+    const nowIsoString = () => new Date().toISOString();
+    const ensureReasoningStartedAt = (bubble: any, fallback?: string) => {
+      if (!bubble) return;
+      if (!bubble.reasoningStartedAt) {
+        bubble.reasoningStartedAt = fallback || nowIsoString();
+      }
+      if (bubble.reasoningFinishedAt) {
+        bubble.reasoningFinishedAt = null;
+      }
+    };
+    const ensureReasoningFinishedAt = (
+      bubble: any,
+      options: { startFallback?: string; finishFallback?: string } = {},
+    ) => {
+      if (!bubble) return;
+      if (!bubble.reasoningStartedAt) {
+        bubble.reasoningStartedAt = options.startFallback || nowIsoString();
+      }
+      if (!bubble.reasoningFinishedAt) {
+        bubble.reasoningFinishedAt = options.finishFallback || nowIsoString();
+      }
+    };
 
     try {
       const { OpenAI } = await import('openai');
@@ -243,6 +265,8 @@ export function useAskAi(options: any) {
           content: [],
           metrics: null,
           reasoning_content: '',
+          reasoningStartedAt: null,
+          reasoningFinishedAt: null,
           status: '',
           aiName: currentModelLabel,
           modelKey: currentModelKey,
@@ -257,8 +281,10 @@ export function useAskAi(options: any) {
         let responseMessage;
         let finalUsageMetrics: any = null;
         const requestStartTimestamp = performance.now();
+        const requestStartDateIso = nowIsoString();
         let firstTokenTimestamp: number | null = null;
         let requestCompletionTimestamp: number | null = null;
+        let requestCompletionDateIso: string | null = null;
 
         const markFirstTokenTimestamp = () => {
           if (firstTokenTimestamp === null) {
@@ -311,13 +337,14 @@ export function useAskAi(options: any) {
             if (delta.reasoning_content) {
               markFirstTokenTimestamp();
               aggregatedReasoningContent += delta.reasoning_content;
-              if (chat_show.value[currentAssistantChatShowIndex].status !== 'thinking') {
-                chat_show.value[currentAssistantChatShowIndex].status = 'thinking';
+              const currentBubble = chat_show.value[currentAssistantChatShowIndex];
+              ensureReasoningStartedAt(currentBubble);
+              if (currentBubble.status !== 'thinking') {
+                currentBubble.status = 'thinking';
               }
 
               if (Date.now() - lastUpdateTime > 100) {
-                chat_show.value[currentAssistantChatShowIndex].reasoning_content =
-                  aggregatedReasoningContent;
+                currentBubble.reasoning_content = aggregatedReasoningContent;
                 lastUpdateTime = Date.now();
               }
             }
@@ -336,8 +363,12 @@ export function useAskAi(options: any) {
                 });
               }
 
-              if (chat_show.value[currentAssistantChatShowIndex].status == 'thinking') {
-                chat_show.value[currentAssistantChatShowIndex].status = 'end';
+              const currentBubble = chat_show.value[currentAssistantChatShowIndex];
+              if (currentBubble.status == 'thinking') {
+                currentBubble.status = 'end';
+                if (aggregatedReasoningContent) {
+                  ensureReasoningFinishedAt(currentBubble, { startFallback: requestStartDateIso });
+                }
               }
 
               if (Date.now() - lastUpdateTime > 100) {
@@ -390,6 +421,7 @@ export function useAskAi(options: any) {
             }
           }
           requestCompletionTimestamp = performance.now();
+          requestCompletionDateIso = nowIsoString();
           if (
             firstTokenTimestamp === null &&
             (aggregatedReasoningContent ||
@@ -436,6 +468,7 @@ export function useAskAi(options: any) {
             signal: signalController.value.signal,
           });
           requestCompletionTimestamp = performance.now();
+          requestCompletionDateIso = nowIsoString();
           markFirstTokenTimestamp();
           finalUsageMetrics = normalizeUsageMetrics(response.usage);
           responseMessage = response.choices[0].message;
@@ -462,6 +495,11 @@ export function useAskAi(options: any) {
 
         if (responseMessage.reasoning_content) {
           currentBubble.reasoning_content = responseMessage.reasoning_content;
+          ensureReasoningStartedAt(currentBubble, requestStartDateIso);
+          ensureReasoningFinishedAt(currentBubble, {
+            startFallback: requestStartDateIso,
+            finishFallback: requestCompletionDateIso || undefined,
+          });
           currentBubble.status = 'end';
         }
         updateAssistantBubbleMetrics(
@@ -692,6 +730,8 @@ export function useAskAi(options: any) {
           id: messageIdCounter.value++,
           role: 'assistant',
           content: [],
+          reasoningStartedAt: null,
+          reasoningFinishedAt: null,
           aiName: currentModelLabel,
           modelKey: currentModelKey,
           modelLabel: currentModelLabel,
@@ -704,6 +744,7 @@ export function useAskAi(options: any) {
         currentBubble.status === 'thinking'
       ) {
         chat_show.value[errorBubbleIndex].status = 'error';
+        ensureReasoningFinishedAt(chat_show.value[errorBubbleIndex]);
       }
 
       let existingText = '';
