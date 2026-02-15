@@ -64,8 +64,8 @@ const handleKeydown = (event: KeyboardEvent) => {
 
     <template #footer>
       <div class="prompt-dialog-footer">
-        <el-button class="footer-btn cancel-btn" @click="dialogVisible = false"> 取消 </el-button>
-        <el-button class="footer-btn save-btn" @click="emit('save')"> 保存 </el-button>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="emit('save')">保存</el-button>
       </div>
     </template>
   </el-dialog>
@@ -73,11 +73,7 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 <style>
 .system-prompt-dialog {
-  border-radius: 18px !important;
-  border: none !important;
-  overflow: hidden;
-  box-shadow: var(--el-box-shadow-dark) !important;
-  background: transparent !important;
+  border-radius: var(--radius-xl) !important;
   margin: auto !important;
 }
 
@@ -87,13 +83,13 @@ const handleKeydown = (event: KeyboardEvent) => {
 }
 
 .system-prompt-dialog .el-dialog__body {
-  padding: 16px 18px 12px !important;
-  background: var(--el-bg-color-overlay);
+  padding: 14px 18px 10px !important;
+  background: transparent;
 }
 
 .system-prompt-dialog .el-dialog__footer {
-  padding: 0 18px 16px !important;
-  background: var(--el-bg-color-overlay);
+  padding: 4px 18px 14px !important;
+  background: transparent;
 }
 </style>
 
@@ -105,14 +101,10 @@ const handleKeydown = (event: KeyboardEvent) => {
 }
 
 .prompt-input-wrapper {
-  position: relative;
-  border-radius: 14px;
-  padding: 2px;
-  background: linear-gradient(96deg, rgba(229, 190, 120, 0.55) 0%, rgba(163, 153, 221, 0.55) 100%);
-}
-
-html.dark .prompt-input-wrapper {
-  background: linear-gradient(96deg, rgba(140, 121, 189, 0.45) 0%, rgba(109, 145, 177, 0.45) 100%);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-primary);
+  background-color: color-mix(in srgb, var(--bg-secondary) 88%, transparent);
+  overflow: hidden;
 }
 
 .prompt-textarea {
@@ -128,18 +120,18 @@ html.dark .prompt-input-wrapper {
 
 .prompt-textarea :deep(.el-textarea__inner) {
   box-shadow: none !important;
-  background-color: var(--el-bg-color-overlay) !important;
+  background-color: transparent !important;
   border: none !important;
-  border-radius: 12px;
+  border-radius: 0;
   padding: 12px 14px;
   font-size: 13px;
   line-height: 1.55;
-  color: var(--el-text-color-primary);
+  color: var(--text-primary);
   min-height: 100px;
 }
 
 .prompt-textarea :deep(.el-textarea__inner::placeholder) {
-  color: var(--el-text-color-placeholder);
+  color: var(--text-tertiary);
   font-size: 13px;
 }
 
@@ -149,48 +141,10 @@ html.dark .prompt-input-wrapper {
   gap: 10px;
 }
 
-.footer-btn {
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 8px 16px;
-  height: auto;
-  border: none;
-  transition: all 0.18s ease;
-}
-
-.cancel-btn {
-  background-color: var(--el-fill-color-light);
-  color: var(--el-text-color-secondary);
-}
-
-.cancel-btn:hover {
-  background-color: var(--el-fill-color);
-  color: var(--el-text-color-primary);
-}
-
-.save-btn {
-  background-color: var(--el-color-primary);
-  color: var(--text-on-accent);
-}
-
-.save-btn:hover {
-  opacity: 0.88;
-}
-
-html.dark .save-btn {
-  color: #1a1a1a;
-}
-
 @media (max-width: 480px) {
   .prompt-textarea :deep(.el-textarea__inner) {
     font-size: 12px;
     padding: 10px 12px;
-  }
-
-  .footer-btn {
-    padding: 7px 14px;
-    font-size: 12px;
   }
 }
 </style>

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 // -nocheck
 import { ref, computed } from 'vue';
-import { ElDialog, ElTable, ElTableColumn, ElButton, ElInput, ElTooltip } from 'element-plus';
+import { ElDialog, ElButton, ElInput } from 'element-plus';
 import { Search } from 'lucide-vue-next';
 
 const props = defineProps({
-  modelValue: Boolean, // for v-model
+  modelValue: Boolean,
   modelList: Array,
   currentModel: String,
 });
@@ -23,44 +23,45 @@ const handleOpened = () => {
 
 const filteredModelList = computed(() => {
   if (!searchQuery.value) {
-    return props.modelList;
+    return props.modelList || [];
   }
   const lowerCaseQuery = searchQuery.value.toLowerCase();
-  return props.modelList.filter((model) => model.label.toLowerCase().includes(lowerCaseQuery));
+  return (props.modelList || []).filter((model) =>
+    model.label.toLowerCase().includes(lowerCaseQuery),
+  );
 });
 
-const tableSpanMethod = ({ row, column, rowIndex, columnIndex }) => {
-  if (columnIndex === 0) {
-    if (
-      rowIndex > 0 &&
-      filteredModelList.value[rowIndex - 1].label.split('|')[0] === row.label.split('|')[0]
-    ) {
-      return { rowspan: 0, colspan: 0 };
+const groupedModelList = computed(() => {
+  const groups = new Map();
+  for (const model of filteredModelList.value) {
+    const [provider = '', ...nameParts] = String(model.label || '').split('|');
+    const modelName = nameParts.join('|') || model.value || model.label;
+    if (!groups.has(provider)) {
+      groups.set(provider, []);
     }
-    let rowspan = 1;
-    for (let i = rowIndex + 1; i < filteredModelList.value.length; i++) {
-      if (filteredModelList.value[i].label.split('|')[0] === row.label.split('|')[0]) {
-        rowspan++;
-      } else {
-        break;
-      }
-    }
-    return { rowspan: rowspan, colspan: 1 };
+    groups.get(provider).push({
+      ...model,
+      provider,
+      modelName,
+    });
   }
-};
+
+  return Array.from(groups.entries()).map(([provider, models]) => ({
+    provider,
+    models,
+  }));
+});
 
 const onModelClick = (model) => {
   if (model.value === props.currentModel) {
-    // 如果点击的是当前模型，触发保存事件
     emit('save-model', model.value);
   } else {
-    // 否则，触发选择事件
     emit('select', model.value);
   }
 };
 
 const handleClose = () => {
-  searchQuery.value = ''; // 关闭时清空搜索词
+  searchQuery.value = '';
   emit('update:modelValue', false);
 };
 </script>
@@ -69,14 +70,13 @@ const handleClose = () => {
   <el-dialog
     :model-value="modelValue"
     @update:model-value="handleClose"
-    width="80%"
+    width="min(640px, 88vw)"
     custom-class="model-dialog no-header-dialog"
     @opened="handleOpened"
     :show-close="false"
   >
-    <!-- 移除默认标题栏 -->
     <template #header>
-      <div style="display: none"></div>
+      <div class="dialog-hidden-header"></div>
     </template>
 
     <div class="model-search-container">
@@ -92,41 +92,28 @@ const handleClose = () => {
       </el-input>
     </div>
 
-    <el-table
-      :data="filteredModelList"
-      stripe
-      style="width: 100%"
-      max-height="50vh"
-      :border="true"
-      :span-method="tableSpanMethod"
-      width="100%"
-    >
-      <el-table-column label="服务商" align="center" prop="provider" width="120">
-        <template #default="scope">
-          <strong>{{ scope.row.label.split('|')[0] }}</strong>
-        </template>
-      </el-table-column>
-      <el-table-column label="模型" align="center" prop="modelName">
-        <template #default="scope">
-          <el-tooltip
-            :content="
-              scope.row.value === currentModel ? '当前模型，再次点击可保存为默认' : '选择此模型'
-            "
-            placement="top"
-            :enterable="false"
-          >
-            <el-button
-              link
-              size="large"
-              @click="onModelClick(scope.row)"
-              :class="{ 'is-current-model': scope.row.value === currentModel }"
-            >
-              {{ scope.row.label.split('|')[1] }}
-            </el-button>
-          </el-tooltip>
-        </template>
-      </el-table-column>
-    </el-table>
+    <div class="model-dropdown-wrapper app-dropdown-surface custom-scrollbar">
+      <div v-if="groupedModelList.length === 0" class="model-empty">暂无匹配模型</div>
+
+      <div v-for="group in groupedModelList" :key="group.provider" class="provider-group">
+        <div class="provider-title">{{ group.provider || '未命名服务商' }}</div>
+
+        <button
+          v-for="model in group.models"
+          :key="model.value"
+          type="button"
+          class="app-dropdown-item model-option"
+          :class="{ 'is-selected': model.value === currentModel }"
+          @click="onModelClick(model)"
+        >
+          <span class="model-name">{{ model.modelName }}</span>
+          <span class="model-hint">{{
+            model.value === currentModel ? '当前模型（点击保存默认）' : '点击切换'
+          }}</span>
+        </button>
+      </div>
+    </div>
+
     <template #footer>
       <el-button @click="handleClose">关闭</el-button>
     </template>
@@ -135,18 +122,63 @@ const handleClose = () => {
 
 <style scoped>
 .model-search-container {
-  padding: 0 0 15px 0;
-}
-.el-button.is-link.is-current-model {
-  color: #e6a23c; /* Element Plus 的金色/黄色 */
-  font-weight: bold;
+  padding: 0 0 12px;
 }
 
-.el-button.is-link.is-current-model:hover {
-  color: #ebb563;
+.model-dropdown-wrapper {
+  max-height: 54vh;
+  overflow-y: auto;
 }
 
-:deep(.el-dialog__header) {
-  padding-bottom: 0 !important;
+.model-empty {
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 16px 8px;
+  font-size: 13px;
+}
+
+.provider-group + .provider-group {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-secondary);
+}
+
+.provider-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 2px 10px 6px;
+}
+
+.model-option {
+  min-height: 38px;
+  height: auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  line-height: 1.3;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.model-name {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 13px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-hint {
+  color: var(--text-tertiary);
+  font-size: 11px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.model-option.is-selected {
+  background-color: var(--bg-tertiary);
 }
 </style>

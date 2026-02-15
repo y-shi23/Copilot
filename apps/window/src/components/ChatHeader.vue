@@ -19,7 +19,7 @@ const emit = defineEmits([
 
 // 1. 字符串转颜色函数 (HSL 模式)
 const stringToColor = (str) => {
-  if (!str) return '#3b82f6';
+  if (!str) return 'var(--text-accent)';
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
@@ -50,7 +50,7 @@ const logoColor = computed(() => {
           <!-- Logo -->
           <div
             class="model-logo-container"
-            :style="{ color: isMcpLoading ? '#F59E0B' : logoColor }"
+            :style="{ color: isMcpLoading ? 'var(--text-accent)' : logoColor }"
           >
             <svg
               class="model-logo"
@@ -96,9 +96,13 @@ const logoColor = computed(() => {
 
         <!-- 3. [新增] 搜索按钮 -->
         <el-tooltip content="搜索内容 (Ctrl/Cmd+F)" placement="bottom" :show-after="500">
-          <div class="model-pill icon-pill" @click="emit('open-search')">
+          <button
+            type="button"
+            class="model-pill icon-pill circle-action-btn"
+            @click="emit('open-search')"
+          >
             <Search :size="14" class="header-icon" />
-          </div>
+          </button>
         </el-tooltip>
       </div>
     </div>
@@ -129,42 +133,51 @@ const logoColor = computed(() => {
 .header-content-group {
   display: flex;
   align-items: center;
-  gap: 0px;
+  gap: 0;
   flex: 1;
   min-width: 0;
 }
 
-/* 垂直分隔线样式 */
 .header-divider {
   width: 1px;
   height: 14px;
-  background-color: var(--el-border-color);
+  background-color: var(--border-primary);
   margin: 0 10px;
   flex-shrink: 0;
 }
 
-/* 统一的 Pill 样式基类 */
 .model-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 10px;
-  background-color: transparent;
-  border-radius: 10px;
+  padding: 0 10px;
+  height: 32px;
+  border: 1px solid transparent;
+  background-color: color-mix(in srgb, var(--bg-secondary) 84%, transparent);
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.2s ease;
   user-select: none;
-  height: 22px;
-  box-sizing: content-box;
+  box-sizing: border-box;
   flex-shrink: 0;
+  color: var(--text-secondary);
+  font: inherit;
+  appearance: none;
 }
 
 .model-pill:hover {
-  background-color: var(--el-fill-color-light);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
+  background-color: var(--bg-secondary);
 }
 
 .model-pill:active {
   transform: none;
+}
+
+.model-pill:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--text-accent) 45%, transparent);
+  outline-offset: 1px;
 }
 
 .model-pill.is-disabled {
@@ -172,7 +185,6 @@ const logoColor = computed(() => {
   cursor: not-allowed;
 }
 
-/* === 可展开的模型选择器逻辑 === */
 .expandable-pill .expandable-content {
   display: flex;
   align-items: center;
@@ -185,7 +197,6 @@ const logoColor = computed(() => {
     opacity 0.2s ease;
 }
 
-/* 悬浮时展开 OR 加载时展开 */
 .expandable-pill:hover .expandable-content,
 .expandable-pill.is-loading .expandable-content {
   max-width: 260px;
@@ -195,10 +206,10 @@ const logoColor = computed(() => {
 .expandable-pill:hover,
 .expandable-pill.is-loading {
   padding-right: 12px;
-  background-color: var(--el-fill-color-light);
+  border-color: var(--border-primary);
+  background-color: var(--bg-secondary);
 }
 
-/* 旋转动画 */
 @keyframes rotate-logo {
   0% {
     transform: rotate(0deg);
@@ -230,40 +241,32 @@ const logoColor = computed(() => {
   animation: rotate-logo 0.6s linear infinite;
 }
 
-/* === 系统提示词样式 === */
 .prompt-pill {
-  color: var(--el-text-color-regular);
-  background-color: transparent;
+  color: var(--text-secondary);
   flex: 1;
   min-width: 0;
 }
 
 .prompt-pill:hover {
-  background-color: var(--el-fill-color-light);
+  background-color: var(--bg-secondary);
 }
 
 .prompt-icon {
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
 .prompt-text {
   font-size: 12px;
-  color: var(--el-text-color-regular);
-  padding-right: 4px; /* 防止斜体或部分字体被截断 */
-}
-
-/* 深色模式下的文字颜色修正 */
-html.dark .prompt-text {
-  color: var(--el-text-color-primary);
+  color: var(--text-secondary);
+  padding-right: 4px;
 }
 
 .prompt-text.placeholder {
-  color: var(--el-text-color-placeholder);
+  color: var(--text-tertiary);
   font-style: italic;
 }
 
-/* 通用文本样式 */
 .model-text {
   font-size: 12px;
   font-weight: 500;
@@ -272,26 +275,19 @@ html.dark .prompt-text {
   white-space: nowrap;
 }
 
-/* 箭头和加载图标 */
-.loading-icon,
 .arrow-icon {
   font-size: 12px;
-  color: var(--el-text-color-secondary);
+  color: var(--text-secondary);
   flex-shrink: 0;
 }
 
-/* 新增：图标按钮样式 */
 .icon-pill {
-  color: var(--el-text-color-secondary);
   flex: 0 0 auto;
-  width: 28px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
   justify-content: center;
-  margin-left: 2px;
-}
-
-.icon-pill:hover {
-  background-color: var(--el-fill-color-light);
-  color: var(--el-text-color-primary);
+  margin-left: 4px;
 }
 
 .header-icon {

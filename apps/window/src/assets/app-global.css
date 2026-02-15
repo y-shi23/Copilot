@@ -5,134 +5,30 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background:
-    radial-gradient(96% 62% at 10% 15%, rgba(206, 201, 230, 0.68) 0%, rgba(206, 201, 230, 0) 72%),
-    radial-gradient(92% 68% at 48% 6%, rgba(192, 205, 214, 0.62) 0%, rgba(192, 205, 214, 0) 74%),
-    radial-gradient(88% 62% at 92% 16%, rgba(211, 223, 191, 0.62) 0%, rgba(211, 223, 191, 0) 72%),
-    radial-gradient(98% 78% at 14% 50%, rgba(246, 180, 194, 0.66) 0%, rgba(246, 180, 194, 0) 74%),
-    radial-gradient(86% 66% at 60% 54%, rgba(237, 207, 193, 0.58) 0%, rgba(237, 207, 193, 0) 75%),
-    linear-gradient(180deg, #ecebf1 0%, #f5d9d2 52%, #f3f1f1 100%);
-  font-family:
-    Inter,
-    -apple-system,
-    BlinkMacSystemFont,
-    'SF Pro Text',
-    'SF Pro Display',
-    'Segoe UI',
-    Roboto,
-    'Helvetica Neue',
-    Arial,
-    sans-serif;
-  color: #202020;
+  font-family: var(--el-font-family);
+  color: var(--text-primary);
 }
 
 :root {
-  color-scheme: light;
-
-  --bg-tertiary: #f2f2ef;
-  --text-primary: #202020;
-  --text-secondary: #8a8a8a;
-  --text-tertiary: #a5a5a5;
-  --text-on-accent: #f7f7f3;
-
-  --el-bg-color-page: #fbfbfb;
-  --el-bg-color: #f7f7f4;
-  --el-bg-color-overlay: #f8f8f5;
-  --el-bg-color-input: #f6f6f3;
-  --el-bg-color-userbubble: #f1f2ef;
-
-  --el-fill-color: #f2f2ef;
-  --el-fill-color-light: #f8f8f5;
-  --el-fill-color-lighter: #f4f4f1;
-  --el-fill-color-dark: #ecece8;
-  --el-fill-color-darker: #e6e6e1;
-  --el-fill-color-blank: #f8f8f5;
-
-  --el-border-color: #e5e5e5;
-  --el-border-color-light: #e5e5e5;
-  --el-border-color-lighter: #ecece9;
-  --el-border-color-dark: rgba(32, 32, 32, 0.13);
-  --el-border-color-darker: rgba(32, 32, 32, 0.2);
-
-  --el-text-color-primary: var(--text-primary);
-  --el-text-color-regular: var(--text-secondary);
-  --el-text-color-secondary: var(--text-secondary);
-  --el-text-color-placeholder: var(--text-tertiary);
-  --el-text-color-disabled: #b2b2b2;
-
-  --el-color-primary: #3f5567;
-  --el-color-primary-light-3: #6e8190;
-  --el-color-primary-light-5: #95a3ae;
-  --el-color-primary-light-7: #bcc5cd;
-  --el-color-primary-light-8: #dbe0e4;
-  --el-color-primary-light-9: #edf1f4;
-  --el-color-primary-dark-2: #334a5d;
-
-  --el-box-shadow: 0 16px 38px rgba(32, 32, 32, 0.08);
-  --el-box-shadow-light: 0 10px 24px rgba(32, 32, 32, 0.06);
-  --el-box-shadow-lighter: 0 6px 16px rgba(32, 32, 32, 0.045);
-  --el-box-shadow-dark: 0 22px 52px rgba(32, 32, 32, 0.12);
-
-  --el-color-white: #fbfbfb;
-  --el-color-black: #202020;
+  --el-bg-color-input: color-mix(in srgb, var(--el-bg-color-overlay) 82%, var(--el-bg-color-page));
+  --el-bg-color-userbubble: color-mix(in srgb, var(--el-fill-color) 66%, var(--el-bg-color-page));
+  --el-box-shadow-lighter: var(--shadow-sm);
 }
 
 html.dark {
-  color-scheme: dark;
-
-  --bg-tertiary: #2d3137;
-  --text-primary: #ececec;
-  --text-secondary: #aeaeae;
-  --text-tertiary: #8f8f8f;
-  --text-on-accent: #f7f7f3;
-
-  --el-bg-color-page: #1d1f22;
-  --el-bg-color: #25282d;
-  --el-bg-color-overlay: #272a2f;
-  --el-bg-color-input: #2b2f35;
-  --el-bg-color-userbubble: #30343b;
-
-  --el-fill-color: #2d3137;
-  --el-fill-color-light: #212121;
-  --el-fill-color-lighter: #2d3137;
-  --el-fill-color-dark: #393e46;
-  --el-fill-color-darker: #434953;
-  --el-fill-color-blank: #25282d;
-
-  --el-border-color: rgba(236, 236, 236, 0.14);
-  --el-border-color-light: rgba(236, 236, 236, 0.14);
-  --el-border-color-lighter: rgba(236, 236, 236, 0.09);
-  --el-border-color-dark: rgba(236, 236, 236, 0.22);
-  --el-border-color-darker: rgba(236, 236, 236, 0.3);
-
-  --el-text-color-primary: var(--text-primary);
-  --el-text-color-regular: var(--text-secondary);
-  --el-text-color-secondary: var(--text-secondary);
-  --el-text-color-placeholder: var(--text-tertiary);
-  --el-text-color-disabled: #7b7b7b;
-
-  --el-color-primary: #14b8a6;
-  --el-color-primary-light-3: #2dd4bf;
-  --el-color-primary-light-5: #5eead4;
-  --el-color-primary-light-7: #0d9488;
-  --el-color-primary-light-8: #0f766e;
-  --el-color-primary-light-9: #115e59;
-  --el-color-primary-dark-2: #0f766e;
-
-  --el-box-shadow: 0 16px 44px rgba(8, 8, 8, 0.34);
-  --el-box-shadow-light: 0 10px 24px rgba(8, 8, 8, 0.28);
-  --el-box-shadow-lighter: 0 8px 18px rgba(8, 8, 8, 0.22);
-  --el-box-shadow-dark: 0 24px 60px rgba(8, 8, 8, 0.4);
-}
-
-html.dark body {
-  background:
-    radial-gradient(circle at 10% 0%, rgba(255, 255, 255, 0.06), transparent 40%), #1d1f22;
+  --el-bg-color-input: color-mix(in srgb, var(--el-bg-color-overlay) 88%, #1d1f22);
+  --el-bg-color-userbubble: color-mix(in srgb, var(--el-fill-color) 72%, #1d1f22);
+  --el-box-shadow-lighter: var(--shadow-sm);
 }
 
 html.mac-native-vibrancy,
 html.mac-native-vibrancy body {
   background: transparent !important;
+}
+
+html.mac-native-vibrancy #app {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .el-dialog,

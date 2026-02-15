@@ -14,8 +14,20 @@ import {
   ElScrollbar,
   ElIcon,
 } from 'element-plus';
-import { Close, Check, Document, Delete, Microphone, Monitor } from '@element-plus/icons-vue';
-import { Library } from 'lucide-vue-next';
+import {
+  AudioLines,
+  Brain,
+  BrushCleaning,
+  Check,
+  FileText,
+  Hammer,
+  Library,
+  Mic,
+  Monitor,
+  Paperclip,
+  Trash2,
+  X,
+} from 'lucide-vue-next';
 
 // --- Props and Emits ---
 const prompt = defineModel('prompt');
@@ -727,7 +739,7 @@ defineExpose({ focus, senderRef });
           <div v-for="(file, index) in fileList" :key="index" class="custom-file-card">
             <div class="file-icon">
               <el-icon :size="20">
-                <Document />
+                <FileText />
               </el-icon>
             </div>
             <div class="file-info">
@@ -735,13 +747,9 @@ defineExpose({ focus, senderRef });
               <div class="file-size">{{ (file.size / 1024).toFixed(1) }} KB</div>
             </div>
             <div class="file-actions">
-              <el-button
-                type="danger"
-                link
-                :icon="Delete"
-                size="small"
-                @click="onRemoveFile(index)"
-              />
+              <el-button type="danger" link size="small" @click="onRemoveFile(index)">
+                <Trash2 :size="14" />
+              </el-button>
             </div>
           </div>
         </div>
@@ -774,11 +782,11 @@ defineExpose({ focus, senderRef });
             <el-text tag="b" class="selector-label">选择音源</el-text>
             <el-divider direction="vertical" />
             <el-button @click="startRecordingFromSource('microphone')" round>
-              <el-icon><Microphone /></el-icon>
+              <el-icon><Mic :size="15" /></el-icon>
               麦克风
             </el-button>
             <el-button @click="startRecordingFromSource('system')" round>
-              <el-icon><Monitor /></el-icon>
+              <el-icon><Monitor :size="15" /></el-icon>
               系统音频
             </el-button>
           </div>
@@ -980,63 +988,24 @@ defineExpose({ focus, senderRef });
             <div class="action-buttons-left">
               <el-tooltip content="清除聊天记录">
                 <el-button
-                  class="input-icon-btn"
+                  class="input-icon-btn circle-action-btn"
                   size="default"
                   @click="onClearHistory"
                   circle
                   :disabled="isRecording"
                 >
-                  <el-icon :size="18">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      class="lucide lucide-paintbrush-vertical"
-                      aria-hidden="true"
-                    >
-                      <path d="M10 2v2"></path>
-                      <path d="M14 2v4"></path>
-                      <path d="M17 2a1 1 0 0 1 1 1v9H6V3a1 1 0 0 1 1-1z"></path>
-                      <path
-                        d="M6 12a1 1 0 0 0-1 1v1a2 2 0 0 0 2 2h2a1 1 0 0 1 1 1v2.9a2 2 0 1 0 4 0V17a1 1 0 0 1 1-1h2a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1"
-                      ></path>
-                    </svg>
-                  </el-icon>
+                  <BrushCleaning :size="17" />
                 </el-button>
               </el-tooltip>
               <el-tooltip content="添加附件">
                 <el-button
-                  class="input-icon-btn"
+                  class="input-icon-btn circle-action-btn"
                   size="default"
                   @click="triggerFileUpload"
                   circle
                   :disabled="isRecording"
                 >
-                  <el-icon :size="17">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      class="lucide lucide-paperclip"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="m16 6-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"
-                      ></path>
-                    </svg>
-                  </el-icon>
+                  <Paperclip :size="17" />
                 </el-button>
               </el-tooltip>
 
@@ -1046,103 +1015,51 @@ defineExpose({ focus, senderRef });
                   :class="{
                     'is-active-special': tempReasoningEffort && tempReasoningEffort !== 'default',
                   }"
-                  class="input-icon-btn"
+                  class="input-icon-btn circle-action-btn"
                   size="default"
                   circle
                   :disabled="isRecording"
                   @click="toggleReasoningSelector"
                 >
-                  <el-icon :size="18">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      class="icon"
-                      style="margin-top: -2px"
-                    >
-                      <path
-                        fill="currentColor"
-                        d="M1 11h3v2H1zm9 11c0 .6.4 1 1 1h2c.6 0 1-.4 1-1v-1h-4zm3-21h-2v3h2zM4.9 3.5L3.5 4.9L5.6 7L7 5.6zM20 11v2h3v-2zm-.9-7.5L17 5.6L18.4 7l2.1-2.1zM18 12c0 2.2-1.2 4.2-3 5.2V19c0 .6-.4 1-1 1h-4c-.6 0-1-.4-1-1v-1.8c-1.8-1-3-3-3-5.2c0-3.3 2.7-6 6-6s6 2.7 6 6M8 12c0 .35.05.68.14 1h7.72c.09-.32.14-.65.14-1c0-2.21-1.79-4-4-4s-4 1.79-4 4"
-                      ></path>
-                    </svg>
-                  </el-icon>
+                  <Brain :size="17" />
                 </el-button>
               </el-tooltip>
 
               <el-tooltip content="语音回复设置">
                 <el-button
                   ref="voiceButtonRef"
-                  class="input-icon-btn"
+                  class="input-icon-btn circle-action-btn"
                   size="default"
                   circle
                   :disabled="isRecording"
                   :class="{ 'is-active-special': selectedVoice }"
                   @click="toggleVoiceSelector"
                 >
-                  <el-icon :size="18">
-                    <svg
-                      t="1765028999430"
-                      class="icon"
-                      viewBox="0 0 1024 1024"
-                      version="1.1"
-                      xmlns="http://www.w3.org/2000/svg"
-                      p-id="60819"
-                      width="200"
-                      height="200"
-                    >
-                      <path
-                        d="M85.333333 512C85.333333 276.352 276.352 85.333333 512 85.333333s426.666667 191.018667 426.666667 426.666667-191.018667 426.666667-426.666667 426.666667H85.333333l124.970667-124.970667A425.344 425.344 0 0 1 85.333333 512z m205.994667 341.333333H512a341.333333 341.333333 0 1 0-341.333333-341.333333c0 91.818667 36.309333 177.706667 99.968 241.365333l60.330666 60.330667-39.637333 39.637333zM469.333333 256h85.333334v512h-85.333334V256zM298.666667 384h85.333333v256H298.666667V384z m341.333333 0h85.333333v256h-85.333333V384z"
-                        p-id="60820"
-                      ></path>
-                    </svg>
-                  </el-icon>
+                  <AudioLines :size="17" />
                 </el-button>
               </el-tooltip>
               <el-tooltip content="MCP工具">
                 <el-button
-                  class="input-icon-btn"
+                  class="input-icon-btn circle-action-btn"
                   size="default"
                   circle
                   :disabled="isRecording"
                   :class="{ 'is-active-special': isMcpActive }"
                   @click="$emit('open-mcp-dialog')"
                 >
-                  <el-icon :size="18">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      class="lucide lucide-hammer"
-                      aria-hidden="true"
-                    >
-                      <path d="m15 12-8.373 8.373a1 1 0 1 1-3-3L12 9"></path>
-                      <path d="m18 15 4-4"></path>
-                      <path
-                        d="m21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5"
-                      ></path>
-                    </svg>
-                  </el-icon>
+                  <Hammer :size="17" />
                 </el-button>
               </el-tooltip>
               <el-tooltip content="Skill 技能库">
                 <el-button
-                  class="input-icon-btn"
+                  class="input-icon-btn circle-action-btn"
                   size="default"
                   circle
                   :disabled="isRecording"
                   :class="{ 'is-active-special': activeSkillIds && activeSkillIds.length > 0 }"
                   @click="$emit('open-skill-dialog')"
                 >
-                  <el-icon :size="18">
-                    <Library size="1em" />
-                  </el-icon>
+                  <Library :size="17" />
                 </el-button>
               </el-tooltip>
             </div>
@@ -1151,51 +1068,33 @@ defineExpose({ focus, senderRef });
               <template v-if="isRecording">
                 <el-tooltip content="取消录音"
                   ><el-button
-                    class="input-icon-btn"
-                    :icon="Close"
+                    class="input-icon-btn circle-action-btn"
                     size="default"
                     @click="handleCancelRecording"
                     circle
-                /></el-tooltip>
+                  >
+                    <X :size="17" /> </el-button
+                ></el-tooltip>
                 <el-tooltip content="结束并发送"
                   ><el-button
-                    class="input-icon-btn send-action-btn"
-                    :icon="Check"
+                    class="input-icon-btn circle-action-btn"
                     size="default"
                     @click="handleConfirmAndSendRecording"
                     circle
-                /></el-tooltip>
+                  >
+                    <Check :size="17" /> </el-button
+                ></el-tooltip>
               </template>
               <template v-else>
                 <el-tooltip content="发送语音">
                   <el-button
                     ref="audioButtonRef"
-                    class="input-icon-btn"
+                    class="input-icon-btn circle-action-btn"
                     size="default"
                     @click="toggleAudioSourceSelector"
                     circle
                   >
-                    <el-icon :size="17">
-                      <svg
-                        t="1765029327206"
-                        class="icon"
-                        viewBox="0 0 1024 1024"
-                        version="1.1"
-                        xmlns="http://www.w3.org/2000/svg"
-                        p-id="68987"
-                        width="200"
-                        height="200"
-                      >
-                        <path
-                          d="M516.368 732.288c126.944 0 230.096-99.696 230.096-222.272V230.272c0-122.56-103.28-222.272-230.096-222.272S286.16 107.696 286.16 230.272v279.744c0 122.56 103.28 222.272 230.208 222.272zM377.664 230.272c0-73.808 62.256-133.984 138.704-133.984 76.448 0 138.688 60.048 138.688 133.984v279.744c0 73.808-62.256 134-138.688 134-76.448 0-138.704-60.048-138.704-134V230.272z"
-                          p-id="68988"
-                        ></path>
-                        <path
-                          d="M465.088 899.296C267.52 876.656 113.776 712.928 113.776 514.928c0-24.832 20.64-44.896 46.16-44.896 25.536 0 46.16 20.064 46.16 44.896 0 163.952 137.184 297.376 305.856 297.376 168.656 0 305.968-133.424 305.968-297.376 0-24.832 20.656-44.896 46.192-44.896 25.504 0 46.128 20.064 46.128 44.896 0 196.976-152.096 359.872-348.16 384.016v68.592A48.416 48.416 0 0 1 513.6 1016a48.448 48.448 0 0 1-48.496-48.464v-68.24z"
-                          p-id="68989"
-                        ></path>
-                      </svg>
-                    </el-icon>
+                    <Mic :size="17" />
                   </el-button>
                 </el-tooltip>
                 <el-button
@@ -1960,28 +1859,39 @@ html.dark .chat-input-area-vertical {
 .chat-input-area-vertical .input-icon-btn {
   width: 34px;
   height: 34px;
-  background: none;
-  border: none;
+  padding: 0;
   border-radius: 999px;
-  color: color-mix(in srgb, var(--el-text-color-primary) 70%, var(--el-text-color-secondary));
-  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.18s ease;
 }
 
-.chat-input-area-vertical .input-icon-btn:hover {
-  background-color: var(--el-fill-color-light);
+.chat-input-area-vertical .input-icon-btn.circle-action-btn:not(.message-send-btn) {
+  background-color: transparent !important;
+  color: var(--text-secondary) !important;
+}
+
+.chat-input-area-vertical .input-icon-btn.circle-action-btn:not(.message-send-btn):hover,
+.chat-input-area-vertical .input-icon-btn.circle-action-btn:not(.message-send-btn):focus-visible {
+  background-color: #ebebef !important;
+  color: var(--text-primary) !important;
+}
+
+html.dark .chat-input-area-vertical .input-icon-btn.circle-action-btn:not(.message-send-btn):hover,
+html.dark
+  .chat-input-area-vertical
+  .input-icon-btn.circle-action-btn:not(.message-send-btn):focus-visible {
+  background-color: #1e1e1e !important;
+}
+
+.chat-input-area-vertical .input-icon-btn.circle-action-btn:not(.message-send-btn):disabled {
+  background-color: transparent !important;
 }
 
 .chat-input-area-vertical .action-buttons-left .el-button.is-active-special {
-  color: var(--el-color-warning);
-}
-
-.chat-input-area-vertical .action-buttons-left .el-button:hover {
-  color: var(--el-text-color-primary);
-  background-color: var(--el-color-primary-light-9);
-}
-
-.chat-input-area-vertical .action-buttons-right .el-button:hover {
-  color: var(--el-text-color-primary);
+  color: var(--text-accent) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-accent) 24%, transparent) inset;
 }
 
 .chat-input-area-vertical .send-action-btn {
@@ -2085,52 +1995,6 @@ html.dark :deep(.el-textarea__inner::-webkit-scrollbar-thumb) {
 html.dark :deep(.el-textarea__inner::-webkit-scrollbar-thumb:hover) {
   background: #999;
   background-clip: content-box;
-}
-
-.el-button.is-circle:not(.input-icon-btn) {
-  color: var(--el-text-color-regular);
-}
-
-.el-button.is-circle:not(.input-icon-btn):hover,
-.el-button.is-circle:not(.input-icon-btn):focus {
-  color: var(--el-color-primary);
-  background-color: var(--el-color-primary-light-8);
-}
-
-.el-button.is-circle:not(.input-icon-btn)[type='primary'] {
-  background-color: var(--el-color-primary);
-  color: var(--text-on-accent);
-}
-
-.el-button.is-circle:not(.input-icon-btn)[type='primary']:hover,
-.el-button.is-circle:not(.input-icon-btn)[type='primary']:focus {
-  background-color: var(--el-color-primary-light-3);
-}
-
-html.dark .el-button--danger.is-plain {
-  color: #f7f7f3;
-  background-color: var(--el-color-danger);
-  border-color: var(--el-color-danger);
-}
-
-html.dark .el-button--danger.is-plain:hover,
-html.dark .el-button--danger.is-plain:focus {
-  background-color: var(--el-color-danger-light-3);
-  border-color: var(--el-color-danger-light-3);
-  color: #f7f7f3;
-}
-
-html.dark .el-button--success.is-plain {
-  color: #f7f7f3;
-  background-color: var(--el-color-success);
-  border-color: var(--el-color-success);
-}
-
-html.dark .el-button--success.is-plain:hover,
-html.dark .el-button--success.is-plain:focus {
-  background-color: var(--el-color-success-light-3);
-  border-color: var(--el-color-success-light-3);
-  color: #f7f7f3;
 }
 
 .send-state-icon {
