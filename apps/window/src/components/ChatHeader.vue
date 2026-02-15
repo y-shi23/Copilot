@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // -nocheck
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { ElHeader, ElTooltip } from 'element-plus';
 import { ChevronsUpDown, Sparkles, Search } from 'lucide-vue-next';
 import { handleModelLogoError, resolveModelLogoUrl } from '../utils/modelLogos';
@@ -42,6 +42,23 @@ const currentModelLogo = computed(() => {
     metadataProviderId: currentModelMeta.value.providerId,
   });
 });
+
+const isModelPillHovered = ref(false);
+const isModelPillExpanded = computed(() => isModelPillHovered.value || !!props.isMcpLoading);
+
+const handleModelPillMouseEnter = () => {
+  if (!props.isMcpLoading) {
+    isModelPillHovered.value = true;
+  }
+};
+
+const handleModelPillMouseLeave = () => {
+  isModelPillHovered.value = false;
+};
+
+const logoTransformStyle = computed(() => ({
+  transform: `rotate(${isModelPillExpanded.value ? 1 : 0}turn)`,
+}));
 </script>
 
 <template>
@@ -51,7 +68,13 @@ const currentModelLogo = computed(() => {
         <!-- 1. 模型选择器 -->
         <div
           class="model-pill expandable-pill"
-          :class="{ 'is-disabled': isMcpLoading, 'is-loading': isMcpLoading }"
+          :class="{
+            'is-disabled': isMcpLoading,
+            'is-loading': isMcpLoading,
+            'is-expanded': isModelPillExpanded,
+          }"
+          @mouseenter="handleModelPillMouseEnter"
+          @mouseleave="handleModelPillMouseLeave"
           @click="!isMcpLoading && emit('open-model-dialog')"
         >
           <!-- Logo -->
@@ -60,6 +83,7 @@ const currentModelLogo = computed(() => {
               class="model-logo"
               :src="currentModelLogo"
               :alt="currentModelMeta.modelName || 'Model Logo'"
+              :style="logoTransformStyle"
               loading="lazy"
               @error="handleModelLogoError"
             />
@@ -183,30 +207,41 @@ const currentModelLogo = computed(() => {
   max-width: 0;
   overflow: hidden;
   opacity: 0;
+  transform: translateX(-4px);
+  white-space: nowrap;
+  pointer-events: none;
   transition:
-    max-width 0.24s ease,
-    opacity 0.2s ease;
+    max-width 0.28s linear,
+    opacity 0.28s linear,
+    transform 0.28s linear;
 }
 
 .expandable-pill {
-  width: 32px;
+  max-width: 32px;
   min-width: 32px;
-  padding: 0;
+  width: auto;
+  padding: 0 7px;
   gap: 0;
-  justify-content: center;
+  justify-content: flex-start;
+  overflow: hidden;
+  transition:
+    max-width 0.28s linear,
+    padding 0.28s linear,
+    gap 0.28s linear,
+    border-color 0.28s linear,
+    background-color 0.28s linear;
 }
 
-.expandable-pill:hover .expandable-content,
+.expandable-pill.is-expanded .expandable-content,
 .expandable-pill.is-loading .expandable-content {
   max-width: 260px;
   opacity: 1;
+  transform: translateX(0);
 }
 
-.expandable-pill:hover,
+.expandable-pill.is-expanded,
 .expandable-pill.is-loading {
-  width: auto;
-  min-width: 32px;
-  justify-content: flex-start;
+  max-width: 306px;
   gap: 6px;
   padding: 0 12px 0 10px;
   border-color: var(--border-primary);
@@ -236,12 +271,10 @@ const currentModelLogo = computed(() => {
   height: 18px;
   border-radius: 50%;
   object-fit: contain;
-  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-.expandable-pill:hover .model-logo {
-  transform: rotate(360deg);
-  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: center;
+  will-change: transform;
+  backface-visibility: hidden;
+  transition: transform 0.56s linear;
 }
 
 /* 加载状态下的 Logo 动画 */

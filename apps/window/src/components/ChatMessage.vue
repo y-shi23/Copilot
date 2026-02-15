@@ -572,7 +572,7 @@ watch(
   () => props.message?.status,
   (status, prevStatus) => {
     if (status === 'thinking' && prevStatus !== 'thinking') {
-      reasoningExpanded.value = true;
+      reasoningExpanded.value = false;
       return;
     }
 
