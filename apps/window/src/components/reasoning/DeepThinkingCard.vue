@@ -194,9 +194,7 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .deep-thinking-card {
-  width: min(100%, 85vw);
-  min-width: 320px;
-  max-width: min(80vw, 800px);
+  width: 100%;
   margin: 0 0 8px;
   border-radius: 14px;
   border: 1px solid color-mix(in srgb, var(--el-border-color-lighter) 78%, transparent);

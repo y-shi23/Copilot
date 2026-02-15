@@ -1097,6 +1097,7 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   margin-left: 4%;
   margin-right: 8%;
+  width: calc(100% - 12%);
   max-width: 100%;
 }
 
@@ -1213,10 +1214,10 @@ html.dark .chat-message .user-bubble {
     box-shadow: none;
     border: none;
     padding: 0;
-    display: inline-flex;
+    display: flex;
     flex-direction: column;
     align-items: stretch;
-    width: fit-content;
+    width: 100%;
     max-width: 100%;
   }
 
@@ -1928,8 +1929,6 @@ html.dark .ai-name {
   justify-content: flex-start;
   gap: 8px;
   width: 100%;
-  min-width: 320px;
-  max-width: min(80vw, 800px);
 }
 
 .ai-bubble .ai-footer .footer-actions {

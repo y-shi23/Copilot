@@ -236,13 +236,12 @@ const currentModelLogo = computed(() => {
   height: 18px;
   border-radius: 50%;
   object-fit: contain;
-  transition:
-    transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
-    color 0.3s;
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
 .expandable-pill:hover .model-logo {
   transform: rotate(360deg);
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* 加载状态下的 Logo 动画 */
