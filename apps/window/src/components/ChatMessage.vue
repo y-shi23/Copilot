@@ -978,7 +978,7 @@ onBeforeUnmount(() => {
           </div>
         </template>
         <template #footer>
-          <div class="message-footer ai-footer">
+          <div class="message-footer ai-footer" v-if="!(isLoading && isLastMessage)">
             <div class="footer-actions">
               <button
                 class="footer-action-btn"
@@ -986,7 +986,6 @@ onBeforeUnmount(() => {
                 :class="{ 'is-copied': isCopied }"
                 :title="isCopied ? '已复制' : '复制'"
                 :aria-label="isCopied ? '已复制' : '复制'"
-                :disabled="isLoading && isLastMessage"
                 @click="onCopy"
               >
                 <transition name="copy-icon-swap" mode="out-in">
@@ -1899,6 +1898,9 @@ html.dark .ai-name {
 .ai-footer {
   justify-content: flex-start;
   gap: 8px;
+  width: 100%;
+  min-width: 320px;
+  max-width: min(80vw, 800px);
 }
 
 .ai-bubble .ai-footer .footer-actions {
