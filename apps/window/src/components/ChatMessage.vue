@@ -1048,8 +1048,7 @@ onBeforeUnmount(() => {
                   <div class="token-tooltip-row">
                     <AlarmClockCheck :size="13" class="token-tooltip-icon" />
                     <span>{{ assistantFirstTokenLatencyDisplay }}</span>
-                  </div>
-                  <div class="token-tooltip-row">
+                    <span class="token-tooltip-divider">·</span>
                     <span class="token-tooltip-speed">{{ assistantTokenSpeedDisplay }}</span>
                   </div>
                 </div>
@@ -1984,7 +1983,7 @@ html.dark .ai-name {
   min-height: 22px;
   padding: 0 9px;
   border-radius: 999px;
-  background-color: color-mix(in srgb, var(--el-fill-color-light) 88%, transparent);
+  background-color: transparent;
   color: var(--text-secondary);
   font-size: 11px;
   line-height: 1;
@@ -2036,20 +2035,20 @@ html.dark .ai-name {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 132px;
+  min-width: auto;
 }
 
 :deep(.token-metrics-tooltip .token-tooltip-row) {
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 8px;
   font-size: 12px;
   line-height: 1.4;
   color: var(--el-text-color-primary);
 }
 
-:deep(.token-metrics-tooltip .token-tooltip-row > span:last-child) {
+:deep(.token-metrics-tooltip .token-tooltip-row > span) {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
@@ -2062,6 +2061,11 @@ html.dark .ai-name {
 :deep(.token-metrics-tooltip .token-tooltip-speed) {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
+}
+
+:deep(.token-metrics-tooltip .token-tooltip-divider) {
+  color: var(--text-tertiary);
+  font-weight: 400;
 }
 
 .copy-icon-swap-enter-active,
