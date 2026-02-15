@@ -807,7 +807,8 @@ onBeforeUnmount(() => {
           isLastMessage &&
           isLoading &&
           renderedMarkdownContent === ' ' &&
-          (!message.tool_calls || message.tool_calls.length === 0)
+          (!message.tool_calls || message.tool_calls.length === 0) &&
+          !shouldShowReasoningCard
         "
       >
         <template #header>
@@ -1240,6 +1241,37 @@ html.dark .chat-message .user-bubble {
   :deep(.el-bubble-content-wrapper .el-bubble-footer) {
     margin-top: 0;
     width: 100%;
+  }
+
+  :deep(.el-bubble-content-wrapper .el-bubble-content-loading .el-bubble-loading-wrap) {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    height: 16px;
+  }
+
+  :deep(.el-bubble-content-wrapper .el-bubble-content-loading .dot) {
+    width: 8px;
+    height: 8px;
+    background-color: var(--text-accent);
+    border-radius: 50%;
+    animation: bubble-dot-wave 1.1s infinite ease-in-out;
+    transition:
+      transform 0.1s ease-out,
+      opacity 0.1s ease-out;
+  }
+
+  :deep(.el-bubble-content-wrapper .el-bubble-content-loading .dot:nth-child(1)) {
+    animation-delay: 0s;
+  }
+
+  :deep(.el-bubble-content-wrapper .el-bubble-content-loading .dot:nth-child(2)) {
+    animation-delay: 0.24s;
+  }
+
+  :deep(.el-bubble-content-wrapper .el-bubble-content-loading .dot:nth-child(3)) {
+    animation-delay: 0.48s;
   }
 }
 
@@ -2382,5 +2414,17 @@ html.dark .tool-call-details .tool-detail-section pre::-webkit-scrollbar-thumb:h
   opacity: 0.8;
   background-color: rgba(var(--el-color-primary-rgb), 0.1);
   border-radius: 4px;
+}
+
+@keyframes bubble-dot-wave {
+  0%,
+  100% {
+    transform: scale(0.82);
+    opacity: 0.42;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
 }
 </style>
