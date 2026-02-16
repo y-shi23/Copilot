@@ -21,6 +21,7 @@ import {
   FolderMinus,
   FolderOpen,
   ArrowLeft,
+  Hammer as Wrench,
 } from 'lucide-vue-next';
 import { ElBadge, ElMessage } from 'element-plus';
 import { useAssistantSessionIndex } from './composables/useAssistantSessionIndex';
@@ -61,7 +62,7 @@ const settingsNavItems = computed(() => [
   { id: 'back', label: t('mainSettings.backToChat'), icon: ArrowLeft },
   { id: 'history', label: t('mainSettings.tabs.history'), icon: ChatDotRound },
   { id: 'prompts', label: t('mainSettings.tabs.prompts'), icon: MagicStick },
-  { id: 'mcp', label: t('mainSettings.tabs.mcp'), icon: Collection },
+  { id: 'mcp', label: t('mainSettings.tabs.mcp'), icon: Wrench },
   { id: 'skills', label: t('mainSettings.tabs.skills'), icon: Collection },
   { id: 'providers', label: t('mainSettings.tabs.providers'), icon: Cloudy },
   { id: 'system', label: t('mainSettings.tabs.system'), icon: SettingIcon },
