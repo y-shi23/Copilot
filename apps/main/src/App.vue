@@ -333,6 +333,7 @@ const openHistorySession = async (sessionItem) => {
     createSessionRequest({
       mode: 'load',
       assistantCode,
+      conversationId: payload.conversationId || sessionItem.conversationId || sessionItem.id,
       conversationName: payload.conversationName,
       sessionData: payload.sessionData,
     });
@@ -836,11 +837,6 @@ onBeforeUnmount(() => {
                           :title="session.conversationName"
                           >{{ session.conversationName }}</span
                         >
-                        <span class="session-source" :class="session.source">{{
-                          session.source === 'local'
-                            ? t('mainChat.sources.local')
-                            : t('mainChat.sources.cloud')
-                        }}</span>
                       </button>
 
                       <div
@@ -1229,24 +1225,6 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   font-size: 12px;
   font-weight: 500;
-}
-
-.session-source {
-  font-size: 10px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.session-source.local {
-  color: #246cbb;
-  background: rgba(42, 120, 207, 0.12);
-}
-
-.session-source.cloud {
-  color: #0e7a5b;
-  background: rgba(18, 147, 104, 0.12);
 }
 
 .assistant-empty-sessions,

@@ -50,7 +50,7 @@ export default defineConfig({
           mermaid: ['mermaid'],
           highlight: ['highlight.js'],
           katex: ['katex'],
-          'vendor-utils': ['webdav', 'dompurify', 'marked', 'recorder-core'],
+          'vendor-utils': ['dompurify', 'marked', 'recorder-core'],
         },
       },
     },

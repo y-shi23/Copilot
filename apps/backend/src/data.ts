@@ -135,13 +135,8 @@ const defaultConfig = {
     launcherEnabled: true,
     launcherHotkey: 'CommandOrControl+Shift+Space',
     zoom: 1,
-    webdav: {
-      url: '',
-      username: '',
-      password: '',
-      path: '/sanft',
-      data_path: '/sanft_data',
-      localChatPath: '',
+    database: {
+      postgresUrl: '',
     },
     voiceList: [
       'alloy-👩',
@@ -244,14 +239,10 @@ function splitConfigForStorage(fullConfig) {
   // 3. 提取本地配置 (增加安全访问)
   const localConfigPart = {
     skillPath: restOfConfig.skillPath || '',
-    localChatPath: (restOfConfig.webdav && restOfConfig.webdav.localChatPath) || '',
   };
 
   // 4. 从共享配置中移除本地字段
   delete restOfConfig.skillPath;
-  if (restOfConfig.webdav) {
-    delete restOfConfig.webdav.localChatPath;
-  }
 
   return {
     baseConfigPart: { config: restOfConfig },
@@ -309,8 +300,7 @@ async function getConfig() {
 
   if (baseConfig) {
     // 关键修复：确保 localData 始终是一个对象，即使 localDoc.data 缺失
-    let localData =
-      localDoc && localDoc.data ? localDoc.data : { skillPath: '', localChatPath: '' };
+    let localData = localDoc && localDoc.data ? localDoc.data : { skillPath: '' };
     let needSaveShared = false;
     let needSaveLocal = false;
 
@@ -321,16 +311,6 @@ async function getConfig() {
         needSaveLocal = true;
       }
       delete baseConfig.skillPath;
-      needSaveShared = true;
-    }
-
-    // 检查 webdav.localChatPath
-    if (baseConfig.webdav && baseConfig.webdav.localChatPath !== undefined) {
-      if (!localData.localChatPath) {
-        localData.localChatPath = baseConfig.webdav.localChatPath;
-        needSaveLocal = true;
-      }
-      delete baseConfig.webdav.localChatPath;
       needSaveShared = true;
     }
 
@@ -426,12 +406,9 @@ async function getConfig() {
     configDoc = await utools.db.promises.get('config');
   }
 
-  // 注入本地路径 (再次确保安全性)
+  // 注入本地配置 (再次确保安全性)
   const currentLocalData = localDoc && localDoc.data ? localDoc.data : {};
   fullConfigData.config.skillPath = currentLocalData.skillPath || '';
-
-  if (!fullConfigData.config.webdav) fullConfigData.config.webdav = {};
-  fullConfigData.config.webdav.localChatPath = currentLocalData.localChatPath || '';
 
   // 合并 MCP
   const userMcpServers = mcpServersDoc ? mcpServersDoc.data : defaultConfig.config.mcpServers || {};
@@ -497,6 +474,7 @@ function checkConfig(config) {
     'modelList',
     'modelSelect',
     'activeProviderId',
+    'webdav',
   ];
   obsoleteKeys.forEach((key) => {
     if (config[key] !== undefined) {
@@ -524,6 +502,9 @@ function checkConfig(config) {
     launcherEnabled: true,
     launcherHotkey: 'CommandOrControl+Shift+Space',
     fastWindowPosition: null,
+    database: {
+      postgresUrl: '',
+    },
     // 直接引用 defaultConfig 中的完整列表，避免代码冗长
     voiceList: defaultConfig.config.voiceList || [],
   };
@@ -543,31 +524,13 @@ function checkConfig(config) {
     flag = true;
   }
 
-  // --- 3. WebDAV 检查 ---
-  if (!config.webdav) {
-    config.webdav = {
-      url: '',
-      username: '',
-      password: '',
-      path: '/sanft',
-      data_path: '/sanft_data',
-      localChatPath: '',
-    };
+  // --- 3. Database 检查 ---
+  if (!config.database || typeof config.database !== 'object') {
+    config.database = { postgresUrl: '' };
     flag = true;
-  } else {
-    if (config.webdav.dataPath) {
-      // 迁移旧字段
-      config.webdav.data_path = config.webdav.data_path || config.webdav.dataPath;
-      delete config.webdav.dataPath;
-      flag = true;
-    }
-    const webdavDefaults = { data_path: '/sanft_data', localChatPath: '' };
-    for (const [k, v] of Object.entries(webdavDefaults)) {
-      if (config.webdav[k] === undefined) {
-        config.webdav[k] = v;
-        flag = true;
-      }
-    }
+  } else if (typeof config.database.postgresUrl !== 'string') {
+    config.database.postgresUrl = '';
+    flag = true;
   }
 
   if (config.skillPath === undefined) {
@@ -711,7 +674,7 @@ function checkConfig(config) {
  */
 async function saveSetting(keyPath, value) {
   // 1. 拦截本地特定的设置项
-  if (keyPath === 'skillPath' || keyPath === 'webdav.localChatPath') {
+  if (keyPath === 'skillPath') {
     const localId = getLocalConfigId();
     let doc = await utools.db.promises.get(localId);
     if (!doc) {
@@ -719,11 +682,7 @@ async function saveSetting(keyPath, value) {
     }
 
     // 更新本地数据
-    if (keyPath === 'skillPath') {
-      doc.data.skillPath = value;
-    } else if (keyPath === 'webdav.localChatPath') {
-      doc.data.localChatPath = value;
-    }
+    doc.data.skillPath = value;
 
     const result = await utools.db.promises.put({
       _id: localId,

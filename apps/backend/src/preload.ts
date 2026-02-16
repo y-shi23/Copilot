@@ -242,6 +242,33 @@ window.api = {
   loginDeepSeek: async () => {
     return ipcRenderer.invoke('deepseek:login');
   },
+  listConversations: async (filter = {}) => {
+    return ipcRenderer.invoke('storage:conversation-list', filter);
+  },
+  getConversation: async (conversationId) => {
+    return ipcRenderer.invoke('storage:conversation-get', conversationId);
+  },
+  upsertConversation: async (payload) => {
+    return ipcRenderer.invoke('storage:conversation-upsert', payload);
+  },
+  renameConversation: async (conversationId, conversationName) => {
+    return ipcRenderer.invoke('storage:conversation-rename', { conversationId, conversationName });
+  },
+  deleteConversations: async (ids = []) => {
+    return ipcRenderer.invoke('storage:conversation-delete', ids);
+  },
+  cleanConversations: async (days = 30) => {
+    return ipcRenderer.invoke('storage:conversation-clean', days);
+  },
+  getStorageHealth: async () => {
+    return ipcRenderer.invoke('storage:health-get');
+  },
+  testPostgresConnection: async (connectionString) => {
+    return ipcRenderer.invoke('storage:postgres-test', connectionString);
+  },
+  triggerStorageSync: async () => {
+    return ipcRenderer.invoke('storage:sync-now');
+  },
   // 生成 Skill Tool 定义 (供前端构建请求参数时使用)
   getSkillToolDefinition: async (rootPath, enabledSkillNames = []) => {
     try {

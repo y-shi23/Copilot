@@ -44,6 +44,7 @@ export function useWindowInitialization(options: any) {
     tempSessionSkillIds,
     basic_msg,
     defaultConversationName,
+    currentConversationId,
     fileList,
     sessionMcpServerIds,
     tempSessionMcpServerIds,
@@ -71,6 +72,8 @@ export function useWindowInitialization(options: any) {
   const initializeWindow = async (data: any = null) => {
     hasSessionInitialized.value = false;
     isSessionDirty.value = false;
+    defaultConversationName.value = '';
+    currentConversationId.value = '';
 
     try {
       const configData = await window.api.getConfig();
@@ -161,6 +164,9 @@ export function useWindowInitialization(options: any) {
     if (data) {
       basic_msg.value = { code: data.code, type: data.type, payload: data.payload };
       if (data.filename) defaultConversationName.value = data.filename.replace(/\.json$/i, '');
+      if (data.conversationId) {
+        currentConversationId.value = String(data.conversationId);
+      }
 
       if (data.type === 'over' && data.payload) {
         let sessionLoaded = false;

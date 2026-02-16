@@ -1,608 +1,198 @@
 <script setup lang="ts">
 // -nocheck
-import { ref, onMounted, computed, watch, onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   RefreshCw as Refresh,
   Trash2 as DeleteIcon,
   MessageCircle as ChatDotRound,
   Pencil as Edit,
-  Upload,
-  Download,
-  Repeat as Switch,
-  Info,
   BrushCleaning,
 } from 'lucide-vue-next';
-import { ElMessage, ElMessageBox, ElProgress, ElScrollbar } from 'element-plus';
+import { ElMessage, ElMessageBox } from 'element-plus';
 
 const { t } = useI18n();
 
-// --- Component State ---
-const activeView = ref('local');
-const localChatPath = ref('');
-const webdavConfig = ref(null);
-const isWebdavConfigValid = ref(false);
-const isCloudDataLoaded = ref(false);
-
-const localChatFiles = ref([]);
-const cloudChatFiles = ref([]);
+const conversations = ref([]);
 const isTableLoading = ref(false);
-const selectedFiles = ref([]);
+const selectedRows = ref([]);
 const currentPage = ref(1);
-const pageSize = ref(10);
-const singleFileSyncing = ref({});
+const pageSize = ref(20);
 
-// --- Sync Progress State ---
-const isSyncing = ref(false);
-const syncProgress = ref(0);
-const syncStatusText = ref('');
-const syncAbortController = ref(null);
-
-let createWebdavClientPromise = null;
-const getCreateWebdavClient = async () => {
-  if (!createWebdavClientPromise) {
-    createWebdavClientPromise = import('webdav/web').then((module) => module.createClient);
-  }
-  return createWebdavClientPromise;
-};
-
-const createWebdavClient = async (url, username, password) => {
-  const createClient = await getCreateWebdavClient();
-  return createClient(url, { username, password });
-};
-
-// --- 自动清理功能状态 ---
 const showCleanDialog = ref(false);
-const cleanDaysOption = ref(30); // 默认30天
+const cleanDaysOption = ref(30);
 const cleanCustomDays = ref(60);
 const isCleaning = ref(false);
 
-// --- Computed Properties ---
-const getFileMap = (fileList) => new Map(fileList.map((f) => [f.basename, f]));
-
-const uploadableCount = computed(() => {
-  if (!isWebdavConfigValid.value) return 0;
-  const cloudMap = getFileMap(cloudChatFiles.value);
-  return localChatFiles.value.filter((local) => {
-    const cloudFile = cloudMap.get(local.basename);
-    return !cloudFile || new Date(local.lastmod) > new Date(cloudFile.lastmod);
-  }).length;
-});
-
-const downloadableCount = computed(() => {
-  if (!isWebdavConfigValid.value) return 0;
-  const localMap = getFileMap(localChatFiles.value);
-  return cloudChatFiles.value.filter((cloud) => {
-    const localFile = localMap.get(cloud.basename);
-    return !localFile || new Date(cloud.lastmod) > new Date(localFile.lastmod);
-  }).length;
-});
-
-const currentFiles = computed(() =>
-  activeView.value === 'local' ? localChatFiles.value : cloudChatFiles.value,
-);
-const paginatedFiles = computed(() => {
+const paginatedRows = computed(() => {
   const start = (currentPage.value - 1) * pageSize.value;
   const end = start + pageSize.value;
-  return currentFiles.value.slice(start, end);
+  return conversations.value.slice(start, end);
 });
 
-// --- Helper Functions ---
-const formatDate = (dateString) => {
-  if (!dateString) return 'N/A';
+const formatDate = (dateString: string) => {
+  if (!dateString) return '-';
   const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return '-';
   return date.toLocaleString();
 };
-const formatBytes = (bytes, decimals = 2) => {
+
+const formatBytes = (bytes: number, decimals = 2) => {
   if (!bytes || bytes === 0) return '0 Bytes';
   const k = 1024;
   const dm = decimals < 0 ? 0 : decimals;
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 };
 
-const handleWindowFocus = () => {
-  refreshData();
-};
-
-onMounted(async () => {
-  try {
-    const result = await window.api.getConfig();
-    if (result && result.config && result.config.webdav) {
-      localChatPath.value = result.config.webdav.localChatPath;
-      webdavConfig.value = result.config.webdav;
-      isWebdavConfigValid.value = !!(webdavConfig.value.url && webdavConfig.value.data_path);
-      if (localChatPath.value) await fetchLocalFiles();
-    }
-  } catch (error) {
-    ElMessage.error(t('chats.alerts.configError'));
-  }
-  window.addEventListener('focus', handleWindowFocus);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('focus', handleWindowFocus);
-});
-
-watch(activeView, async (newView) => {
-  if (newView === 'cloud' && !isCloudDataLoaded.value && isWebdavConfigValid.value) {
-    await fetchCloudFiles();
-    isCloudDataLoaded.value = true;
-  } else if (newView === 'local' && localChatPath.value) {
-    await fetchLocalFiles();
-  }
-});
-
-// --- Main Functions ---
-async function fetchLocalFiles() {
-  if (!localChatPath.value) return;
+const fetchConversations = async () => {
   isTableLoading.value = true;
   try {
-    localChatFiles.value = await window.api.listJsonFiles(localChatPath.value);
-  } catch (error) {
-    ElMessage.error(`读取本地文件列表失败: ${error.message}`);
-    localChatFiles.value = [];
+    const rows = await window.api.listConversations({ includeDeleted: false });
+    conversations.value = Array.isArray(rows) ? rows : [];
+    if ((currentPage.value - 1) * pageSize.value >= conversations.value.length) {
+      currentPage.value = 1;
+    }
+  } catch (error: any) {
+    console.error('[Chats] Failed to fetch conversations:', error);
+    ElMessage.error(`读取会话失败: ${error?.message || error}`);
+    conversations.value = [];
   } finally {
     isTableLoading.value = false;
   }
-}
+};
 
-async function fetchCloudFiles() {
-  if (!isWebdavConfigValid.value) return;
-  isTableLoading.value = true;
+const refreshData = async () => {
+  await fetchConversations();
+};
+
+const startChat = async (row: any) => {
   try {
-    const { url, username, password, data_path } = webdavConfig.value;
-    const client = await createWebdavClient(url, username, password);
-    const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
-    if (!(await client.exists(remoteDir)))
-      await client.createDirectory(remoteDir, { recursive: true });
-    const response = await client.getDirectoryContents(remoteDir, { details: true });
-    cloudChatFiles.value = response.data
-      .filter((item) => item.type === 'file' && item.basename.endsWith('.json'))
-      .sort((a, b) => new Date(b.lastmod) - new Date(a.lastmod));
-  } catch (error) {
-    ElMessage.error(`${t('chats.alerts.fetchFailed')}: ${error.message}`);
-    cloudChatFiles.value = [];
-  } finally {
-    isTableLoading.value = false;
-  }
-}
-async function refreshData() {
-  if (activeView.value === 'local') {
-    if (localChatPath.value) {
-      await fetchLocalFiles();
+    const conversation = await window.api.getConversation(row.conversationId);
+    if (!conversation || !conversation.sessionData) {
+      throw new Error('会话数据不存在');
     }
-  } else if (activeView.value === 'cloud') {
-    if (isWebdavConfigValid.value) {
-      await fetchCloudFiles();
-      isCloudDataLoaded.value = true;
-    }
-  }
-}
-async function startChat(file) {
-  ElMessage.info(t('chats.alerts.loadingChat'));
-  try {
-    let jsonString;
-    if (activeView.value === 'local') {
-      jsonString = await window.api.readLocalFile(file.path);
-    } else {
-      const { url, username, password, data_path } = webdavConfig.value;
-      const client = await createWebdavClient(url, username, password);
-      jsonString = await client.getFileContents(
-        `${data_path.endsWith('/') ? data_path.slice(0, -1) : data_path}/${file.basename}`,
-        { format: 'text' },
-      );
-    }
+
     await window.api.coderedirect(
-      t('chats.alerts.restoreChat'),
-      JSON.stringify({ sessionData: jsonString, filename: file.basename }),
+      '恢复聊天',
+      JSON.stringify({
+        conversationId: conversation.conversationId,
+        sessionData: JSON.stringify(conversation.sessionData),
+        filename: `${conversation.conversationName || 'session'}.json`,
+      }),
     );
-    ElMessage.success(t('chats.alerts.restoreInitiated'));
-  } catch (error) {
-    ElMessage.error(`${t('chats.alerts.restoreFailed')}: ${error.message}`);
+    ElMessage.success('已打开会话');
+  } catch (error: any) {
+    ElMessage.error(`打开会话失败: ${error?.message || error}`);
   }
-}
-async function renameFile(file) {
-  const defaultInputValue = file.basename.endsWith('.json')
-    ? file.basename.slice(0, -5)
-    : file.basename;
-  try {
-    const { value: userInput } = await ElMessageBox.prompt(
-      t('chats.rename.promptMessage'),
-      t('chats.rename.promptTitle'),
-      { inputValue: defaultInputValue },
-    );
-    let finalFilename = (userInput || '').trim();
-    if (!finalFilename.toLowerCase().endsWith('.json')) finalFilename += '.json';
-    if (finalFilename === file.basename || finalFilename === '.json') return;
+};
 
-    if (activeView.value === 'local') {
-      await window.api.renameLocalFile(file.path, `${localChatPath.value}/${finalFilename}`);
-      if (
-        isWebdavConfigValid.value &&
-        cloudChatFiles.value.some((f) => f.basename === file.basename)
-      ) {
-        const confirm = await ElMessageBox.confirm(
-          t('chats.rename.syncCloudConfirm'),
-          t('chats.rename.syncTitle'),
-          { type: 'info' },
-        ).catch(() => false);
-        if (confirm) {
-          const client = await createWebdavClient(
-            webdavConfig.value.url,
-            webdavConfig.value.username,
-            webdavConfig.value.password,
-          );
-          await client.moveFile(
-            `${webdavConfig.value.data_path}/${file.basename}`,
-            `${webdavConfig.value.data_path}/${finalFilename}`,
-          );
-        }
-      }
-    } else {
-      // cloud
-      const client = await createWebdavClient(
-        webdavConfig.value.url,
-        webdavConfig.value.username,
-        webdavConfig.value.password,
-      );
-      await client.moveFile(
-        `${webdavConfig.value.data_path}/${file.basename}`,
-        `${webdavConfig.value.data_path}/${finalFilename}`,
-      );
-      if (localChatFiles.value.some((f) => f.basename === file.basename)) {
-        const confirm = await ElMessageBox.confirm(
-          t('chats.rename.syncLocalConfirm'),
-          t('chats.rename.syncTitle'),
-          { type: 'info' },
-        ).catch(() => false);
-        if (confirm)
-          await window.api.renameLocalFile(
-            `${localChatPath.value}/${file.basename}`,
-            `${localChatPath.value}/${finalFilename}`,
-          );
-      }
-    }
-    ElMessage.success(t('chats.alerts.renameSuccess'));
-    await refreshData();
-  } catch (error) {
-    if (error !== 'cancel' && error !== 'close')
-      ElMessage.error(`${t('chats.alerts.renameFailed')}: ${error.message}`);
+const renameConversation = async (row: any) => {
+  try {
+    const { value: inputValue } = await ElMessageBox.prompt('请输入新的会话名称', '重命名会话', {
+      inputValue: row.conversationName || '',
+      inputValidator: (value: string) => {
+        if (!value || !value.trim()) return '名称不能为空';
+        return true;
+      },
+    });
+
+    const nextName = String(inputValue || '').trim();
+    if (!nextName || nextName === row.conversationName) return;
+
+    await window.api.renameConversation(row.conversationId, nextName);
+    ElMessage.success('重命名成功');
+    await fetchConversations();
+  } catch (error: any) {
+    if (error === 'cancel' || error === 'close') return;
+    ElMessage.error(`重命名失败: ${error?.message || error}`);
   }
-}
-async function deleteFiles(filesToDelete) {
-  if (filesToDelete.length === 0) {
+};
+
+const deleteRows = async (rowsToDelete: any[]) => {
+  if (!Array.isArray(rowsToDelete) || rowsToDelete.length === 0) {
     ElMessage.warning(t('common.noFileSelected'));
     return;
   }
 
   try {
     await ElMessageBox.confirm(
-      t('common.confirmDeleteMultiple', { count: filesToDelete.length }),
+      `确认删除 ${rowsToDelete.length} 条会话记录吗？`,
       t('common.warningTitle'),
       { type: 'warning' },
     );
 
-    let syncDeletions = false;
+    const ids = rowsToDelete
+      .map((item) => String(item.conversationId || '').trim())
+      .filter((value) => !!value);
+    if (!ids.length) return;
 
-    if (isWebdavConfigValid.value && localChatPath.value) {
-      const localMap = new Map(localChatFiles.value.map((f) => [f.basename, f]));
-      const cloudMap = new Map(cloudChatFiles.value.map((f) => [f.basename, f]));
-
-      const counterpartFiles = filesToDelete.filter((file) => {
-        return activeView.value === 'local'
-          ? cloudMap.has(file.basename)
-          : localMap.has(file.basename);
-      });
-
-      if (counterpartFiles.length > 0) {
-        const location =
-          activeView.value === 'local' ? t('chats.view.cloud') : t('chats.view.local');
-        try {
-          await ElMessageBox.confirm(
-            t('chats.alerts.confirmSyncDeleteMessage', {
-              count: counterpartFiles.length,
-              location: location,
-            }),
-            t('chats.alerts.confirmSyncDeleteTitle'),
-            { type: 'info' },
-          );
-          syncDeletions = true;
-        } catch (e) {
-          syncDeletions = false;
-        }
-      }
-    }
-
-    isTableLoading.value = true;
-    const client = isWebdavConfigValid.value
-      ? await createWebdavClient(
-          webdavConfig.value.url,
-          webdavConfig.value.username,
-          webdavConfig.value.password,
-        )
-      : null;
-
-    for (const file of filesToDelete) {
-      if (activeView.value === 'local') {
-        await window.api.deleteLocalFile(file.path);
-        if (
-          syncDeletions &&
-          client &&
-          cloudChatFiles.value.some((f) => f.basename === file.basename)
-        ) {
-          await client.deleteFile(`${webdavConfig.value.data_path}/${file.basename}`);
-        }
-      } else {
-        // cloud view
-        if (client) {
-          await client.deleteFile(`${webdavConfig.value.data_path}/${file.basename}`);
-          if (syncDeletions && localChatFiles.value.some((f) => f.basename === file.basename)) {
-            await window.api.deleteLocalFile(`${localChatPath.value}/${file.basename}`);
-          }
-        }
-      }
-    }
-
-    ElMessage.success(t('common.deleteSuccessMultiple'));
-    await refreshData();
-    selectedFiles.value = [];
-  } catch (error) {
-    if (error !== 'cancel' && error !== 'close') {
-      ElMessage.error(`${t('common.deleteFailedMultiple')}: ${error.message}`);
-    }
-  } finally {
-    isTableLoading.value = false;
-  }
-}
-const handleSelectionChange = (val) => (selectedFiles.value = val);
-
-const cancelSync = () => {
-  if (syncAbortController.value) {
-    syncAbortController.value.abort();
+    await window.api.deleteConversations(ids);
+    selectedRows.value = [];
+    ElMessage.success('删除成功');
+    await fetchConversations();
+  } catch (error: any) {
+    if (error === 'cancel' || error === 'close') return;
+    ElMessage.error(`删除失败: ${error?.message || error}`);
   }
 };
 
-async function runConcurrentTasks(tasks, signal, concurrencyLimit = 3) {
-  const results = { completed: 0, failed: 0, failedFiles: [] };
-  const queue = [...tasks];
+const handleSelectionChange = (rows: any[]) => {
+  selectedRows.value = rows;
+};
 
-  const worker = async () => {
-    while (queue.length > 0) {
-      if (signal.aborted) throw new Error('Cancelled');
-      const task = queue.shift();
-      try {
-        await task.action(signal);
-        results.completed++;
-      } catch (error) {
-        if (error.name === 'AbortError') {
-          throw new Error('Cancelled');
-        }
-        results.failed++;
-        results.failedFiles.push(task.name);
-        console.error(`Task failed for ${task.name}:`, error);
-      } finally {
-        if (!signal.aborted) {
-          syncProgress.value = Math.round(
-            ((results.completed + results.failed) / tasks.length) * 100,
-          );
-          syncStatusText.value = t('chats.alerts.syncProcessing', {
-            completed: results.completed + results.failed,
-            total: tasks.length,
-          });
-        }
-      }
-    }
-  };
-
-  const workers = Array(concurrencyLimit).fill(null).map(worker);
-  await Promise.all(workers);
-  return results;
-}
-
-async function intelligentUpload() {
-  if (!isWebdavConfigValid.value) return ElMessage.warning(t('chats.alerts.webdavRequired'));
-  const filesToUpload = localChatFiles.value.filter((local) => {
-    const cloudFile = getFileMap(cloudChatFiles.value).get(local.basename);
-    return !cloudFile || new Date(local.lastmod) > new Date(cloudFile.lastmod);
-  });
-  if (filesToUpload.length === 0) return ElMessage.info(t('chats.alerts.syncNoUpload'));
-
-  try {
-    await ElMessageBox.confirm(
-      t('chats.tooltips.uploadChanges', { count: filesToUpload.length }) +
-        ' ' +
-        t('chats.alerts.continueConfirm'),
-      t('chats.alerts.syncConfirmUploadTitle'),
-      { type: 'info' },
-    );
-    const tasks = filesToUpload.map((file) => ({
-      name: file.basename,
-      action: (signal) => forceSyncFile(file.basename, 'upload', signal),
-    }));
-    await executeSync(tasks, t('chats.alerts.syncConfirmUploadTitle'));
-  } catch (error) {
-    if (error === 'cancel' || error === 'close') return;
-    ElMessage.error(`${error.message}`);
-  }
-}
-
-async function intelligentDownload() {
-  if (!localChatPath.value) return ElMessage.warning(t('chats.alerts.localPathRequired'));
-  const filesToDownload = cloudChatFiles.value.filter((cloud) => {
-    const localFile = getFileMap(localChatFiles.value).get(cloud.basename);
-    return !localFile || new Date(cloud.lastmod) > new Date(localFile.lastmod);
-  });
-  if (filesToDownload.length === 0) return ElMessage.info(t('chats.alerts.syncNoDownload'));
-
-  try {
-    await ElMessageBox.confirm(
-      t('chats.tooltips.downloadChanges', { count: filesToDownload.length }) +
-        ' ' +
-        t('chats.alerts.continueConfirm'),
-      t('chats.alerts.syncConfirmDownloadTitle'),
-      { type: 'info' },
-    );
-    const tasks = filesToDownload.map((file) => ({
-      name: file.basename,
-      action: (signal) => forceSyncFile(file.basename, 'download', signal),
-    }));
-    await executeSync(tasks, t('chats.alerts.syncConfirmDownloadTitle'));
-  } catch (error) {
-    if (error === 'cancel' || error === 'close') return;
-    ElMessage.error(`${error.message}`);
-  }
-}
-
-async function executeSync(tasks, title) {
-  isSyncing.value = true;
-  syncProgress.value = 0;
-  syncAbortController.value = new AbortController();
-  syncStatusText.value =
-    title === t('chats.alerts.syncConfirmUploadTitle')
-      ? t('chats.alerts.syncPreparingUpload')
-      : t('chats.alerts.syncPreparingDownload');
-
-  try {
-    const results = await runConcurrentTasks(tasks, syncAbortController.value.signal);
-    let message =
-      title === t('chats.alerts.syncConfirmUploadTitle')
-        ? t('chats.alerts.syncSuccessUpload', { count: results.completed })
-        : t('chats.alerts.syncSuccessDownload', { count: results.completed });
-    if (results.failed > 0)
-      message += ` ${t('chats.alerts.syncFailedPartially', { failedCount: results.failed })}`;
-    ElMessage.success(message);
-    await refreshData();
-  } catch (error) {
-    if (error.message === 'Cancelled') {
-      ElMessage.warning(t('chats.alerts.syncCancelled'));
-    } else {
-      ElMessage.error(t('chats.alerts.syncFailed', { message: error.message }));
-    }
-  } finally {
-    isSyncing.value = false;
-    syncAbortController.value = null;
-  }
-}
-
-async function forceSyncFile(basename, direction, signal) {
-  singleFileSyncing.value[basename] = true;
-  try {
-    const client = await createWebdavClient(
-      webdavConfig.value.url,
-      webdavConfig.value.username,
-      webdavConfig.value.password,
-    );
-    const remotePath = `${webdavConfig.value.data_path}/${basename}`;
-    const localPath = `${localChatPath.value}/${basename}`;
-
-    if (direction === 'upload') {
-      const localFile = localChatFiles.value.find((f) => f.basename === basename);
-      if (!localFile) throw new Error(`本地文件 "${basename}" 未找到`);
-
-      const content = await window.api.readLocalFile(localPath, signal);
-      await client.putFileContents(remotePath, content, { overwrite: true, signal });
-
-      await client.customRequest(remotePath, {
-        method: 'PROPPATCH',
-        headers: { 'Content-Type': 'application/xml' },
-        data: `<?xml version="1.0"?>
-                       <d:propertyupdate xmlns:d="DAV:">
-                         <d:set>
-                           <d:prop>
-                             <lastmodified xmlns="DAV:">${new Date(localFile.lastmod).toUTCString()}</lastmodified>
-                           </d:prop>
-                         </d:set>
-                       </d:propertyupdate>`,
-        signal,
-      });
-    } else {
-      // download
-      const cloudFile = cloudChatFiles.value.find((f) => f.basename === basename);
-      if (!cloudFile) throw new Error(`云端文件 "${basename}" 未找到`);
-
-      const content = await client.getFileContents(remotePath, { format: 'text', signal });
-      await window.api.writeLocalFile(localPath, content, signal);
-
-      await window.api.setFileMtime(localPath, cloudFile.lastmod);
-    }
-  } catch (error) {
-    if (error.name === 'AbortError') throw new Error('Cancelled');
-    ElMessage.error(`同步文件 "${basename}" 失败: ${error.message}`);
-    throw error;
-  } finally {
-    singleFileSyncing.value[basename] = false;
-  }
-}
-
-const computedFilesToClean = computed(() => {
+const computedRowsToClean = computed(() => {
   const days = cleanDaysOption.value === -1 ? cleanCustomDays.value : cleanDaysOption.value;
   if (!days || days < 1) return [];
 
-  // 计算截止时间戳
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - days);
-
-  return currentFiles.value.filter((file) => {
-    const fileDate = new Date(file.lastmod);
-    return fileDate < cutoffDate;
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+  return conversations.value.filter((row: any) => {
+    const updatedAt = new Date(row.updatedAt || row.lastmod || 0).getTime();
+    return Number.isFinite(updatedAt) && updatedAt > 0 && updatedAt < cutoff;
   });
 });
 
-const totalCleanSize = computed(() => {
-  return computedFilesToClean.value.reduce((acc, file) => acc + (file.size || 0), 0);
+const cleanSize = computed(() => {
+  return computedRowsToClean.value.reduce(
+    (acc: number, row: any) => acc + Number(row.size || 0),
+    0,
+  );
 });
 
-function openCleanDialog() {
-  showCleanDialog.value = true;
-}
-
-async function executeAutoClean() {
-  const filesToDelete = computedFilesToClean.value;
-  if (filesToDelete.length === 0) return;
+const executeAutoClean = async () => {
+  const days = cleanDaysOption.value === -1 ? cleanCustomDays.value : cleanDaysOption.value;
+  if (!days || days < 1) {
+    ElMessage.warning('请输入有效天数');
+    return;
+  }
 
   isCleaning.value = true;
   try {
-    // 为了安全起见，批量清理仅删除当前视图的文件，不进行双向同步删除询问
-    // 直接复用底层的删除 API
-    const client = isWebdavConfigValid.value
-      ? await createWebdavClient(
-          webdavConfig.value.url,
-          webdavConfig.value.username,
-          webdavConfig.value.password,
-        )
-      : null;
-
-    // 并发处理
-    const tasks = filesToDelete.map((file) => async () => {
-      if (activeView.value === 'local') {
-        await window.api.deleteLocalFile(file.path);
-      } else {
-        if (client) {
-          await client.deleteFile(`${webdavConfig.value.data_path}/${file.basename}`);
-        }
-      }
-    });
-
-    // 简单的并发控制器
-    const batchSize = 5;
-    for (let i = 0; i < tasks.length; i += batchSize) {
-      const batch = tasks.slice(i, i + batchSize);
-      await Promise.all(batch.map((t) => t()));
-    }
-
-    ElMessage.success(t('chats.clean.success', { count: filesToDelete.length }));
-    await refreshData();
+    const result = await window.api.cleanConversations(days);
+    const count = Number(result?.deletedCount || 0);
+    ElMessage.success(`已清理 ${count} 条会话`);
     showCleanDialog.value = false;
-    // 清空选择，防止残留
-    selectedFiles.value = [];
-  } catch (error) {
-    ElMessage.error(`清理失败: ${error.message}`);
+    await fetchConversations();
+  } catch (error: any) {
+    ElMessage.error(`清理失败: ${error?.message || error}`);
   } finally {
     isCleaning.value = false;
   }
-}
+};
+
+const onWindowFocus = () => {
+  refreshData();
+};
+
+onMounted(async () => {
+  await fetchConversations();
+  window.addEventListener('focus', onWindowFocus);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('focus', onWindowFocus);
+});
 </script>
 
 <template>
@@ -610,105 +200,37 @@ async function executeAutoClean() {
     <div class="chats-content-wrapper">
       <div class="chats-toolbar">
         <div class="toolbar-left">
-          <div class="view-selector">
-            <el-radio-group v-model="activeView" @change="currentPage = 1">
-              <el-radio-button value="local">{{ t('chats.view.local') }}</el-radio-button>
-              <el-radio-button value="cloud" :disabled="!isWebdavConfigValid">{{
-                t('chats.view.cloud')
-              }}</el-radio-button>
-            </el-radio-group>
-          </div>
+          <span class="toolbar-title">会话管理</span>
         </div>
         <div class="toolbar-right">
-          <div class="toolbar-btn-wrapper">
-            <el-popover
-              placement="bottom-end"
-              :title="t('chats.info.title')"
-              :width="450"
-              trigger="click"
-            >
-              <template #reference>
-                <el-button class="rounded-action-btn" :icon="Info" circle />
-              </template>
-              <div class="info-popover-content">
-                <p
-                  v-html="
-                    t('chats.info.localDesc', { path: localChatPath || t('chats.info.pathNotSet') })
-                  "
-                ></p>
-                <p v-html="t('chats.info.cloudDesc')"></p>
-              </div>
-            </el-popover>
-          </div>
-          <div class="toolbar-btn-wrapper">
-            <el-tooltip :content="t('chats.clean.button')" placement="bottom">
-              <el-button
-                class="rounded-action-btn"
-                :icon="BrushCleaning"
-                circle
-                @click="openCleanDialog"
-              />
-            </el-tooltip>
-          </div>
-          <div class="toolbar-btn-wrapper">
-            <el-tooltip
-              :content="t('chats.tooltips.uploadChanges', { count: uploadableCount })"
-              placement="bottom"
-            >
-              <el-badge :value="uploadableCount" :hidden="uploadableCount === 0" type="primary">
-                <el-button
-                  class="rounded-action-btn"
-                  :icon="Upload"
-                  @click="intelligentUpload"
-                  circle
-                  :disabled="!isWebdavConfigValid || !localChatPath"
-                />
-              </el-badge>
-            </el-tooltip>
-          </div>
-          <div class="toolbar-btn-wrapper">
-            <el-tooltip
-              :content="t('chats.tooltips.downloadChanges', { count: downloadableCount })"
-              placement="bottom"
-            >
-              <el-badge :value="downloadableCount" :hidden="downloadableCount === 0" type="success">
-                <el-button
-                  class="rounded-action-btn"
-                  :icon="Download"
-                  @click="intelligentDownload"
-                  circle
-                  :disabled="!isWebdavConfigValid || !localChatPath"
-                />
-              </el-badge>
-            </el-tooltip>
-          </div>
+          <el-tooltip content="自动清理" placement="bottom">
+            <el-button
+              class="rounded-action-btn"
+              :icon="BrushCleaning"
+              circle
+              @click="showCleanDialog = true"
+            />
+          </el-tooltip>
+          <el-tooltip :content="t('common.refresh')" placement="bottom">
+            <el-button class="rounded-action-btn" :icon="Refresh" circle @click="refreshData" />
+          </el-tooltip>
+          <el-tooltip :content="t('common.deleteSelected')" placement="bottom">
+            <el-button
+              class="rounded-action-btn"
+              :icon="DeleteIcon"
+              circle
+              type="danger"
+              plain
+              :disabled="selectedRows.length === 0"
+              @click="deleteRows(selectedRows)"
+            />
+          </el-tooltip>
         </div>
       </div>
 
       <div class="table-container">
-        <div v-if="activeView === 'local' && !localChatPath" class="config-prompt-small">
-          <el-empty :description="t('chats.configRequired.localPathDescription')">
-            <template #image>
-              <el-icon :size="50" color="#909399">
-                <Edit />
-              </el-icon>
-            </template>
-          </el-empty>
-        </div>
-
-        <div v-else-if="activeView === 'cloud' && !isWebdavConfigValid" class="config-prompt-small">
-          <el-empty :description="t('chats.configRequired.webdavDescription')">
-            <template #image>
-              <el-icon :size="50" color="#909399">
-                <Edit />
-              </el-icon>
-            </template>
-          </el-empty>
-        </div>
-
         <el-table
-          v-else
-          :data="paginatedFiles"
+          :data="paginatedRows"
           v-loading="isTableLoading"
           @selection-change="handleSelectionChange"
           class="history-table"
@@ -717,92 +239,49 @@ async function executeAutoClean() {
         >
           <el-table-column type="selection" width="50" align="center" />
           <el-table-column
-            prop="basename"
-            :label="t('chats.table.filename')"
-            sortable
+            prop="conversationName"
+            label="会话名称"
+            min-width="220"
             show-overflow-tooltip
-            min-width="200"
-          >
-            <template #default="scope">
-              <span class="filename-text">{{
-                scope.row.basename.endsWith('.json')
-                  ? scope.row.basename.slice(0, -5)
-                  : scope.row.basename
-              }}</span>
-            </template>
+          />
+          <el-table-column prop="assistantCode" label="助手" width="130" align="center" />
+          <el-table-column prop="updatedAt" label="更新时间" width="180" align="center" sortable>
+            <template #default="scope">{{
+              formatDate(scope.row.updatedAt || scope.row.lastmod)
+            }}</template>
           </el-table-column>
-          <el-table-column
-            prop="lastmod"
-            :label="t('chats.table.modifiedTime')"
-            width="160"
-            sortable
-            align="center"
-          >
-            <template #default="scope">{{ formatDate(scope.row.lastmod) }}</template>
-          </el-table-column>
-          <el-table-column
-            prop="size"
-            :label="t('chats.table.size')"
-            width="90"
-            sortable
-            align="center"
-          >
+          <el-table-column prop="size" label="大小" width="110" align="center" sortable>
             <template #default="scope">{{ formatBytes(scope.row.size) }}</template>
           </el-table-column>
-          <el-table-column :label="t('chats.table.actions')" width="196" align="center">
+          <el-table-column prop="preview" label="预览" min-width="240" show-overflow-tooltip />
+          <el-table-column label="操作" width="170" align="center">
             <template #default="scope">
               <div class="row-action-group">
-                <el-tooltip :content="t('chats.actions.chat')" placement="top">
+                <el-tooltip content="打开会话" placement="top">
                   <el-button
                     link
                     class="row-action-btn"
                     type="primary"
                     :icon="ChatDotRound"
-                    circle
                     @click="startChat(scope.row)"
                   />
                 </el-tooltip>
-                <el-tooltip
-                  :content="
-                    activeView === 'local'
-                      ? t('chats.tooltips.forceUpload')
-                      : t('chats.tooltips.forceDownload')
-                  "
-                  placement="top"
-                >
-                  <el-button
-                    link
-                    class="row-action-btn"
-                    type="primary"
-                    :icon="Switch"
-                    circle
-                    @click="
-                      forceSyncFile(
-                        scope.row.basename,
-                        activeView === 'local' ? 'upload' : 'download',
-                      )
-                    "
-                    :loading="singleFileSyncing[scope.row.basename]"
-                  />
-                </el-tooltip>
-                <el-tooltip :content="t('chats.actions.rename')" placement="top">
+                <el-tooltip content="重命名" placement="top">
                   <el-button
                     link
                     class="row-action-btn"
                     type="warning"
                     :icon="Edit"
-                    circle
-                    @click="renameFile(scope.row)"
+                    @click="renameConversation(scope.row)"
                   />
                 </el-tooltip>
-                <el-tooltip :content="t('chats.actions.delete')" placement="top">
+                <el-tooltip :content="t('common.delete')" placement="top">
                   <el-button
                     link
                     class="row-action-btn"
                     type="danger"
                     :icon="DeleteIcon"
-                    circle
-                    @click="deleteFiles([scope.row])"
+                    @click="deleteRows([scope.row])"
                   />
                 </el-tooltip>
               </div>
@@ -811,13 +290,12 @@ async function executeAutoClean() {
         </el-table>
       </div>
 
-      <div class="pagination-bar">
+      <div class="pagination-wrapper">
         <el-pagination
-          v-if="currentFiles.length > 0"
           v-model:current-page="currentPage"
           v-model:page-size="pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="currentFiles.length"
+          :page-sizes="[20, 50, 100]"
+          :total="conversations.length"
           layout="total, sizes, prev, pager, next, jumper"
           background
           size="small"
@@ -825,491 +303,96 @@ async function executeAutoClean() {
       </div>
     </div>
 
-    <div class="bottom-actions-container">
-      <el-button class="action-btn" :icon="Refresh" @click="refreshData">{{
-        t('common.refresh')
-      }}</el-button>
-      <el-button
-        class="action-btn"
-        type="danger"
-        :icon="DeleteIcon"
-        @click="deleteFiles(selectedFiles)"
-        :disabled="selectedFiles.length === 0"
-      >
-        {{ t('common.deleteSelected') }} ({{ selectedFiles.length }})
-      </el-button>
-    </div>
-  </div>
-  <el-dialog
-    v-model="isSyncing"
-    :title="t('chats.alerts.syncInProgress')"
-    :close-on-click-modal="false"
-    :show-close="false"
-    :close-on-press-escape="false"
-    width="400px"
-    center
-    append-to-body
-  >
-    <div class="sync-progress-container">
-      <el-progress :percentage="syncProgress" :stroke-width="10" striped striped-flow />
-      <p class="sync-status-text">{{ syncStatusText }}</p>
-    </div>
-    <template #footer>
-      <el-button @click="cancelSync">{{ t('common.cancel') }}</el-button>
-    </template>
-  </el-dialog>
+    <el-dialog v-model="showCleanDialog" title="按时间清理会话" width="520px" append-to-body>
+      <div class="clean-dialog">
+        <el-radio-group v-model="cleanDaysOption">
+          <el-radio :value="7">7 天前</el-radio>
+          <el-radio :value="30">30 天前</el-radio>
+          <el-radio :value="90">90 天前</el-radio>
+          <el-radio :value="-1">自定义</el-radio>
+        </el-radio-group>
 
-  <el-dialog v-model="showCleanDialog" :title="t('chats.clean.title')" width="500px" append-to-body>
-    <div class="clean-dialog-body">
-      <div class="clean-options">
-        <span class="label">{{ t('chats.clean.timeRangeLabel') }}:</span>
-        <el-select v-model="cleanDaysOption" style="width: 140px; margin-right: 10px">
-          <el-option :label="t('chats.clean.ranges.3')" :value="3" />
-          <el-option :label="t('chats.clean.ranges.7')" :value="7" />
-          <el-option :label="t('chats.clean.ranges.30')" :value="30" />
-          <el-option :label="t('chats.clean.ranges.custom')" :value="-1" />
-        </el-select>
-        <el-input-number
-          v-if="cleanDaysOption === -1"
-          v-model="cleanCustomDays"
-          :min="1"
-          :max="3650"
-          style="width: 120px"
-          controls-position="right"
-        />
+        <div v-if="cleanDaysOption === -1" class="custom-days-input">
+          <el-input-number v-model="cleanCustomDays" :min="1" :max="3650" />
+          <span>天前</span>
+        </div>
+
+        <div class="clean-preview">
+          <p>预计清理 {{ computedRowsToClean.length }} 条会话</p>
+          <p>预计释放 {{ formatBytes(cleanSize) }}</p>
+        </div>
       </div>
 
-      <div class="clean-preview">
-        <p v-if="computedFilesToClean.length > 0" class="preview-title">
-          {{
-            t('chats.clean.previewTitle', {
-              count: computedFilesToClean.length,
-              days: cleanDaysOption === -1 ? cleanCustomDays : cleanDaysOption,
-              size: formatBytes(totalCleanSize),
-            })
-          }}
-        </p>
-        <p v-else class="preview-title text-gray">{{ t('chats.clean.noFilesFound') }}</p>
-
-        <el-scrollbar
-          max-height="30vh"
-          v-if="computedFilesToClean.length > 0"
-          class="custom-clean-scrollbar"
+      <template #footer>
+        <el-button @click="showCleanDialog = false">取消</el-button>
+        <el-button type="danger" :loading="isCleaning" @click="executeAutoClean"
+          >开始清理</el-button
         >
-          <ul class="file-preview-list">
-            <li v-for="file in computedFilesToClean" :key="file.basename">
-              <span class="fname">{{ file.basename }}</span>
-              <span class="fdate">{{ formatDate(file.lastmod) }}</span>
-            </li>
-          </ul>
-        </el-scrollbar>
-      </div>
-    </div>
-    <template #footer>
-      <el-button @click="showCleanDialog = false">{{ t('common.cancel') }}</el-button>
-      <el-button
-        type="danger"
-        @click="executeAutoClean"
-        :loading="isCleaning"
-        :disabled="computedFilesToClean.length === 0"
-      >
-        {{ t('chats.clean.confirmBtn') }}
-      </el-button>
-    </template>
-  </el-dialog>
+      </template>
+    </el-dialog>
+  </div>
 </template>
 
 <style scoped>
 .chats-page-container {
   height: 100%;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  padding: 18px 20px 0;
-  box-sizing: border-box;
-  overflow: hidden;
-  background-color: var(--bg-primary);
 }
 
 .chats-content-wrapper {
   display: flex;
   flex-direction: column;
   height: 100%;
-  width: 100%;
-  padding: 14px 14px 0;
-  background-color: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  box-shadow:
-    0 0 0 1px var(--border-primary),
-    var(--shadow-sm);
-  overflow: hidden;
+  gap: 12px;
 }
 
 .chats-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 0 0 8px;
 }
 
-.toolbar-left {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-}
-
-.view-selector {
-  display: flex;
-  align-items: center;
+.toolbar-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .toolbar-right {
   display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.toolbar-right > * {
-  display: flex;
-  align-items: center;
-}
-
-.toolbar-right :deep(.el-popover__reference-wrapper) {
-  display: flex;
-  align-items: center;
-}
-
-.toolbar-right :deep(.el-badge) {
-  display: flex;
-  align-items: center;
-}
-
-.toolbar-right :deep(.el-badge__content) {
-  font-size: 10px;
-  padding: 0 5px;
-  height: 16px;
-  line-height: 16px;
-  min-width: 16px;
-  border-width: 1px;
-  transform: translateY(-45%) translateX(65%);
-}
-
-html.dark .toolbar-right :deep(.el-badge__content--primary) {
-  background-color: var(--el-color-primary);
-  color: var(--bg-primary);
-}
-
-html.dark .footer-action-btn.el-button--danger {
-  background-color: #b91c1c;
-}
-
-html.dark .footer-action-btn.el-button--danger.is-disabled {
-  background-color: #b91c1c;
-  opacity: 0.6;
+  gap: 8px;
 }
 
 .table-container {
-  flex-grow: 1;
+  flex: 1;
   min-height: 0;
-  overflow: hidden;
-  padding: 0;
-  margin-top: 8px;
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-lg);
-  background-color: color-mix(in srgb, var(--bg-primary) 65%, transparent);
-}
-
-.filename-text {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-:deep(.history-table.el-table),
-:deep(.history-table .el-table__expanded-cell) {
-  background-color: transparent;
-}
-
-:deep(.history-table .el-table__inner-wrapper::before) {
-  display: none;
-}
-
-:deep(.history-table .el-table__header-wrapper th.el-table__cell) {
-  background-color: color-mix(in srgb, var(--bg-tertiary) 70%, transparent) !important;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 600;
-  border-bottom: 1px solid var(--border-primary);
-  padding-top: 8px;
-  padding-bottom: 8px;
-}
-
-:deep(.history-table td.el-table__cell) {
-  color: var(--text-primary);
-  border-bottom: 1px solid color-mix(in srgb, var(--border-primary) 82%, transparent);
-  padding-top: 8px;
-  padding-bottom: 8px;
-}
-
-:deep(.history-table .el-table__body tr:hover > td.el-table__cell) {
-  background-color: color-mix(in srgb, var(--bg-tertiary) 60%, transparent);
-}
-
-:deep(.history-table .el-table__empty-text) {
-  color: var(--text-tertiary);
 }
 
 .row-action-group {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
-  white-space: nowrap;
+  gap: 6px;
 }
 
-.row-action-btn {
-  width: 30px !important;
-  height: 30px !important;
-  min-width: 30px !important;
-  min-height: 30px !important;
-  padding: 0;
-  border-radius: 9px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-:deep(.row-action-btn:not(.is-disabled):hover) {
-  background-color: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
-}
-
-.pagination-bar {
+.pagination-wrapper {
   display: flex;
   justify-content: flex-end;
-  align-items: center;
-  width: 100%;
-  padding: 10px 0 8px;
-  flex-shrink: 0;
 }
 
-.bottom-actions-container {
+.clean-dialog {
   display: flex;
-  justify-content: flex-start;
-  align-items: center;
-  width: 100%;
-  flex-wrap: wrap;
-  gap: 10px;
-  padding: 12px 0 10px;
-  background-color: transparent;
-  flex-shrink: 0;
-}
-
-.bottom-actions-container .action-btn {
-  min-width: 0;
-  min-height: 34px;
-  font-weight: 500;
-}
-
-:deep(.el-pagination) {
-  --el-pagination-text-color: var(--text-secondary);
-}
-
-:deep(.el-pagination.is-background .el-pager li),
-:deep(.el-pagination.is-background .btn-prev),
-:deep(.el-pagination.is-background .btn-next) {
-  background-color: var(--bg-tertiary);
-  color: var(--text-primary);
-}
-
-:deep(.el-pagination.is-background .el-pager li:not(.is-disabled).is-active) {
-  background-color: var(--bg-accent);
-  color: var(--text-on-accent);
-}
-
-:deep(.el-pagination.is-background .el-pager li:hover) {
-  color: var(--text-accent);
-}
-
-:deep(.el-pagination.is-background .btn-prev:hover),
-:deep(.el-pagination.is-background .btn-next:hover) {
-  color: var(--text-accent);
-}
-
-.config-prompt {
-  display: flex;
-  justify-content: center;
-  align-items: center;
   flex-direction: column;
-  height: 100%;
-  text-align: center;
-  background-color: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 0 0 1px var(--border-primary);
+  gap: 14px;
 }
 
-.config-prompt-title {
-  font-size: 18px;
-  color: var(--text-primary);
-  margin-top: 0;
-  margin-bottom: 8px;
-  font-weight: 600;
-}
-
-:deep(.el-empty__description p) {
-  color: var(--text-secondary);
-  font-size: 14px;
-}
-
-.config-prompt-small {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 100%;
-}
-
-.sync-progress-container {
-  padding: 20px;
-  text-align: center;
-}
-
-.sync-status-text {
-  margin-top: 15px;
-  color: var(--text-secondary);
-}
-
-@media (max-width: 860px) {
-  .chats-page-container {
-    padding: 12px 12px 0;
-  }
-
-  .chats-content-wrapper {
-    padding: 10px 10px 0;
-  }
-
-  .chats-toolbar {
-    gap: 10px;
-  }
-
-  .toolbar-left,
-  .toolbar-right {
-    width: 100%;
-  }
-
-  .toolbar-right {
-    justify-content: flex-start;
-  }
-
-  .pagination-bar {
-    justify-content: flex-start;
-    width: 100%;
-  }
-}
-
-/* 弹出框内容的样式 */
-.info-popover-content p {
-  margin: 0 0 8px 0;
-  line-height: 1.6;
-  color: var(--text-secondary);
-}
-
-.info-popover-content p:last-child {
-  margin-bottom: 0;
-}
-
-.info-popover-content strong {
-  color: var(--text-primary);
-}
-
-.info-popover-content code {
-  background-color: var(--bg-tertiary);
-  color: var(--el-color-primary);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 0.9em;
-  word-break: break-all;
-}
-
-.clean-options {
+.custom-days-input {
   display: flex;
   align-items: center;
-  margin-top: 10px;
-}
-
-.clean-options .label {
-  margin-right: 10px;
-  font-weight: 500;
-  color: var(--text-primary);
+  gap: 10px;
 }
 
 .clean-preview {
-  margin-top: 15px;
-  border: 1px solid var(--border-primary);
-  border-radius: var(--radius-md);
-  padding: 10px 10px 5px 10px;
-  background-color: var(--bg-tertiary);
-}
-
-.preview-title {
-  margin: 0 0 8px 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--el-color-danger);
-}
-
-.preview-title.text-gray {
-  color: var(--text-tertiary);
-}
-
-.file-preview-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.custom-clean-scrollbar {
-  width: 100%;
-}
-.custom-clean-scrollbar :deep(.el-scrollbar__view) {
-  display: block;
-}
-
-html.dark .custom-clean-scrollbar :deep(.el-scrollbar__thumb) {
-  background-color: var(--text-tertiary);
-  opacity: 0.5;
-}
-
-html.dark .custom-clean-scrollbar :deep(.el-scrollbar__thumb:hover) {
-  background-color: var(--text-secondary);
-  opacity: 0.8;
-}
-
-.file-preview-list li {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  padding: 4px 0;
-  border-bottom: 1px dashed var(--border-primary);
   color: var(--text-secondary);
-}
-
-.file-preview-list li:last-child {
-  border-bottom: none;
-}
-
-.file-preview-list .fname {
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-right: 10px;
-}
-
-.file-preview-list .fdate {
-  flex-shrink: 0;
-  color: var(--text-tertiary);
-  margin-right: 12px;
+  font-size: 13px;
+  line-height: 1.6;
 }
 </style>

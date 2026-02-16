@@ -113,6 +113,7 @@ const fileList = ref([]);
 const zoomLevel = ref(1);
 const collapsedMessages = ref(new Set());
 const defaultConversationName = ref('');
+const currentConversationId = ref('');
 const selectedVoice = ref(null);
 const tempReasoningEffort = ref('default');
 const messageIdCounter = ref(0);
@@ -382,8 +383,7 @@ const closePage = async () => {
   // 1. 如果是为了打开文件选择器而失去焦点，拦截关闭
   if (isFilePickerOpen.value) return;
 
-  // 条件：配置了本地存储路径 且 当前对话已有名称
-  if (currentConfig.value?.webdav?.localChatPath && defaultConversationName.value) {
+  if (hasSessionInitialized.value) {
     try {
       await flushAutoSave(true);
     } catch (e) {
@@ -529,6 +529,7 @@ const {
     sessionSkillIds,
     isAutoApproveTools,
     defaultConversationName,
+    currentConversationId,
     zoomLevel,
     modelMap,
     currentSystemPrompt,
@@ -565,6 +566,7 @@ const { scheduleAutoSave, markSessionDirty, flushAutoSave, startAutoSaveFallback
       CODE,
       chat_show,
       defaultConversationName,
+      currentConversationId,
       isSessionDirty,
       hasSessionInitialized,
     },
@@ -702,6 +704,7 @@ const { initializeWindow } = useWindowInitialization({
     tempSessionSkillIds,
     basic_msg,
     defaultConversationName,
+    currentConversationId,
     fileList,
     sessionMcpServerIds,
     tempSessionMcpServerIds,

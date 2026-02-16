@@ -16,6 +16,37 @@ export interface DeepSeekLoginResult {
   error?: string;
 }
 
+export interface StorageConversationListItem {
+  conversationId: string;
+  assistantCode: string;
+  conversationName: string;
+  preview: string;
+  size: number;
+  createdAt?: string;
+  updatedAt?: string;
+  lastmod?: string;
+  deletedAt?: string | null;
+}
+
+export interface StorageConversationPayload {
+  conversationId?: string;
+  conversationName?: string;
+  assistantCode?: string;
+  sessionData?: Record<string, any>;
+  sessionJson?: string;
+  preview?: string;
+}
+
+export interface StorageHealthInfo {
+  mode: 'sqlite-only' | 'hybrid-offline' | 'hybrid-online';
+  postgresConfigured: boolean;
+  postgresConnected: boolean;
+  postgresTarget: string;
+  queueSize: number;
+  lastSyncAt: string;
+  lastError: string;
+}
+
 export interface MainWindowApi {
   getConfig: () => Promise<ConfigPayload> | ConfigPayload;
   updateConfig: AnyFn;
@@ -74,6 +105,29 @@ export interface MainWindowApi {
   closeWindow?: AnyFn;
   ensureDeepSeekProxy?: () => Promise<DeepSeekProxyResult>;
   loginDeepSeek?: () => Promise<DeepSeekLoginResult>;
+  listConversations?: (filter?: Record<string, any>) => Promise<StorageConversationListItem[]>;
+  getConversation?: (conversationId: string) => Promise<{
+    conversationId: string;
+    assistantCode: string;
+    conversationName: string;
+    preview: string;
+    size: number;
+    createdAt?: string;
+    updatedAt?: string;
+    lastmod?: string;
+    deletedAt?: string | null;
+    sessionData?: Record<string, any> | null;
+  } | null>;
+  upsertConversation?: (payload: StorageConversationPayload) => Promise<Record<string, any>>;
+  renameConversation?: (
+    conversationId: string,
+    conversationName: string,
+  ) => Promise<Record<string, any>>;
+  deleteConversations?: (ids: string[]) => Promise<Record<string, any>>;
+  cleanConversations?: (days: number) => Promise<Record<string, any>>;
+  getStorageHealth?: () => Promise<StorageHealthInfo>;
+  testPostgresConnection?: (connectionString: string) => Promise<{ ok: boolean; error?: string }>;
+  triggerStorageSync?: () => Promise<Record<string, any>>;
 }
 
 export interface WindowPreloadBridge {

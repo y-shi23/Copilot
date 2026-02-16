@@ -1,69 +1,44 @@
 <script setup lang="ts">
 // -nocheck
-import { ref, onMounted, computed, inject, h } from 'vue';
+import { ref, onMounted, computed, inject, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
-import {
-  Upload,
-  FolderOpen as FolderOpened,
-  Folder,
-  RefreshCw as Refresh,
-  Trash2 as DeleteIcon,
-  Download,
-  Plus,
-} from 'lucide-vue-next';
-import { ElMessage, ElMessageBox, ElInput } from 'element-plus';
+import { Upload, Download, Plus, Link, Unlink } from 'lucide-vue-next';
+import { ElMessage, ElMessageBox } from 'element-plus';
 
 const { t, locale } = useI18n();
 
 const currentConfig = inject('config');
 const selectedLanguage = ref(locale.value);
 
-// --- 备份管理器状态 ---
-const isBackupManagerVisible = ref(false);
-const backupFiles = ref([]);
-const isTableLoading = ref(false);
-const selectedFiles = ref([]);
-const currentPage = ref(1);
-const pageSize = ref(10);
-
-let createWebdavClientPromise = null;
-const getCreateWebdavClient = async () => {
-  if (!createWebdavClientPromise) {
-    createWebdavClientPromise = import('webdav/web').then((module) => module.createClient);
-  }
-  return createWebdavClientPromise;
-};
-
-const createWebdavClient = async (url, username, password) => {
-  const createClient = await getCreateWebdavClient();
-  return createClient(url, { username, password });
-};
-
-// --- 计算属性用于分页 ---
-const paginatedFiles = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-  return backupFiles.value.slice(start, end);
+const storageHealth = ref({
+  mode: 'sqlite-only',
+  postgresConfigured: false,
+  postgresConnected: false,
+  postgresTarget: '',
+  queueSize: 0,
+  lastSyncAt: '',
+  lastError: '',
 });
-
-// --- 辅助函数 ---
-const formatDate = (dateString) => {
-  if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  return date.toLocaleString();
-};
-
-const formatBytes = (bytes, decimals = 2) => {
-  if (bytes === 0) return '0 Bytes';
-  const k = 1024;
-  const dm = decimals < 0 ? 0 : decimals;
-  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-};
+const isTestingPostgres = ref(false);
+const isSyncingStorage = ref(false);
+let storageHealthTimer = null;
 
 onMounted(() => {
   selectedLanguage.value = locale.value;
+  if (currentConfig.value) {
+    currentConfig.value.database = currentConfig.value.database || { postgresUrl: '' };
+  }
+  refreshStorageHealth();
+  storageHealthTimer = window.setInterval(() => {
+    refreshStorageHealth();
+  }, 10000);
+});
+
+onBeforeUnmount(() => {
+  if (storageHealthTimer) {
+    clearInterval(storageHealthTimer);
+    storageHealthTimer = null;
+  }
 });
 
 // 新的、更精确的保存函数
@@ -84,6 +59,83 @@ async function saveSingleSetting(keyPath, value) {
     console.error(`Error saving setting for ${keyPath}:`, error);
     ElMessage.error(`${t('setting.alerts.saveFailedPrefix')} ${keyPath}`);
     return false;
+  }
+}
+
+async function refreshStorageHealth() {
+  if (!window.api?.getStorageHealth) return;
+  try {
+    const next = await window.api.getStorageHealth();
+    if (next && typeof next === 'object') {
+      storageHealth.value = {
+        ...storageHealth.value,
+        ...next,
+      };
+    }
+  } catch (error) {
+    console.error('Failed to fetch storage health:', error);
+  }
+}
+
+const storageStatusText = computed(() => {
+  if (!storageHealth.value.postgresConfigured) {
+    return '未配置 Postgres，当前使用 SQLite';
+  }
+  if (storageHealth.value.postgresConnected) {
+    return `Postgres 在线${storageHealth.value.postgresTarget ? ` (${storageHealth.value.postgresTarget})` : ''}`;
+  }
+  return 'Postgres 离线，正在使用 SQLite 缓存并等待补写';
+});
+
+async function savePostgresUrl(url) {
+  if (!currentConfig.value) return;
+  const normalized = String(url || '').trim();
+  currentConfig.value.database = currentConfig.value.database || { postgresUrl: '' };
+  currentConfig.value.database.postgresUrl = normalized;
+  const ok = await saveSingleSetting('database.postgresUrl', normalized);
+  if (!ok) return;
+  await refreshStorageHealth();
+}
+
+async function testPostgresConnection() {
+  const postgresUrl = String(currentConfig.value?.database?.postgresUrl || '').trim();
+  if (!postgresUrl) {
+    ElMessage.warning('请先填写 Postgres 连接串');
+    return;
+  }
+  if (!window.api?.testPostgresConnection) return;
+
+  isTestingPostgres.value = true;
+  try {
+    const result = await window.api.testPostgresConnection(postgresUrl);
+    if (result?.ok) {
+      ElMessage.success('连接测试成功');
+    } else {
+      ElMessage.error(`连接测试失败: ${result?.error || 'Unknown error'}`);
+    }
+  } catch (error: any) {
+    ElMessage.error(`连接测试失败: ${error?.message || error}`);
+  } finally {
+    isTestingPostgres.value = false;
+    await refreshStorageHealth();
+  }
+}
+
+async function triggerStorageSync() {
+  if (!window.api?.triggerStorageSync) return;
+  isSyncingStorage.value = true;
+  try {
+    const result = await window.api.triggerStorageSync();
+    if (result?.ok === false) {
+      ElMessage.warning(`同步未完成: ${result?.error || 'Unknown error'}`);
+    } else {
+      ElMessage.success('已触发同步');
+    }
+  } catch (error: any) {
+    ElMessage.error(`触发同步失败: ${error?.message || error}`);
+  } finally {
+    isSyncingStorage.value = false;
+    await refreshStorageHealth();
   }
 }
 
@@ -145,11 +197,6 @@ async function exportConfig() {
     // 创建配置的深拷贝以进行修改，不影响当前应用的配置
     const configToExport = JSON.parse(JSON.stringify(currentConfig.value));
 
-    // 在导出前移除本地对话路径
-    if (configToExport.webdav && configToExport.webdav.localChatPath) {
-      delete configToExport.webdav.localChatPath;
-    }
-
     // 在导出前移除 Skill 路径 (不同设备路径不同)
     if (configToExport.skillPath !== undefined) {
       delete configToExport.skillPath;
@@ -181,22 +228,12 @@ function importConfig() {
       const reader = new FileReader();
       reader.onload = async (e) => {
         try {
-          // 在导入新配置前，先保存当前的本地对话路径
-          const currentLocalChatPath = currentConfig.value.webdav?.localChatPath;
           // 保存当前的 Skill 路径
           const currentSkillPath = currentConfig.value.skillPath;
 
           const importedData = JSON.parse(e.target.result);
           if (typeof importedData !== 'object' || importedData === null) {
             throw new Error('Imported file is not a valid configuration object.');
-          }
-
-          // 将保存的本地路径写回到即将应用的配置中
-          if (currentLocalChatPath) {
-            if (!importedData.webdav) {
-              importedData.webdav = {}; // 确保 webdav 对象存在
-            }
-            importedData.webdav.localChatPath = currentLocalChatPath;
           }
 
           // 将保存的 Skill 路径写回
@@ -210,6 +247,7 @@ function importConfig() {
             if (result && result.config) {
               currentConfig.value = result.config;
             }
+            await refreshStorageHealth();
           }
           console.log('Configuration imported and replaced successfully.');
           ElMessage.success(t('setting.alerts.importSuccess'));
@@ -325,298 +363,6 @@ const deleteVoice = (voiceToDelete) => {
     saveFullConfig();
   }
 };
-
-// --- WebDAV 功能 ---
-async function backupToWebdav() {
-  if (!currentConfig.value) return;
-  const { url, username, password, path } = currentConfig.value.webdav;
-  if (!url) {
-    ElMessage.error(t('setting.webdav.alerts.urlRequired'));
-    return;
-  }
-
-  const now = new Date();
-  const timestamp = `${now.getFullYear()}${(now.getMonth() + 1).toString().padStart(2, '0')}${now.getDate().toString().padStart(2, '0')}${now.getHours().toString().padStart(2, '0')}${now.getMinutes().toString().padStart(2, '0')}${now.getSeconds().toString().padStart(2, '0')}`;
-  const defaultBasename = `Sanft-${timestamp}`;
-
-  const inputValue = ref(defaultBasename);
-
-  try {
-    await ElMessageBox({
-      title: t('setting.webdav.backup.confirmTitle'),
-      message: () =>
-        h(
-          'div',
-          { style: 'display: flex; flex-direction: column; align-items: center; width: 100%;' },
-          [
-            h(
-              'p',
-              {
-                style:
-                  'margin-bottom: 15px; font-size: 14px; color: var(--text-secondary); text-align: center; width: 100%;',
-              },
-              t('setting.webdav.backup.confirmMessage'),
-            ),
-            h(
-              ElInput,
-              {
-                modelValue: inputValue.value,
-                'onUpdate:modelValue': (val) => {
-                  inputValue.value = val;
-                },
-                placeholder: t('setting.webdav.backup.inputFilename'),
-                autofocus: true,
-                style: 'width: 100%; max-width: 400px;',
-              },
-              {
-                append: () => h('div', { class: 'input-suffix-display' }, '.json'),
-              },
-            ),
-          ],
-        ),
-      showCancelButton: true,
-      confirmButtonText: t('common.confirm'),
-      cancelButtonText: t('common.cancel'),
-      customClass: 'filename-prompt-dialog',
-      center: true, // 修改处：开启 Element Plus 弹窗居中模式
-      beforeClose: async (action, instance, done) => {
-        if (action === 'confirm') {
-          let finalBasename = inputValue.value.trim();
-          if (!finalBasename) {
-            ElMessage.error(t('setting.webdav.backup.emptyFilenameError'));
-            return;
-          }
-          const filename = finalBasename + '.json';
-
-          instance.confirmButtonLoading = true;
-          ElMessage.info(t('setting.webdav.alerts.backupInProgress'));
-
-          try {
-            const client = await createWebdavClient(url, username, password);
-            const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
-            const remoteFilePath = `${remoteDir}/${filename}`;
-
-            if (!(await client.exists(remoteDir))) {
-              await client.createDirectory(remoteDir, { recursive: true });
-            }
-
-            // 在备份前移除本地路径
-            const configToBackup = JSON.parse(JSON.stringify(currentConfig.value));
-            if (configToBackup.webdav && configToBackup.webdav.localChatPath) {
-              delete configToBackup.webdav.localChatPath;
-            }
-            // [新增] 在备份前移除 Skill 路径
-            if (configToBackup.skillPath !== undefined) {
-              delete configToBackup.skillPath;
-            }
-
-            const jsonString = JSON.stringify(configToBackup, null, 2);
-            await client.putFileContents(remoteFilePath, jsonString, { overwrite: true });
-
-            ElMessage.success(t('setting.webdav.alerts.backupSuccess'));
-            done();
-          } catch (error) {
-            console.error('WebDAV backup failed:', error);
-            ElMessage.error(`${t('setting.webdav.alerts.backupFailed')}: ${error.message}`);
-          } finally {
-            instance.confirmButtonLoading = false;
-          }
-        } else {
-          done();
-        }
-      },
-    });
-  } catch (error) {
-    if (error === 'cancel' || error === 'close') {
-      ElMessage.info(t('setting.webdav.backup.cancelled'));
-    } else {
-      console.error('MessageBox error:', error);
-    }
-  }
-}
-
-async function openBackupManager() {
-  if (!currentConfig.value) return;
-  const { url } = currentConfig.value.webdav;
-  if (!url) {
-    ElMessage.error(t('setting.webdav.alerts.urlRequired'));
-    return;
-  }
-  isBackupManagerVisible.value = true;
-  await fetchBackupFiles();
-}
-
-async function fetchBackupFiles() {
-  isTableLoading.value = true;
-  const { url, username, password, path } = currentConfig.value.webdav;
-  try {
-    const client = await createWebdavClient(url, username, password);
-    const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
-
-    if (!(await client.exists(remoteDir))) {
-      backupFiles.value = [];
-      ElMessage.warning(t('setting.webdav.manager.pathNotFound'));
-      return;
-    }
-
-    const response = await client.getDirectoryContents(remoteDir, { details: true });
-    const contents = response.data;
-
-    if (!Array.isArray(contents)) {
-      console.error(
-        'Failed to fetch backup files: WebDAV response.data is not an array.',
-        response,
-      );
-      ElMessage.error(
-        t('setting.webdav.manager.fetchFailed') + ': Invalid response structure from server',
-      );
-      backupFiles.value = [];
-      return;
-    }
-
-    backupFiles.value = contents
-      .filter((item) => item.type === 'file' && item.basename.endsWith('.json'))
-      .sort((a, b) => new Date(b.lastmod) - new Date(a.lastmod));
-  } catch (error) {
-    console.error('Failed to fetch backup files:', error);
-    let errorMessage = error.message;
-    if (error.response && error.response.statusText) {
-      errorMessage = `${error.response.status} ${error.response.statusText}`;
-    }
-    ElMessage.error(`${t('setting.webdav.manager.fetchFailed')}: ${errorMessage}`);
-    backupFiles.value = [];
-  } finally {
-    isTableLoading.value = false;
-  }
-}
-
-async function restoreFromWebdav(file) {
-  try {
-    await ElMessageBox.confirm(
-      t('setting.webdav.manager.confirmRestore', { filename: file.basename }),
-      t('common.warningTitle'),
-      {
-        confirmButtonText: t('common.confirm'),
-        cancelButtonText: t('common.cancel'),
-        type: 'warning',
-      },
-    );
-
-    ElMessage.info(t('setting.webdav.alerts.restoreInProgress'));
-
-    // 在恢复前保存当前的本地对话路径
-    const currentLocalChatPath = currentConfig.value.webdav?.localChatPath;
-    // 保存当前的 Skill 路径
-    const currentSkillPath = currentConfig.value.skillPath;
-
-    const { url, username, password, path } = currentConfig.value.webdav;
-    const client = await createWebdavClient(url, username, password);
-    const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
-    const remoteFilePath = `${remoteDir}/${file.basename}`;
-
-    const jsonString = await client.getFileContents(remoteFilePath, { format: 'text' });
-    const importedData = JSON.parse(jsonString);
-
-    if (typeof importedData !== 'object' || importedData === null) {
-      throw new Error('Downloaded file is not a valid configuration object.');
-    }
-
-    if (currentLocalChatPath) {
-      if (!importedData.webdav) {
-        importedData.webdav = {};
-      }
-      importedData.webdav.localChatPath = currentLocalChatPath;
-    }
-
-    if (currentSkillPath) {
-      importedData.skillPath = currentSkillPath;
-    }
-
-    if (window.api && window.api.updateConfig) {
-      await window.api.updateConfig({ config: importedData });
-      const result = await window.api.getConfig();
-      if (result && result.config) {
-        currentConfig.value = result.config;
-      }
-    }
-
-    ElMessage.success(t('setting.webdav.alerts.restoreSuccess'));
-    isBackupManagerVisible.value = false;
-  } catch (error) {
-    if (error !== 'cancel' && error !== 'close') {
-      console.error('WebDAV restore failed:', error);
-      ElMessage.error(`${t('setting.webdav.alerts.restoreFailed')}: ${error.message}`);
-    }
-  }
-}
-
-async function deleteFile(file) {
-  try {
-    await ElMessageBox.confirm(
-      t('setting.webdav.manager.confirmDelete', { filename: file.basename }),
-      t('common.warningTitle'),
-      { type: 'warning' },
-    );
-
-    const { url, username, password, path } = currentConfig.value.webdav;
-    const client = await createWebdavClient(url, username, password);
-    const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
-    const remoteFilePath = `${remoteDir}/${file.basename}`;
-
-    await client.deleteFile(remoteFilePath);
-    ElMessage.success(t('setting.webdav.manager.deleteSuccess'));
-    await fetchBackupFiles();
-  } catch (error) {
-    if (error !== 'cancel' && error !== 'close') {
-      console.error('Failed to delete file:', error);
-      ElMessage.error(`${t('setting.webdav.manager.deleteFailed')}: ${error.message}`);
-    }
-  }
-}
-
-async function deleteSelectedFiles() {
-  if (selectedFiles.value.length === 0) {
-    ElMessage.warning(t('setting.webdav.manager.noFileSelected'));
-    return;
-  }
-
-  try {
-    await ElMessageBox.confirm(
-      t('setting.webdav.manager.confirmDeleteMultiple', { count: selectedFiles.value.length }),
-      t('common.warningTitle'),
-      { type: 'warning' },
-    );
-
-    const { url, username, password, path } = currentConfig.value.webdav;
-    const client = await createWebdavClient(url, username, password);
-    const remoteDir = path.endsWith('/') ? path.slice(0, -1) : path;
-
-    const deletePromises = selectedFiles.value.map((file) =>
-      client.deleteFile(`${remoteDir}/${file.basename}`),
-    );
-
-    await Promise.all(deletePromises);
-    ElMessage.success(t('setting.webdav.manager.deleteSuccessMultiple'));
-    await fetchBackupFiles();
-  } catch (error) {
-    if (error !== 'cancel' && error !== 'close') {
-      console.error('Failed to delete selected files:', error);
-      ElMessage.error(`${t('setting.webdav.manager.deleteFailedMultiple')}: ${error.message}`);
-    }
-  }
-}
-
-const handleSelectionChange = (val) => {
-  selectedFiles.value = val;
-};
-
-async function selectLocalChatPath() {
-  const path = await window.api.selectDirectory();
-  if (path) {
-    currentConfig.value.webdav.localChatPath = path;
-    saveSingleSetting('webdav.localChatPath', path);
-  }
-}
 </script>
 
 <template>
@@ -844,175 +590,82 @@ async function selectLocalChatPath() {
               t('setting.dataManagement.importButton')
             }}</el-button>
           </div>
-          <div class="setting-option-item no-border">
-            <div class="setting-text-content">
-              <span class="setting-option-label">{{ t('setting.webdav.localChatPath') }}</span>
-              <span class="setting-option-description">{{
-                t('setting.webdav.localChatPathPlaceholder')
-              }}</span>
-            </div>
-            <div class="path-input-wrapper">
-              <input
-                type="text"
-                class="path-input"
-                v-model="currentConfig.webdav.localChatPath"
-                @change="(e) => saveSingleSetting('webdav.localChatPath', e.target.value)"
-                :placeholder="t('setting.webdav.localChatPathPlaceholder')"
-              />
-              <button
-                class="path-input-btn"
-                @click="selectLocalChatPath"
-                :title="t('setting.webdav.selectFolder')"
-              >
-                <el-icon :size="18"><Folder /></el-icon>
-              </button>
-            </div>
-          </div>
         </section>
 
-        <!-- WebDAV -->
+        <!-- Database -->
         <section class="settings-section">
-          <h2 class="section-title">WebDAV</h2>
-          <el-form label-width="200px" label-position="left" size="default">
-            <el-form-item :label="t('setting.webdav.url')"
-              ><el-input
-                v-model="currentConfig.webdav.url"
-                @change="(value) => saveSingleSetting('webdav.url', value)"
-                :placeholder="t('setting.webdav.urlPlaceholder')"
-            /></el-form-item>
-            <el-form-item :label="t('setting.webdav.username')"
-              ><el-input
-                v-model="currentConfig.webdav.username"
-                @change="(value) => saveSingleSetting('webdav.username', value)"
-                :placeholder="t('setting.webdav.usernamePlaceholder')"
-            /></el-form-item>
-            <el-form-item :label="t('setting.webdav.password')"
-              ><el-input
-                v-model="currentConfig.webdav.password"
-                @change="(value) => saveSingleSetting('webdav.password', value)"
-                type="password"
-                show-password
-                :placeholder="t('setting.webdav.passwordPlaceholder')"
-            /></el-form-item>
-            <el-form-item :label="t('setting.webdav.path')"
-              ><el-input
-                v-model="currentConfig.webdav.path"
-                @change="(value) => saveSingleSetting('webdav.path', value)"
-                :placeholder="t('setting.webdav.pathPlaceholder')"
-            /></el-form-item>
-            <el-form-item :label="t('setting.webdav.dataPath')"
-              ><el-input
-                v-model="currentConfig.webdav.data_path"
-                @change="(value) => saveSingleSetting('webdav.data_path', value)"
-                :placeholder="t('setting.webdav.dataPathPlaceholder')"
-            /></el-form-item>
-            <el-form-item :label="t('setting.webdav.backupRestoreTitle')" class="no-margin-bottom">
-              <el-button @click="backupToWebdav" :icon="Upload">{{
-                t('setting.webdav.backupButton')
-              }}</el-button>
-              <el-button @click="openBackupManager" :icon="FolderOpened">{{
-                t('setting.webdav.restoreButton')
-              }}</el-button>
-            </el-form-item>
-          </el-form>
+          <h2 class="section-title">数据库</h2>
+          <div class="setting-option-item">
+            <div class="setting-text-content">
+              <span class="setting-option-label">Postgres 连接串</span>
+              <span class="setting-option-description"
+                >未配置时仅使用本地 SQLite。配置后自动同步到 Postgres。</span
+              >
+            </div>
+            <el-input
+              :model-value="currentConfig.database?.postgresUrl || ''"
+              @update:model-value="
+                (value) => {
+                  currentConfig.database = currentConfig.database || { postgresUrl: '' };
+                  currentConfig.database.postgresUrl = value;
+                }
+              "
+              @change="savePostgresUrl"
+              placeholder="postgres://user:password@host:5432/dbname?sslmode=require"
+              style="width: 520px; max-width: 100%"
+              clearable
+            />
+          </div>
+
+          <div class="setting-option-item">
+            <div class="setting-text-content">
+              <span class="setting-option-label">连接状态</span>
+              <span class="setting-option-description">{{ storageStatusText }}</span>
+            </div>
+            <div class="db-status-inline">
+              <span class="db-status-icon" :class="{ online: storageHealth.postgresConnected }">
+                <Link
+                  v-if="storageHealth.postgresConfigured && storageHealth.postgresConnected"
+                  :size="16"
+                />
+                <Unlink v-else :size="16" />
+              </span>
+              <span class="db-status-meta">队列: {{ storageHealth.queueSize }}</span>
+            </div>
+          </div>
+
+          <div class="setting-option-item">
+            <div class="setting-text-content">
+              <span class="setting-option-label">同步诊断</span>
+              <span class="setting-option-description"
+                >连接测试与手动触发补写。若离线，将继续缓存并后台重试。</span
+              >
+            </div>
+            <div class="db-actions">
+              <el-button :loading="isTestingPostgres" @click="testPostgresConnection"
+                >测试连接</el-button
+              >
+              <el-button
+                type="primary"
+                plain
+                :loading="isSyncingStorage"
+                @click="triggerStorageSync"
+                >立即同步</el-button
+              >
+            </div>
+          </div>
+
+          <div v-if="storageHealth.lastError" class="setting-option-item no-border">
+            <div class="setting-text-content">
+              <span class="setting-option-label">最近错误</span>
+              <span class="setting-option-description error-text">{{
+                storageHealth.lastError
+              }}</span>
+            </div>
+          </div>
         </section>
       </div>
     </el-scrollbar>
-
-    <!-- [修改] 备份数据管理弹窗 -->
-    <el-dialog
-      v-model="isBackupManagerVisible"
-      :title="t('setting.webdav.manager.title')"
-      width="700px"
-      top="10vh"
-      :destroy-on-close="true"
-      style="max-width: 90vw"
-      class="backup-manager-dialog"
-      append-to-body
-    >
-      <el-table
-        :data="paginatedFiles"
-        v-loading="isTableLoading"
-        @selection-change="handleSelectionChange"
-        style="width: 100%"
-        max-height="50vh"
-        border
-        stripe
-      >
-        <el-table-column type="selection" width="50" align="center" />
-        <el-table-column
-          prop="basename"
-          :label="t('setting.webdav.manager.filename')"
-          sortable
-          show-overflow-tooltip
-          min-width="160"
-        />
-        <el-table-column
-          prop="lastmod"
-          :label="t('setting.webdav.manager.modifiedTime')"
-          width="170"
-          sortable
-          align="center"
-        >
-          <template #default="scope">{{ formatDate(scope.row.lastmod) }}</template>
-        </el-table-column>
-        <el-table-column
-          prop="size"
-          :label="t('setting.webdav.manager.size')"
-          width="100"
-          sortable
-          align="center"
-        >
-          <template #default="scope">{{ formatBytes(scope.row.size) }}</template>
-        </el-table-column>
-        <el-table-column :label="t('setting.webdav.manager.actions')" width="120" align="center">
-          <template #default="scope">
-            <div class="action-buttons-container">
-              <el-button link type="primary" @click="restoreFromWebdav(scope.row)">{{
-                t('setting.webdav.manager.restore')
-              }}</el-button>
-              <el-divider direction="vertical" />
-              <el-button link type="danger" @click="deleteFile(scope.row)">{{
-                t('setting.webdav.manager.delete')
-              }}</el-button>
-            </div>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <template #footer>
-        <div class="dialog-footer">
-          <div class="footer-left">
-            <el-button :icon="Refresh" @click="fetchBackupFiles">{{
-              t('common.refresh')
-            }}</el-button>
-            <el-button
-              type="danger"
-              :icon="DeleteIcon"
-              @click="deleteSelectedFiles"
-              :disabled="selectedFiles.length === 0"
-            >
-              {{ t('common.deleteSelected') }} ({{ selectedFiles.length }})
-            </el-button>
-          </div>
-          <div class="footer-center">
-            <el-pagination
-              v-if="backupFiles.length > 0"
-              v-model:current-page="currentPage"
-              v-model:page-size="pageSize"
-              :page-sizes="[10, 20, 50, 100]"
-              :total="backupFiles.length"
-              layout="total, sizes, prev, pager, next, jumper"
-              background
-              size="small"
-            />
-          </div>
-          <div class="footer-right">
-            <el-button @click="isBackupManagerVisible = false">{{ t('common.close') }}</el-button>
-          </div>
-        </div>
-      </template>
-    </el-dialog>
   </div>
 </template>
 
@@ -1284,5 +937,36 @@ async function selectLocalChatPath() {
 .path-input-btn:hover {
   background-color: var(--bg-tertiary);
   color: var(--bg-accent);
+}
+
+.db-status-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.db-status-icon {
+  display: inline-flex;
+  align-items: center;
+  color: #d97706;
+}
+
+.db-status-icon.online {
+  color: #15803d;
+}
+
+.db-status-meta {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.db-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.error-text {
+  color: #cf5c5c;
 }
 </style>

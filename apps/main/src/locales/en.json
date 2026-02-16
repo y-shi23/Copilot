@@ -240,7 +240,7 @@
       "reasoningEffort": "Sets the computational budget for the model's reasoning process. Higher values may yield more thorough answers but increase latency and cost.",
       "isAlwaysOnTopTooltip": "Enable to keep the window always on top of other windows.",
       "autoCloseOnBlurTooltip": "Enable to close the standalone window when it loses focus.",
-      "autoSaveChatTooltip": "When enabled, conversations will be automatically saved to local storage every 15 seconds (requires local chat path configured in settings).",
+      "autoSaveChatTooltip": "When enabled, conversations are automatically saved through the database cache layer (with a 15-second fallback cycle).",
       "defaultMcpServers": "When set, the selected MCP services will be automatically enabled when this assistant is opened in a standalone window.",
       "defaultSkills": "When set, these skills will be automatically visible to AI when this assistant is opened in a standalone window."
     },

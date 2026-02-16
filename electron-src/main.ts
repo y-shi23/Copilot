@@ -14,11 +14,16 @@ const fs = require('fs');
 const net = require('net');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const {
+  StorageService,
+  testPostgresConnection,
+} = require('../apps/backend/src/storage_service.ts');
 
 const managedWindows = new Map();
 let mainWindow = null;
 let launcherWindow = null;
 let launcherHotkey = null;
+let storageService = null;
 let isQuitting = false;
 const DEV_MAIN_URL = String(process.env.ANYWHERE_DEV_MAIN_URL || '').trim();
 const DEV_PRELOAD_PATH = String(process.env.ANYWHERE_DEV_PRELOAD_PATH || '').trim();
@@ -230,9 +235,46 @@ function readShimDocuments() {
   }
 }
 
-function readStoredLauncherSettings() {
+function getStorageServiceInstance() {
+  if (!storageService || !storageService.isReady()) {
+    throw new Error('Storage service is not initialized.');
+  }
+  return storageService;
+}
+
+async function ensureStorageServiceReady() {
+  if (storageService && storageService.isReady()) return storageService;
+
+  if (!storageService) {
+    storageService = new StorageService({
+      dataRoot: getShimDataRoot(),
+      legacyDocsPath: getShimDocumentsPath(),
+    });
+  }
+
+  await storageService.init();
+  return storageService;
+}
+
+function readStoredDocData(docId) {
+  try {
+    if (storageService && storageService.isReady()) {
+      const doc = storageService.docGetSync(docId);
+      if (doc && doc.data && typeof doc.data === 'object') {
+        return doc.data;
+      }
+    }
+  } catch (error) {
+    console.warn(`[Storage] Failed to read doc "${docId}" from storage service:`, error);
+  }
+
   const docs = readShimDocuments();
-  const sharedConfig = docs?.config?.data?.config || {};
+  const docData = docs?.[docId]?.data;
+  return docData && typeof docData === 'object' ? docData : {};
+}
+
+function readStoredLauncherSettings() {
+  const sharedConfig = readStoredDocData('config')?.config || {};
 
   const launcherEnabled =
     sharedConfig.launcherEnabled === undefined
@@ -247,8 +289,7 @@ function readStoredLauncherSettings() {
 }
 
 function readStoredThemeSettings() {
-  const docs = readShimDocuments();
-  return docs?.config?.data?.config || {};
+  return readStoredDocData('config')?.config || {};
 }
 
 function resolveThemeSource(settings = {}) {
@@ -277,8 +318,7 @@ function applyNativeThemeSource(settings = {}) {
 }
 
 function readStoredPrompts() {
-  const docs = readShimDocuments();
-  const promptsData = docs?.prompts?.data;
+  const promptsData = readStoredDocData('prompts');
   if (!promptsData || typeof promptsData !== 'object') return [];
 
   return Object.entries(promptsData)
@@ -1135,6 +1175,92 @@ ipcMain.on('utools:send-to-parent', (event, payload = {}) => {
   mainWindow.webContents.send(channel, data);
 });
 
+ipcMain.on('storage:doc-get-sync', (event, docId) => {
+  try {
+    const service = getStorageServiceInstance();
+    event.returnValue = service.docGetSync(docId);
+  } catch (error) {
+    console.error('[Storage] storage:doc-get-sync failed:', error);
+    event.returnValue = null;
+  }
+});
+
+ipcMain.on('storage:doc-put-sync', (event, doc) => {
+  try {
+    const service = getStorageServiceInstance();
+    event.returnValue = service.docPutSync(doc);
+  } catch (error) {
+    console.error('[Storage] storage:doc-put-sync failed:', error);
+    event.returnValue = {
+      ok: false,
+      error: true,
+      name: 'storage_error',
+      message: String(error?.message || error),
+    };
+  }
+});
+
+ipcMain.on('storage:doc-remove-sync', (event, docId) => {
+  try {
+    const service = getStorageServiceInstance();
+    event.returnValue = service.docRemoveSync(docId);
+  } catch (error) {
+    console.error('[Storage] storage:doc-remove-sync failed:', error);
+    event.returnValue = {
+      ok: false,
+      error: true,
+      name: 'storage_error',
+      message: String(error?.message || error),
+    };
+  }
+});
+
+ipcMain.handle('storage:conversation-list', async (_event, filter = {}) => {
+  const service = await ensureStorageServiceReady();
+  return service.listConversations(filter || {});
+});
+
+ipcMain.handle('storage:conversation-get', async (_event, conversationId) => {
+  const service = await ensureStorageServiceReady();
+  return service.getConversation(conversationId);
+});
+
+ipcMain.handle('storage:conversation-upsert', async (_event, payload = {}) => {
+  const service = await ensureStorageServiceReady();
+  return service.upsertConversation(payload || {});
+});
+
+ipcMain.handle('storage:conversation-rename', async (_event, payload = {}) => {
+  const service = await ensureStorageServiceReady();
+  const conversationId = payload?.conversationId;
+  const conversationName = payload?.conversationName;
+  return service.renameConversation(conversationId, conversationName);
+});
+
+ipcMain.handle('storage:conversation-delete', async (_event, ids = []) => {
+  const service = await ensureStorageServiceReady();
+  return service.deleteConversations(Array.isArray(ids) ? ids : []);
+});
+
+ipcMain.handle('storage:conversation-clean', async (_event, days = 30) => {
+  const service = await ensureStorageServiceReady();
+  return service.cleanConversations(days);
+});
+
+ipcMain.handle('storage:health-get', async () => {
+  const service = await ensureStorageServiceReady();
+  return service.getStorageHealth();
+});
+
+ipcMain.handle('storage:postgres-test', async (_event, connectionString) => {
+  return testPostgresConnection(connectionString);
+});
+
+ipcMain.handle('storage:sync-now', async () => {
+  const service = await ensureStorageServiceReady();
+  return service.syncNow();
+});
+
 ipcMain.handle('deepseek:ensure-proxy', async () => {
   return ensureDeepSeekProxy();
 });
@@ -1231,8 +1357,21 @@ ipcMain.on('launcher:execute', (_event, action = {}) => {
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
 app.commandLine.appendSwitch('lang', 'zh-CN');
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   ensureBuildArtifacts();
+
+  try {
+    await ensureStorageServiceReady();
+  } catch (error) {
+    const message = String(error?.message || error);
+    dialog.showErrorBox(
+      'Sanft Storage Initialization Failed',
+      `Failed to initialize local storage.\n\n${message}`,
+    );
+    app.quit();
+    return;
+  }
+
   applyNativeThemeSource(readStoredThemeSettings());
   createMainWindow();
 
@@ -1262,4 +1401,9 @@ app.on('before-quit', () => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  if (storageService) {
+    storageService.dispose().catch((error) => {
+      console.warn('[Storage] Dispose failed during quit:', error);
+    });
+  }
 });

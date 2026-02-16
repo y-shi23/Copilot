@@ -3,7 +3,7 @@ import { h, nextTick, ref } from 'vue';
 import { ElButton, ElInput, ElMessageBox } from 'element-plus';
 
 import { formatTimestamp } from '../utils/formatters';
-import { createWebdavClient, getMarkdownRuntime } from '../utils/lazyRuntime';
+import { getMarkdownRuntime } from '../utils/lazyRuntime';
 import {
   buildHtmlSessionContent,
   buildMarkdownSessionContent,
@@ -41,7 +41,6 @@ export function useSessionPersistence(options: any) {
     currentSystemPrompt,
     UserAvart,
     AIAvart,
-    currentOS,
     loading,
     hasSessionInitialized,
     isSessionDirty,
@@ -50,6 +49,7 @@ export function useSessionPersistence(options: any) {
     messageIdCounter,
     tempReasoningEffort,
     tempSessionSkillIds,
+    currentConversationId,
     favicon,
     modelList,
     currentProviderID,
@@ -97,6 +97,8 @@ export function useSessionPersistence(options: any) {
     const currentPromptConfig = currentConfig.value.prompts[CODE.value] || {};
     return {
       anywhere_history: true,
+      conversationId: currentConversationId.value || '',
+      conversationName: defaultConversationName.value || '',
       CODE: CODE.value,
       basic_msg: basic_msg.value,
       isInit: isInit.value,
@@ -112,7 +114,7 @@ export function useSessionPersistence(options: any) {
     };
   };
 
-  const saveSessionToCloud = async () => {
+  const saveSessionToDatabase = async () => {
     const now = new Date();
     const fileTimestamp = getExportFileTimestamp(now);
     const defaultBasename = getDefaultExportBasename(
@@ -121,9 +123,10 @@ export function useSessionPersistence(options: any) {
       fileTimestamp,
     );
     const inputValue = ref(defaultBasename);
+
     try {
       await ElMessageBox({
-        title: '保存到云端',
+        title: '保存会话',
         message: () =>
           h('div', null, [
             h(
@@ -131,74 +134,71 @@ export function useSessionPersistence(options: any) {
               {
                 style: 'margin-bottom: 15px; font-size: 14px; color: var(--el-text-color-regular);',
               },
-              '请输入要保存到云端的会话名称。',
+              '请输入会话名称。',
             ),
-            h(
-              ElInput,
-              {
-                modelValue: inputValue.value,
-                'onUpdate:modelValue': (val: string) => {
-                  inputValue.value = val;
-                },
-                placeholder: '文件名',
-                ref: (elInputInstance: any) => {
-                  if (elInputInstance) {
-                    setTimeout(() => elInputInstance.focus(), 100);
-                  }
-                },
-                onKeydown: (event: KeyboardEvent) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    document
-                      .querySelector(
-                        '.filename-prompt-dialog .el-message-box__btns .el-button--primary',
-                      )
-                      ?.click();
-                  }
-                },
+            h(ElInput, {
+              modelValue: inputValue.value,
+              'onUpdate:modelValue': (val: string) => {
+                inputValue.value = val;
               },
-              { append: () => h('div', { class: 'input-suffix-display' }, '.json') },
-            ),
+              placeholder: '会话名称',
+              ref: (elInputInstance: any) => {
+                if (elInputInstance) {
+                  setTimeout(() => elInputInstance.focus(), 100);
+                }
+              },
+              onKeydown: (event: KeyboardEvent) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  document
+                    .querySelector(
+                      '.filename-prompt-dialog .el-message-box__btns .el-button--primary',
+                    )
+                    ?.click();
+                }
+              },
+            }),
           ]),
         showCancelButton: true,
         confirmButtonText: '确认',
         cancelButtonText: '取消',
         customClass: 'filename-prompt-dialog',
         beforeClose: async (action: string, instance: any, done: any) => {
-          if (action === 'confirm') {
-            let finalBasename = inputValue.value.trim();
-            if (!finalBasename) {
-              showDismissibleMessage.error('文件名不能为空');
-              return;
-            }
-            if (finalBasename.toLowerCase().endsWith('.json')) {
-              finalBasename = finalBasename.slice(0, -5);
-            }
-            const filename = `${finalBasename}.json`;
-            instance.confirmButtonLoading = true;
-            showDismissibleMessage.info('正在保存到云端...');
-            try {
-              const sessionData = getSessionDataAsObject();
-              const jsonString = JSON.stringify(sessionData, null, 2);
-              const { url, username, password, data_path } = currentConfig.value.webdav;
-              const client = await createWebdavClient(url, username, password);
-              const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
-              const remoteFilePath = `${remoteDir}/${filename}`;
-              if (!(await client.exists(remoteDir))) {
-                await client.createDirectory(remoteDir, { recursive: true });
-              }
-              await client.putFileContents(remoteFilePath, jsonString, { overwrite: true });
-              defaultConversationName.value = finalBasename;
-              showDismissibleMessage.success('会话已成功保存到云端！');
-              done();
-            } catch (error: any) {
-              console.error('WebDAV save failed:', error);
-              showDismissibleMessage.error(`保存到云端失败: ${error.message}`);
-            } finally {
-              instance.confirmButtonLoading = false;
-            }
-          } else {
+          if (action !== 'confirm') {
             done();
+            return;
+          }
+
+          let finalBasename = inputValue.value.trim();
+          if (!finalBasename) {
+            showDismissibleMessage.error('会话名称不能为空');
+            return;
+          }
+          if (finalBasename.toLowerCase().endsWith('.json')) {
+            finalBasename = finalBasename.slice(0, -5);
+          }
+
+          instance.confirmButtonLoading = true;
+          try {
+            defaultConversationName.value = finalBasename;
+            const sessionData = getSessionDataAsObject();
+            const result = await window.api.upsertConversation({
+              conversationId: currentConversationId.value || sessionData.conversationId || '',
+              conversationName: finalBasename,
+              assistantCode: CODE.value,
+              sessionData,
+            });
+            if (result?.conversationId) {
+              currentConversationId.value = result.conversationId;
+            }
+            isSessionDirty.value = false;
+            showDismissibleMessage.success('会话已保存');
+            done();
+          } catch (error: any) {
+            console.error('Save session failed:', error);
+            showDismissibleMessage.error(`保存失败: ${error.message || error}`);
+          } finally {
+            instance.confirmButtonLoading = false;
           }
         },
       });
@@ -500,24 +500,16 @@ export function useSessionPersistence(options: any) {
             const finalFilename = `${finalBasename}.json`;
             instance.confirmButtonLoading = true;
             try {
-              const localChatPath = currentConfig.value.webdav?.localChatPath;
-
-              if (localChatPath) {
-                const separator = currentOS.value === 'win' ? '\\' : '/';
-                const fullPath = `${localChatPath}${separator}${finalFilename}`;
-                await window.api.writeLocalFile(fullPath, jsonString);
-              } else {
-                await window.api.saveFile({
-                  title: '保存聊天会话',
-                  defaultPath: finalFilename,
-                  buttonLabel: '保存',
-                  filters: [
-                    { name: 'JSON 文件', extensions: ['json'] },
-                    { name: '所有文件', extensions: ['*'] },
-                  ],
-                  fileContent: jsonString,
-                });
-              }
+              await window.api.saveFile({
+                title: '保存聊天会话',
+                defaultPath: finalFilename,
+                buttonLabel: '保存',
+                filters: [
+                  { name: 'JSON 文件', extensions: ['json'] },
+                  { name: '所有文件', extensions: ['*'] },
+                ],
+                fileContent: jsonString,
+              });
 
               defaultConversationName.value = finalBasename;
               showDismissibleMessage.success('会话已成功保存！');
@@ -551,28 +543,18 @@ export function useSessionPersistence(options: any) {
       handleTogglePin();
     }
 
-    const localPath = currentConfig.value.webdav?.localChatPath;
-    if (!localPath) {
-      showDismissibleMessage.error('请先在设置中配置本地对话路径');
-      return;
-    }
-    if (!defaultConversationName.value) {
+    if (!currentConversationId.value || !defaultConversationName.value) {
       showDismissibleMessage.warning('当前对话尚未保存，无法重命名');
       return;
     }
 
-    const oldBaseName = defaultConversationName.value;
-    const oldFilename = `${oldBaseName}.json`;
-    const oldFilePath = `${localPath}/${oldFilename}`;
-
     try {
       const { value: userInput } = await ElMessageBox.prompt('请输入新的会话名称', '重命名对话', {
-        inputValue: oldBaseName,
+        inputValue: defaultConversationName.value,
         confirmButtonText: '确认',
         cancelButtonText: '取消',
         inputValidator: (val: string) => {
           if (!val || !val.trim()) return '名称不能为空';
-          if (/[\\/:*?"<>|]/.test(val)) return '文件名包含非法字符';
           return true;
         },
         customClass: 'filename-prompt-dialog',
@@ -583,44 +565,10 @@ export function useSessionPersistence(options: any) {
         newBaseName = newBaseName.slice(0, -5);
       }
 
-      if (newBaseName === oldBaseName) return;
-
-      const newFilename = `${newBaseName}.json`;
-      const newFilePath = `${localPath}/${newFilename}`;
-
-      const files = await window.api.listJsonFiles(localPath);
-      if (files.some((f: any) => f.basename === newFilename)) {
-        showDismissibleMessage.error(`文件名 "${newFilename}" 已存在，操作取消`);
-        return;
-      }
-
-      await window.api.renameLocalFile(oldFilePath, newFilePath);
+      if (!newBaseName || newBaseName === defaultConversationName.value) return;
+      await window.api.renameConversation(currentConversationId.value, newBaseName);
       defaultConversationName.value = newBaseName;
-      showDismissibleMessage.success('本地重命名成功');
-
-      const { url, username, password, data_path } = currentConfig.value.webdav || {};
-      if (url && data_path) {
-        try {
-          const client = await createWebdavClient(url, username, password);
-          const remoteDir = data_path.endsWith('/') ? data_path.slice(0, -1) : data_path;
-          const oldRemotePath = `${remoteDir}/${oldFilename}`;
-          const newRemotePath = `${remoteDir}/${newFilename}`;
-
-          if (await client.exists(oldRemotePath)) {
-            await ElMessageBox.confirm('云端也存在同名文件，是否同步重命名？', '同步操作提示', {
-              confirmButtonText: '是',
-              cancelButtonText: '否',
-              type: 'info',
-            });
-            await client.moveFile(oldRemotePath, newRemotePath);
-            showDismissibleMessage.success('云端同步重命名成功');
-          }
-        } catch (e) {
-          if (e !== 'cancel' && e !== 'close') {
-            console.warn('Cloud rename skipped:', e);
-          }
-        }
-      }
+      showDismissibleMessage.success('重命名成功');
     } catch (error: any) {
       if (error !== 'cancel' && error !== 'close') {
         showDismissibleMessage.error(`操作失败: ${error.message}`);
@@ -633,26 +581,23 @@ export function useSessionPersistence(options: any) {
       handleTogglePin();
     }
 
-    const isCloudEnabled = currentConfig.value.webdav?.url && currentConfig.value.webdav?.data_path;
     const saveOptions: any[] = [];
 
-    if (currentConfig.value.webdav?.localChatPath && defaultConversationName.value) {
+    if (currentConversationId.value && defaultConversationName.value) {
       saveOptions.push({
         title: '重命名对话',
-        description: '修改当前对话名称，并同步修改本地文件（以及云端文件）。',
+        description: '修改当前会话名称。',
         buttonType: 'warning',
         action: handleRenameSession,
       });
     }
 
-    if (isCloudEnabled) {
-      saveOptions.push({
-        title: '保存到云端',
-        description: '同步到 WebDAV 服务器，支持跨设备访问。',
-        buttonType: 'success',
-        action: saveSessionToCloud,
-      });
-    }
+    saveOptions.push({
+      title: '保存会话',
+      description: '保存当前会话到数据库。',
+      buttonType: 'success',
+      action: saveSessionToDatabase,
+    });
 
     saveOptions.push({
       title: '保存为 JSON',
@@ -732,6 +677,11 @@ export function useSessionPersistence(options: any) {
     focusedMessageIndex.value = null;
 
     try {
+      currentConversationId.value = String(jsonData?.conversationId || '').trim();
+      if (typeof jsonData?.conversationName === 'string' && jsonData.conversationName.trim()) {
+        defaultConversationName.value = jsonData.conversationName.trim();
+      }
+
       CODE.value = jsonData.CODE;
       document.title = CODE.value;
       basic_msg.value = jsonData.basic_msg;
@@ -915,7 +865,7 @@ export function useSessionPersistence(options: any) {
   return {
     saveWindowSize,
     getSessionDataAsObject,
-    saveSessionToCloud,
+    saveSessionToDatabase,
     saveSessionAsMarkdown,
     saveSessionAsHtml,
     saveSessionAsJson,

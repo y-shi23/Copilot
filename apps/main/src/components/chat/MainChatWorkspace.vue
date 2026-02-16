@@ -113,6 +113,7 @@ const fileList = ref([]);
 const zoomLevel = ref(1);
 const collapsedMessages = ref(new Set());
 const defaultConversationName = ref('');
+const currentConversationId = ref('');
 const selectedVoice = ref(null);
 const tempReasoningEffort = ref('default');
 const messageIdCounter = ref(0);
@@ -375,7 +376,7 @@ const handleSendAudio = async (audioFile) => {
 
 const closePage = async () => {
   if (isFilePickerOpen.value) return;
-  if (currentConfig.value?.webdav?.localChatPath && defaultConversationName.value) {
+  if (hasSessionInitialized.value) {
     try {
       await flushAutoSave(true);
     } catch (e) {
@@ -506,6 +507,7 @@ const { getSessionDataAsObject, handleSaveAction, loadSession, checkAndLoadSessi
       sessionSkillIds,
       isAutoApproveTools,
       defaultConversationName,
+      currentConversationId,
       zoomLevel,
       modelMap,
       currentSystemPrompt,
@@ -542,6 +544,7 @@ const { scheduleAutoSave, markSessionDirty, flushAutoSave, startAutoSaveFallback
       CODE,
       chat_show,
       defaultConversationName,
+      currentConversationId,
       isSessionDirty,
       hasSessionInitialized,
     },
@@ -679,6 +682,7 @@ const { initializeWindow } = useWindowInitialization({
     tempSessionSkillIds,
     basic_msg,
     defaultConversationName,
+    currentConversationId,
     fileList,
     sessionMcpServerIds,
     tempSessionMcpServerIds,
@@ -778,6 +782,7 @@ watch(
 
     if (request.mode === 'load' && request.sessionData) {
       await closePage();
+      currentConversationId.value = String(request.conversationId || '');
       if (request.conversationName) {
         defaultConversationName.value = request.conversationName;
       }
