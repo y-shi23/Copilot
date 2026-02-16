@@ -2,6 +2,20 @@ import type { ConfigPayload, JsonValue } from './config';
 
 export type AnyFn = (...args: any[]) => any;
 
+export interface DeepSeekProxyResult {
+  ok: boolean;
+  baseUrl?: string;
+  port?: number;
+  error?: string;
+}
+
+export interface DeepSeekLoginResult {
+  ok: boolean;
+  userToken?: string;
+  cancelled?: boolean;
+  error?: string;
+}
+
 export interface MainWindowApi {
   getConfig: () => Promise<ConfigPayload> | ConfigPayload;
   updateConfig: AnyFn;
@@ -58,6 +72,8 @@ export interface MainWindowApi {
   shellOpenPath?: AnyFn;
   typeText?: AnyFn;
   closeWindow?: AnyFn;
+  ensureDeepSeekProxy?: () => Promise<DeepSeekProxyResult>;
+  loginDeepSeek?: () => Promise<DeepSeekLoginResult>;
 }
 
 export interface WindowPreloadBridge {

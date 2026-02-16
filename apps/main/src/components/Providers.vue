@@ -15,6 +15,7 @@ import {
   Wrench,
   Binary,
   Settings,
+  LogIn,
 } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
@@ -25,6 +26,7 @@ const { t } = useI18n();
 const MODELS_DEV_API_URL = 'https://models.dev/api.json';
 const MODELS_DEV_CACHE_KEY = 'sanft_modelsdev_cache_v1';
 const MODELS_DEV_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const DEEPSEEK_OFFICIAL_CHANNEL = 'deepseek-official';
 const WEB_KEYWORD_PATTERN = /\b(web|www|search|browse|internet|research)\b/i;
 const EMBEDDING_KEYWORD_PATTERN = /\b(embed|embedding|text-embedding|bge|e5)\b/i;
 const LOCAL_ICON_PRIORITY = [
@@ -698,6 +700,40 @@ const selectedProvider = computed(() => {
   return null;
 });
 
+const isDeepSeekOfficialProvider = computed(
+  () => String(selectedProvider.value?.channel || '').toLowerCase() === DEEPSEEK_OFFICIAL_CHANNEL,
+);
+
+const providerApiKeyLabel = computed(() =>
+  isDeepSeekOfficialProvider.value
+    ? t('providers.deepseekUserTokenLabel')
+    : t('providers.apiKeyLabel'),
+);
+
+const providerApiKeyPlaceholder = computed(() =>
+  isDeepSeekOfficialProvider.value
+    ? t('providers.deepseekUserTokenPlaceholder')
+    : t('providers.apiKeyPlaceholder'),
+);
+
+const providerApiKeyDescription = computed(() =>
+  isDeepSeekOfficialProvider.value
+    ? t('providers.deepseekUserTokenDescription')
+    : t('providers.apiKeyDescription'),
+);
+
+const providerApiUrlLabel = computed(() =>
+  isDeepSeekOfficialProvider.value
+    ? t('providers.deepseekProxyUrlLabel')
+    : t('providers.apiUrlLabel'),
+);
+
+const providerApiUrlPlaceholder = computed(() =>
+  isDeepSeekOfficialProvider.value
+    ? t('providers.deepseekProxyUrlPlaceholder')
+    : t('providers.apiUrlPlaceholder'),
+);
+
 const modelRenderMetaMap = computed(() => {
   const output = {};
   const provider = selectedProvider.value;
@@ -719,6 +755,19 @@ watch(
     localProviderOrder.value = val ? [...val] : [];
   },
   { immediate: true },
+);
+
+watch(
+  () => provider_key.value,
+  async () => {
+    if (isDeepSeekOfficialProvider.value) {
+      try {
+        await ensureDeepSeekProxyUrlForSelected({ notifyError: false });
+      } catch (_error) {
+        // Keep silent on auto sync attempts.
+      }
+    }
+  },
 );
 
 function saveProviderOrder() {
@@ -746,6 +795,83 @@ const atomicSave = async (updateFunction) => {
     ElMessage.error(t('providers.alerts.configSaveFailed'));
   }
 };
+
+function normalizeProviderKeys(rawValue) {
+  if (Array.isArray(rawValue)) {
+    return rawValue.map((item) => String(item || '').trim()).filter((item) => item);
+  }
+  if (typeof rawValue !== 'string') return [];
+  return rawValue
+    .split(/[,，]/)
+    .map((item) => item.trim())
+    .filter((item) => item);
+}
+
+async function ensureDeepSeekProxyUrlForSelected(options = { notifyError: true }) {
+  if (!isDeepSeekOfficialProvider.value || !selectedProvider.value || !provider_key.value) {
+    return selectedProvider.value?.url || '';
+  }
+
+  try {
+    const result = await window.api.ensureDeepSeekProxy?.();
+    if (!result?.ok || !result.baseUrl) {
+      throw new Error(result?.error || t('providers.alerts.deepseekProxyStartFailed'));
+    }
+    const proxyBaseUrl = String(result.baseUrl || '').trim();
+    if (!proxyBaseUrl) {
+      throw new Error(t('providers.alerts.deepseekProxyStartFailed'));
+    }
+    if (selectedProvider.value.url !== proxyBaseUrl) {
+      selectedProvider.value.url = proxyBaseUrl;
+      await saveSingleProviderSetting('url', proxyBaseUrl);
+    }
+    return proxyBaseUrl;
+  } catch (error) {
+    if (options.notifyError !== false) {
+      const errorText = error instanceof Error ? error.message : String(error);
+      ElMessage.error(
+        t('providers.alerts.deepseekProxyStartFailedWithReason', {
+          message: errorText,
+        }),
+      );
+    }
+    throw error;
+  }
+}
+
+async function loginDeepSeekOfficial() {
+  if (!isDeepSeekOfficialProvider.value || !selectedProvider.value) return;
+
+  try {
+    const loginResult = await window.api.loginDeepSeek?.();
+    if (!loginResult) {
+      throw new Error(t('providers.alerts.deepseekLoginFailed'));
+    }
+    if (loginResult.cancelled) {
+      ElMessage.info(t('providers.alerts.deepseekLoginCancelled'));
+      return;
+    }
+    if (!loginResult.ok || !loginResult.userToken) {
+      throw new Error(loginResult.error || t('providers.alerts.deepseekLoginFailed'));
+    }
+
+    selectedProvider.value.api_key = loginResult.userToken;
+    const saved = await saveSingleProviderSetting('api_key', loginResult.userToken);
+    if (!saved) {
+      throw new Error(t('providers.alerts.saveFailed'));
+    }
+
+    await ensureDeepSeekProxyUrlForSelected({ notifyError: false }).catch(() => {});
+    ElMessage.success(t('providers.alerts.deepseekLoginSuccess'));
+  } catch (error) {
+    const errorText = error instanceof Error ? error.message : String(error);
+    ElMessage.error(
+      t('providers.alerts.deepseekLoginFailedWithReason', {
+        message: errorText,
+      }),
+    );
+  }
+}
 
 function delete_provider() {
   if (!provider_key.value) return;
@@ -871,7 +997,21 @@ const filteredModels = computed(() => {
 });
 
 async function activate_get_model_function() {
-  if (!selectedProvider.value || !selectedProvider.value.url) {
+  if (!selectedProvider.value) {
+    ElMessage.warning(t('providers.alerts.providerUrlNotSet'));
+    return;
+  }
+
+  let url = String(selectedProvider.value.url || '').trim();
+  if (isDeepSeekOfficialProvider.value) {
+    try {
+      url = await ensureDeepSeekProxyUrlForSelected();
+    } catch (_error) {
+      return;
+    }
+  }
+
+  if (!url) {
     ElMessage.warning(t('providers.alerts.providerUrlNotSet'));
     return;
   }
@@ -881,7 +1021,6 @@ async function activate_get_model_function() {
   getModel_form.modelList = [];
   searchQuery.value = '';
 
-  const url = selectedProvider.value.url;
   const apiKey = selectedProvider.value.api_key;
   const apiKeyToUse =
     window.api && typeof window.api.getRandomItem === 'function' && apiKey
@@ -959,25 +1098,25 @@ function saveModelOrder() {
 
 // 对于简单的开关和输入框，使用精确的 saveSetting
 async function saveSingleProviderSetting(key, value) {
-  if (!provider_key.value) return;
+  if (!provider_key.value) return false;
   const keyPath = `providers.${provider_key.value}.${key}`;
   try {
-    await window.api.saveSetting(keyPath, value);
+    const result = await window.api.saveSetting(keyPath, value);
+    if (result && result.success === false) {
+      throw new Error(result.message || 'saveSetting failed');
+    }
+    return true;
   } catch (e) {
     ElMessage.error(t('providers.alerts.saveFailed'));
+    return false;
   }
 }
 
 const apiKeyCount = computed(() => {
-  if (
-    !selectedProvider.value ||
-    !selectedProvider.value.api_key ||
-    !selectedProvider.value.api_key.trim()
-  ) {
+  if (!selectedProvider.value) {
     return 0;
   }
-  // 同时支持中英文逗号，并过滤空字符串
-  const keys = selectedProvider.value.api_key.split(/[,，]/).filter((k) => k.trim() !== '');
+  const keys = normalizeProviderKeys(selectedProvider.value.api_key);
   return keys.length;
 });
 
@@ -1173,12 +1312,12 @@ watch(contextMenuVisible, (val) => {
 
               <el-form label-position="left" label-width="75px" class="provider-form">
                 <div class="form-item-header">
-                  <div class="form-item-description">{{ t('providers.apiKeyDescription') }}</div>
+                  <div class="form-item-description">{{ providerApiKeyDescription }}</div>
                 </div>
                 <el-form-item>
                   <template #label>
                     <span class="label-with-badge">
-                      {{ t('providers.apiKeyLabel') }}
+                      {{ providerApiKeyLabel }}
                       <span v-if="apiKeyCount > 0" class="api-key-count-badge">{{
                         apiKeyCount
                       }}</span>
@@ -1187,7 +1326,7 @@ watch(contextMenuVisible, (val) => {
                   <el-input
                     v-model="selectedProvider.api_key"
                     :type="showApiKey ? 'text' : 'password'"
-                    :placeholder="t('providers.apiKeyPlaceholder')"
+                    :placeholder="providerApiKeyPlaceholder"
                     @change="(value) => saveSingleProviderSetting('api_key', value)"
                   >
                     <template #suffix>
@@ -1200,10 +1339,25 @@ watch(contextMenuVisible, (val) => {
                     </template>
                   </el-input>
                 </el-form-item>
-                <el-form-item :label="t('providers.apiUrlLabel')">
+                <div v-if="isDeepSeekOfficialProvider" class="deepseek-login-row">
+                  <el-button
+                    type="primary"
+                    plain
+                    :icon="LogIn"
+                    class="deepseek-login-btn"
+                    @click="loginDeepSeekOfficial"
+                  >
+                    {{ t('providers.deepseekLoginBtn') }}
+                  </el-button>
+                  <span class="deepseek-login-hint">{{
+                    t('providers.deepseekBuiltinChannelHint')
+                  }}</span>
+                </div>
+                <el-form-item :label="providerApiUrlLabel">
                   <el-input
                     v-model="selectedProvider.url"
-                    :placeholder="t('providers.apiUrlPlaceholder')"
+                    :placeholder="providerApiUrlPlaceholder"
+                    :readonly="isDeepSeekOfficialProvider"
                     @change="(value) => saveSingleProviderSetting('url', value)"
                   />
                 </el-form-item>
@@ -2057,6 +2211,24 @@ watch(contextMenuVisible, (val) => {
 
 .form-item-header .form-item-description {
   margin-top: 0;
+}
+
+.deepseek-login-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -2px 0 14px 85px;
+  flex-wrap: wrap;
+}
+
+.deepseek-login-btn {
+  flex-shrink: 0;
+}
+
+.deepseek-login-hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
 }
 
 .provider-form {

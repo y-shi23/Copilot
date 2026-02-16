@@ -185,6 +185,12 @@ window.api = {
     // 异步执行，不阻塞 UI
     cacheBackgroundImage(url).catch((e) => console.error(e));
   },
+  ensureDeepSeekProxy: async () => {
+    return ipcRenderer.invoke('deepseek:ensure-proxy');
+  },
+  loginDeepSeek: async () => {
+    return ipcRenderer.invoke('deepseek:login');
+  },
 
   // Skill 相关 API
   listSkills: async (path) => {

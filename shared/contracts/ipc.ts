@@ -12,6 +12,8 @@ export const IPC_CHANNELS = {
   UTOOLS_WINDOW_QUERY: 'utools:window-query',
   UTOOLS_WINDOW_ACTION: 'utools:window-action',
   UTOOLS_SEND_TO_PARENT: 'utools:send-to-parent',
+  DEEPSEEK_ENSURE_PROXY: 'deepseek:ensure-proxy',
+  DEEPSEEK_LOGIN: 'deepseek:login',
 } as const;
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];

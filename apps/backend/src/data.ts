@@ -7,6 +7,15 @@ const MIN_CHAT_WINDOW_WIDTH = 412;
 const MIN_CHAT_WINDOW_HEIGHT = 640;
 const DEV_WINDOW_URL = String(process.env.ANYWHERE_DEV_WINDOW_URL || '').trim();
 const DEV_FAST_WINDOW_ENTRY = String(process.env.ANYWHERE_DEV_FAST_WINDOW_ENTRY || '').trim();
+const DEEPSEEK_OFFICIAL_CHANNEL = 'deepseek-official';
+const DEEPSEEK_OFFICIAL_SEED_KEY = 'deepseekOfficial';
+const DEEPSEEK_OFFICIAL_PROVIDER_ID = 'builtin_deepseek_official';
+const DEEPSEEK_OFFICIAL_MODEL_LIST = [
+  'deepseek-chat',
+  'deepseek-reasoner',
+  'deepseek-chat-search',
+  'deepseek-reasoner-search',
+];
 
 const { requestTextOpenAI } = require('./input');
 const { getBuiltinServersMetadata } = require('./builtin_metadata');
@@ -15,6 +24,24 @@ const getBuiltinServers = () =>
   getBuiltinServersMetadata({
     isWin: process.platform === 'win32',
   });
+
+function hasDeepSeekOfficialProvider(providers = {}) {
+  return Object.values(providers).some(
+    (provider) =>
+      provider &&
+      typeof provider === 'object' &&
+      String(provider.channel || '').toLowerCase() === DEEPSEEK_OFFICIAL_CHANNEL,
+  );
+}
+
+function getUniqueProviderId(providers = {}, baseId = DEEPSEEK_OFFICIAL_PROVIDER_ID) {
+  if (!providers[baseId]) return baseId;
+  let suffix = 1;
+  while (providers[`${baseId}_${suffix}`]) {
+    suffix += 1;
+  }
+  return `${baseId}_${suffix}`;
+}
 
 function appendQueryParam(rawUrl, key, value) {
   if (!rawUrl) return rawUrl;
@@ -51,9 +78,20 @@ const defaultConfig = {
         modelList: [],
         enable: true,
       },
+      [DEEPSEEK_OFFICIAL_PROVIDER_ID]: {
+        name: 'DeepSeek 官方',
+        url: '',
+        api_key: '',
+        modelList: [...DEEPSEEK_OFFICIAL_MODEL_LIST],
+        enable: true,
+        channel: DEEPSEEK_OFFICIAL_CHANNEL,
+      },
     },
-    providerOrder: ['0'],
+    providerOrder: ['0', DEEPSEEK_OFFICIAL_PROVIDER_ID],
     providerFolders: {},
+    builtinProviderSeeds: {
+      [DEEPSEEK_OFFICIAL_SEED_KEY]: true,
+    },
     prompts: {
       AI: {
         type: 'over',
@@ -330,6 +368,64 @@ async function getConfig() {
     ? providersDoc.data
     : defaultConfig.config.providers;
 
+  let shouldPersistConfigDoc = false;
+  let shouldPersistProvidersDoc = false;
+
+  if (!fullConfigData.config.providers || typeof fullConfigData.config.providers !== 'object') {
+    fullConfigData.config.providers = {};
+    shouldPersistProvidersDoc = true;
+  }
+  if (!Array.isArray(fullConfigData.config.providerOrder)) {
+    fullConfigData.config.providerOrder = Object.keys(fullConfigData.config.providers);
+    shouldPersistConfigDoc = true;
+  }
+  if (
+    !fullConfigData.config.builtinProviderSeeds ||
+    typeof fullConfigData.config.builtinProviderSeeds !== 'object' ||
+    Array.isArray(fullConfigData.config.builtinProviderSeeds)
+  ) {
+    fullConfigData.config.builtinProviderSeeds = {};
+    shouldPersistConfigDoc = true;
+  }
+
+  if (fullConfigData.config.builtinProviderSeeds[DEEPSEEK_OFFICIAL_SEED_KEY] !== true) {
+    if (!hasDeepSeekOfficialProvider(fullConfigData.config.providers)) {
+      const deepSeekProviderId = getUniqueProviderId(fullConfigData.config.providers);
+      fullConfigData.config.providers[deepSeekProviderId] = {
+        name: 'DeepSeek 官方',
+        url: '',
+        api_key: '',
+        modelList: [...DEEPSEEK_OFFICIAL_MODEL_LIST],
+        enable: true,
+        channel: DEEPSEEK_OFFICIAL_CHANNEL,
+      };
+      if (!fullConfigData.config.providerOrder.includes(deepSeekProviderId)) {
+        fullConfigData.config.providerOrder.push(deepSeekProviderId);
+      }
+      shouldPersistProvidersDoc = true;
+      shouldPersistConfigDoc = true;
+    }
+    fullConfigData.config.builtinProviderSeeds[DEEPSEEK_OFFICIAL_SEED_KEY] = true;
+    shouldPersistConfigDoc = true;
+  }
+
+  if (shouldPersistProvidersDoc) {
+    await utools.db.promises.put({
+      _id: 'providers',
+      data: fullConfigData.config.providers,
+      _rev: providersDoc ? providersDoc._rev : undefined,
+    });
+  }
+
+  if (shouldPersistConfigDoc) {
+    await utools.db.promises.put({
+      _id: 'config',
+      data: configDoc.data,
+      _rev: configDoc._rev,
+    });
+    configDoc = await utools.db.promises.get('config');
+  }
+
   // 注入本地路径 (再次确保安全性)
   const currentLocalData = localDoc && localDoc.data ? localDoc.data : {};
   fullConfigData.config.skillPath = currentLocalData.skillPath || '';
@@ -420,6 +516,7 @@ function checkConfig(config) {
     zoom: 1,
     language: 'zh',
     providerFolders: {},
+    builtinProviderSeeds: {},
     mcpServers: {},
     tags: {},
     isDarkMode: false,

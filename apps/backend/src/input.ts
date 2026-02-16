@@ -1,4 +1,7 @@
 import type {} from 'node:fs';
+const { ipcRenderer } = require('electron');
+
+const DEEPSEEK_OFFICIAL_CHANNEL = 'deepseek-official';
 
 type RandomItemInput = string | string[];
 
@@ -12,6 +15,7 @@ interface PromptConfig {
 interface ProviderConfig {
   url?: string;
   api_key?: string | string[];
+  channel?: string;
 }
 
 interface RequestConfig {
@@ -67,6 +71,7 @@ async function requestTextOpenAI(
   let apiUrl = config.apiUrl;
   let apiKey = config.apiKey;
   let model = config.modelSelect;
+  let providerChannel = '';
 
   if (modelInfo) {
     const [providerId, modelName] = modelInfo.split('|');
@@ -75,8 +80,25 @@ async function requestTextOpenAI(
       apiUrl = provider.url || apiUrl;
       apiKey = provider.api_key || apiKey;
       model = modelName || model;
+      providerChannel = String(provider.channel || '').toLowerCase();
     }
   }
+
+  if (providerChannel === DEEPSEEK_OFFICIAL_CHANNEL) {
+    const token = getRandomItem(apiKey).trim();
+    if (!token) {
+      throw new Error('DeepSeek userToken 未配置，请先在服务商页面登录 DeepSeek 或手动填写。');
+    }
+    if (!ipcRenderer || typeof ipcRenderer.invoke !== 'function') {
+      throw new Error('DeepSeek 代理不可用：IPC 环境未就绪。');
+    }
+    const proxyResult = await ipcRenderer.invoke('deepseek:ensure-proxy');
+    if (!proxyResult?.ok || !proxyResult.baseUrl) {
+      throw new Error(proxyResult?.error || 'DeepSeek 代理启动失败。');
+    }
+    apiUrl = proxyResult.baseUrl;
+  }
+
   if (promptConfig.ifTextNecessary) {
     const now = new Date();
     const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;

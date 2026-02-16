@@ -1,4 +1,26 @@
 "use strict";
+var __create = Object.create;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __getProtoOf = Object.getPrototypeOf;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__getProtoOf(mod)) : {}, __copyProps(
+  // If the importer is in node compatibility mode or this is not an ESM
+  // file that has been converted to a CommonJS file using a Babel-
+  // compatible transform (i.e. "__esModule" has not been set), then set
+  // "default" to the CommonJS "module.exports" for node compatibility.
+  isNodeMode || !mod || !mod.__esModule ? __defProp(target, "default", { value: mod, enumerable: true }) : target,
+  mod
+));
 
 // electron-src/main.ts
 var {
@@ -12,6 +34,7 @@ var {
   nativeTheme
 } = require("electron");
 var fs = require("fs");
+var net = require("net");
 var path = require("path");
 var { pathToFileURL } = require("url");
 var managedWindows = /* @__PURE__ */ new Map();
@@ -30,6 +53,19 @@ var SUPPORTED_PROMPT_TYPES = /* @__PURE__ */ new Set(["general", "over", "img", 
 var LAUNCHER_WIDTH = 640;
 var LAUNCHER_HEIGHT = 56;
 var LAUNCHER_MAX_HEIGHT = 440;
+var DEEPSEEK_PROXY_HOST = "127.0.0.1";
+var DEEPSEEK_PROXY_PREFERRED_PORT = 5001;
+var DEEPSEEK_PROXY_READY_TIMEOUT_MS = 12e3;
+var DEEPSEEK_LOGIN_TIMEOUT_MS = 10 * 60 * 1e3;
+var deepSeekProxyState = {
+  started: false,
+  baseUrl: "",
+  port: 0,
+  startPromise: null,
+  lastError: "",
+  moduleEntryPath: ""
+};
+var deepSeekLoginPromise = null;
 function resolveAppFile(...parts) {
   return path.join(app.getAppPath(), ...parts);
 }
@@ -321,6 +357,241 @@ function registerLauncherHotkey(rawSettings = {}) {
     error: `${fallbackMsg}${recoveryMsg}`
   };
 }
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+function getDeepSeekProxyDataDir() {
+  const dir = path.join(app.getPath("userData"), "deepseek-api");
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+function isPortAvailable(port, host = DEEPSEEK_PROXY_HOST) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+    server.once("error", () => {
+      resolve(false);
+    });
+    server.once("listening", () => {
+      server.close(() => resolve(true));
+    });
+    try {
+      server.listen(port, host);
+    } catch (_error) {
+      resolve(false);
+    }
+  });
+}
+function getFreePort(host = DEEPSEEK_PROXY_HOST) {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.once("error", (error) => {
+      reject(error);
+    });
+    server.once("listening", () => {
+      const addressInfo = server.address();
+      const port = addressInfo && typeof addressInfo === "object" ? addressInfo.port : 0;
+      server.close(() => {
+        if (port > 0) {
+          resolve(port);
+        } else {
+          reject(new Error("Failed to allocate free port."));
+        }
+      });
+    });
+    server.listen(0, host);
+  });
+}
+function resolveDeepSeekModuleEntryPath() {
+  if (deepSeekProxyState.moduleEntryPath) {
+    return deepSeekProxyState.moduleEntryPath;
+  }
+  const packageJsonPath = require.resolve("@ziuchen/deepseek-api/package.json");
+  const packageDir = path.dirname(packageJsonPath);
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+  const mainEntry = typeof packageJson.main === "string" && packageJson.main.trim() ? packageJson.main.trim() : "";
+  const candidates = [
+    path.join(packageDir, "dist", "index.mjs"),
+    mainEntry ? path.join(packageDir, mainEntry) : "",
+    path.join(packageDir, "dist", "index.js")
+  ].filter(Boolean);
+  const entryPath = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!entryPath) {
+    throw new Error("Unable to resolve @ziuchen/deepseek-api entry file.");
+  }
+  deepSeekProxyState.moduleEntryPath = entryPath;
+  return entryPath;
+}
+async function isDeepSeekProxyReady(baseOrigin) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 1500);
+  try {
+    const response = await fetch(`${baseOrigin}/v1/models`, {
+      method: "GET",
+      signal: controller.signal
+    });
+    return response.ok;
+  } catch (_error) {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function waitForDeepSeekProxyReady(baseOrigin, timeoutMs = DEEPSEEK_PROXY_READY_TIMEOUT_MS) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (await isDeepSeekProxyReady(baseOrigin)) {
+      return true;
+    }
+    await delay(250);
+  }
+  return false;
+}
+async function startDeepSeekProxy() {
+  const preferredAvailable = await isPortAvailable(DEEPSEEK_PROXY_PREFERRED_PORT);
+  const selectedPort = preferredAvailable ? DEEPSEEK_PROXY_PREFERRED_PORT : await getFreePort(DEEPSEEK_PROXY_HOST);
+  const baseOrigin = `http://${DEEPSEEK_PROXY_HOST}:${selectedPort}`;
+  process.env.LISTEN_HOST = DEEPSEEK_PROXY_HOST;
+  process.env.LISTEN_PORT = String(selectedPort);
+  process.env.DATA_DIR = getDeepSeekProxyDataDir();
+  const entryPath = resolveDeepSeekModuleEntryPath();
+  await import(pathToFileURL(entryPath).toString());
+  const isReady = await waitForDeepSeekProxyReady(baseOrigin);
+  if (!isReady) {
+    throw new Error("DeepSeek proxy did not become ready in time.");
+  }
+  deepSeekProxyState.started = true;
+  deepSeekProxyState.baseUrl = `${baseOrigin}/v1`;
+  deepSeekProxyState.port = selectedPort;
+  deepSeekProxyState.lastError = "";
+  return {
+    ok: true,
+    baseUrl: deepSeekProxyState.baseUrl,
+    port: deepSeekProxyState.port
+  };
+}
+async function ensureDeepSeekProxy() {
+  if (deepSeekProxyState.started && deepSeekProxyState.baseUrl) {
+    return {
+      ok: true,
+      baseUrl: deepSeekProxyState.baseUrl,
+      port: deepSeekProxyState.port
+    };
+  }
+  if (deepSeekProxyState.startPromise) {
+    return deepSeekProxyState.startPromise;
+  }
+  deepSeekProxyState.startPromise = (async () => {
+    try {
+      return await startDeepSeekProxy();
+    } catch (error) {
+      const errorText = String(error?.message || error);
+      deepSeekProxyState.started = false;
+      deepSeekProxyState.baseUrl = "";
+      deepSeekProxyState.port = 0;
+      deepSeekProxyState.lastError = errorText;
+      return {
+        ok: false,
+        error: errorText
+      };
+    } finally {
+      deepSeekProxyState.startPromise = null;
+    }
+  })();
+  return deepSeekProxyState.startPromise;
+}
+function createDeepSeekLoginWindow(owner) {
+  const loginWindow = new BrowserWindow({
+    width: 440,
+    height: 760,
+    minWidth: 400,
+    minHeight: 640,
+    show: true,
+    autoHideMenuBar: true,
+    parent: owner,
+    modal: false,
+    title: "DeepSeek Login",
+    webPreferences: {
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false
+    }
+  });
+  loginWindow.loadURL("https://chat.deepseek.com");
+  return loginWindow;
+}
+function loginDeepSeek(owner) {
+  if (deepSeekLoginPromise) {
+    return deepSeekLoginPromise;
+  }
+  deepSeekLoginPromise = new Promise((resolve) => {
+    const loginWindow = createDeepSeekLoginWindow(owner);
+    let settled = false;
+    let pollTimer = null;
+    let timeoutTimer = null;
+    const cleanup = () => {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+      if (timeoutTimer) {
+        clearTimeout(timeoutTimer);
+        timeoutTimer = null;
+      }
+    };
+    const settle = (payload) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(payload);
+      if (!loginWindow.isDestroyed()) {
+        loginWindow.close();
+      }
+    };
+    const tryReadUserToken = async () => {
+      if (settled || loginWindow.isDestroyed()) return;
+      try {
+        const token = await loginWindow.webContents.executeJavaScript(
+          `(() => {
+            try {
+              const raw = localStorage.getItem('userToken');
+              return typeof raw === 'string' ? raw.trim() : '';
+            } catch (_error) {
+              return '';
+            }
+          })()`,
+          true
+        );
+        if (token) {
+          settle({ ok: true, userToken: String(token) });
+        }
+      } catch (_error) {
+      }
+    };
+    timeoutTimer = setTimeout(() => {
+      settle({ ok: false, error: "Timed out waiting for DeepSeek login." });
+    }, DEEPSEEK_LOGIN_TIMEOUT_MS);
+    pollTimer = setInterval(() => {
+      tryReadUserToken().catch(() => {
+      });
+    }, 1200);
+    loginWindow.webContents.on("did-finish-load", () => {
+      tryReadUserToken().catch(() => {
+      });
+    });
+    loginWindow.on("closed", () => {
+      if (!settled) {
+        settled = true;
+        cleanup();
+        resolve({ ok: false, cancelled: true });
+      }
+    });
+  }).finally(() => {
+    deepSeekLoginPromise = null;
+  });
+  return deepSeekLoginPromise;
+}
 function createMainWindow() {
   const preloadPath = resolveMainPreloadPath();
   const isMac = process.platform === "darwin";
@@ -588,6 +859,13 @@ ipcMain.on("utools:send-to-parent", (event, payload = {}) => {
   const channel = payload.channel;
   const data = payload.payload;
   mainWindow.webContents.send(channel, data);
+});
+ipcMain.handle("deepseek:ensure-proxy", async () => {
+  return ensureDeepSeekProxy();
+});
+ipcMain.handle("deepseek:login", async (event) => {
+  const owner = BrowserWindow.fromWebContents(event.sender) || mainWindow || void 0;
+  return loginDeepSeek(owner);
 });
 ipcMain.handle("launcher:get-prompts", () => {
   return readStoredPrompts();

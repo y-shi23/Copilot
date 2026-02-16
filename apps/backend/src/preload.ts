@@ -236,6 +236,12 @@ window.api = {
   cacheBackgroundImage: (url) => {
     cacheBackgroundImage(url).catch((e) => console.error(e));
   },
+  ensureDeepSeekProxy: async () => {
+    return ipcRenderer.invoke('deepseek:ensure-proxy');
+  },
+  loginDeepSeek: async () => {
+    return ipcRenderer.invoke('deepseek:login');
+  },
   // 生成 Skill Tool 定义 (供前端构建请求参数时使用)
   getSkillToolDefinition: async (rootPath, enabledSkillNames = []) => {
     try {

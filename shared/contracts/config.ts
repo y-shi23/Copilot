@@ -29,6 +29,7 @@ export interface ProviderConfig {
   api_key?: string | string[];
   modelList?: string[];
   enable?: boolean;
+  channel?: string;
   [key: string]: any;
 }
 
