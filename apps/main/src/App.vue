@@ -222,6 +222,107 @@ const toggleAssistantExpand = (assistantCode) => {
   expandedAssistantCode.value = assistantCode;
 };
 
+const SESSION_COLLAPSE_DURATION_MS = 220;
+const SESSION_COLLAPSE_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
+
+const clearAssistantSessionsAnimation = (node) => {
+  node.style.transition = '';
+  node.style.willChange = '';
+  node.style.overflow = '';
+};
+
+const onAssistantSessionsBeforeEnter = (el) => {
+  const node = el;
+  node.style.height = '0px';
+  node.style.overflow = 'hidden';
+};
+
+const onAssistantSessionsEnter = (el, done) => {
+  const node = el;
+  const targetHeight = node.scrollHeight;
+  if (!targetHeight) {
+    node.style.height = 'auto';
+    clearAssistantSessionsAnimation(node);
+    done();
+    return;
+  }
+
+  let finished = false;
+  const finalize = () => {
+    if (finished) return;
+    finished = true;
+    node.removeEventListener('transitionend', handleTransitionEnd);
+    node.style.height = 'auto';
+    clearAssistantSessionsAnimation(node);
+    done();
+  };
+
+  const handleTransitionEnd = (event) => {
+    if (event.target !== node || event.propertyName !== 'height') return;
+    finalize();
+  };
+
+  node.style.willChange = 'height';
+  node.style.transition = `height ${SESSION_COLLAPSE_DURATION_MS}ms ${SESSION_COLLAPSE_EASING}`;
+  node.addEventListener('transitionend', handleTransitionEnd);
+  // Force layout so the animation has a stable starting point.
+  void node.offsetHeight;
+  requestAnimationFrame(() => {
+    node.style.height = `${targetHeight}px`;
+  });
+  window.setTimeout(finalize, SESSION_COLLAPSE_DURATION_MS + 60);
+};
+
+const onAssistantSessionsLeave = (el, done) => {
+  const node = el;
+  const startHeight = node.scrollHeight;
+  if (!startHeight) {
+    node.style.height = '';
+    clearAssistantSessionsAnimation(node);
+    done();
+    return;
+  }
+
+  let finished = false;
+  const finalize = () => {
+    if (finished) return;
+    finished = true;
+    node.removeEventListener('transitionend', handleTransitionEnd);
+    node.style.height = '';
+    clearAssistantSessionsAnimation(node);
+    done();
+  };
+
+  const handleTransitionEnd = (event) => {
+    if (event.target !== node || event.propertyName !== 'height') return;
+    finalize();
+  };
+
+  node.style.height = `${startHeight}px`;
+  node.style.overflow = 'hidden';
+  node.style.willChange = 'height';
+  node.style.transition = `height ${SESSION_COLLAPSE_DURATION_MS}ms ${SESSION_COLLAPSE_EASING}`;
+  node.addEventListener('transitionend', handleTransitionEnd);
+  // Force layout so the height transition can run reliably.
+  void node.offsetHeight;
+  requestAnimationFrame(() => {
+    node.style.height = '0px';
+  });
+  window.setTimeout(finalize, SESSION_COLLAPSE_DURATION_MS + 60);
+};
+
+const onAssistantSessionsEnterCancelled = (el) => {
+  const node = el;
+  node.style.height = 'auto';
+  clearAssistantSessionsAnimation(node);
+};
+
+const onAssistantSessionsLeaveCancelled = (el) => {
+  const node = el;
+  node.style.height = '';
+  clearAssistantSessionsAnimation(node);
+};
+
 const openHistorySession = async (sessionItem) => {
   activeSessionId.value = sessionItem.id;
   try {
@@ -705,35 +806,52 @@ onBeforeUnmount(() => {
                   }}</span>
                 </button>
 
-                <div v-if="expandedAssistantCode === assistant.code" class="assistant-sessions">
-                  <button
-                    v-for="session in sessionMap[assistant.code] || []"
-                    :key="session.id"
-                    type="button"
-                    class="assistant-row session-item"
-                    :class="{ 'is-loading': activeSessionId === session.id }"
-                    :title="`${formatSessionTime(session.lastmod)}${
-                      session.preview ? ` · ${session.preview}` : ''
-                    }`"
-                    @click="openHistorySession(session)"
-                  >
-                    <span class="assistant-name session-name" :title="session.conversationName">{{
-                      session.conversationName
-                    }}</span>
-                    <span class="session-source" :class="session.source">{{
-                      session.source === 'local'
-                        ? t('mainChat.sources.local')
-                        : t('mainChat.sources.cloud')
-                    }}</span>
-                  </button>
-
+                <Transition
+                  name="assistant-sessions-collapse"
+                  :css="false"
+                  @before-enter="onAssistantSessionsBeforeEnter"
+                  @enter="onAssistantSessionsEnter"
+                  @leave="onAssistantSessionsLeave"
+                  @enter-cancelled="onAssistantSessionsEnterCancelled"
+                  @leave-cancelled="onAssistantSessionsLeaveCancelled"
+                >
                   <div
-                    v-if="(sessionMap[assistant.code] || []).length === 0"
-                    class="assistant-empty-sessions"
+                    v-if="expandedAssistantCode === assistant.code"
+                    class="assistant-sessions-collapse"
                   >
-                    {{ t('mainChat.empty.assistantSessions') }}
+                    <div class="assistant-sessions">
+                      <button
+                        v-for="session in sessionMap[assistant.code] || []"
+                        :key="session.id"
+                        type="button"
+                        class="assistant-row session-item"
+                        :class="{ 'is-loading': activeSessionId === session.id }"
+                        :title="`${formatSessionTime(session.lastmod)}${
+                          session.preview ? ` · ${session.preview}` : ''
+                        }`"
+                        @click="openHistorySession(session)"
+                      >
+                        <span
+                          class="assistant-name session-name"
+                          :title="session.conversationName"
+                          >{{ session.conversationName }}</span
+                        >
+                        <span class="session-source" :class="session.source">{{
+                          session.source === 'local'
+                            ? t('mainChat.sources.local')
+                            : t('mainChat.sources.cloud')
+                        }}</span>
+                      </button>
+
+                      <div
+                        v-if="(sessionMap[assistant.code] || []).length === 0"
+                        class="assistant-empty-sessions"
+                      >
+                        {{ t('mainChat.empty.assistantSessions') }}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </Transition>
               </div>
 
               <div v-if="enabledAssistants.length === 0" class="assistant-empty-state">
@@ -1083,6 +1201,15 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.assistant-sessions-collapse {
+  height: auto;
+  overflow: hidden;
+}
+
+.assistant-sessions-collapse > .assistant-sessions {
+  min-height: 0;
 }
 
 .session-item {
