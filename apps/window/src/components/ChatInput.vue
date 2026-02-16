@@ -1209,6 +1209,9 @@ html.dark .drag-overlay {
   flex-shrink: 0;
   z-index: 10;
   background-color: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
 }
 
 /* --- MCP Quick Select Styles --- */

@@ -18,9 +18,8 @@ import {
   Cloud as Cloudy,
   Settings as SettingIcon,
   FileText as Document,
-  ChevronDown,
-  ChevronRight,
-  RefreshCw as Refresh,
+  FolderMinus,
+  FolderOpen,
   ArrowLeft,
 } from 'lucide-vue-next';
 import { ElBadge, ElMessage } from 'element-plus';
@@ -53,13 +52,13 @@ const {
   enabledAssistants,
   sessionMap,
   sessionCountByAssistant,
-  loading: isSessionIndexLoading,
   errorMessage: sessionIndexError,
   refreshIndex,
   loadSessionPayload,
 } = useAssistantSessionIndex(config);
 
 const settingsNavItems = computed(() => [
+  { id: 'back', label: t('mainSettings.backToChat'), icon: ArrowLeft },
   { id: 'history', label: t('mainSettings.tabs.history'), icon: ChatDotRound },
   { id: 'prompts', label: t('mainSettings.tabs.prompts'), icon: MagicStick },
   { id: 'mcp', label: t('mainSettings.tabs.mcp'), icon: Collection },
@@ -85,6 +84,7 @@ const SIDEBAR_MAX_WIDTH = 480;
 const SIDEBAR_MOBILE_BREAKPOINT = 760;
 const CHAT_MOBILE_BREAKPOINT = 700;
 const SIDEBAR_KEYBOARD_STEP = 12;
+const SESSION_AUTO_SYNC_INTERVAL_MS = 10000;
 
 const viewportWidth = ref(window.innerWidth || 1200);
 const sidebarWidth = ref(SIDEBAR_DEFAULT_WIDTH);
@@ -104,6 +104,7 @@ const rootInlineStyles = computed(() => ({
 
 let sidebarResizeStartX = 0;
 let sidebarResizeStartWidth = SIDEBAR_DEFAULT_WIDTH;
+let sessionAutoSyncTimer = null;
 
 const clampSidebarWidth = (rawWidth) => {
   const width = Number(rawWidth);
@@ -273,6 +274,10 @@ const backToChatMode = () => {
 };
 
 const selectSettingsTab = (tabId) => {
+  if (tabId === 'back') {
+    backToChatMode();
+    return;
+  }
   settingsTab.value = tabId;
   if (isCompactMobile.value) {
     isMobileSidebarOpen.value = false;
@@ -282,6 +287,38 @@ const selectSettingsTab = (tabId) => {
 const toggleMobileSidebar = () => {
   if (!isCompactMobile.value) return;
   isMobileSidebarOpen.value = !isMobileSidebarOpen.value;
+};
+
+const refreshSessionIndexForSync = (force = true) => {
+  if (appMode.value !== 'chat') return;
+  refreshIndex({ force }).catch((error) => {
+    console.error('[Main] Failed to auto-sync session index:', error);
+  });
+};
+
+const stopSessionAutoSync = () => {
+  if (!sessionAutoSyncTimer) return;
+  window.clearInterval(sessionAutoSyncTimer);
+  sessionAutoSyncTimer = null;
+};
+
+const startSessionAutoSync = () => {
+  if (sessionAutoSyncTimer) return;
+  sessionAutoSyncTimer = window.setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      refreshSessionIndexForSync(true);
+    }
+  }, SESSION_AUTO_SYNC_INTERVAL_MS);
+};
+
+const handleVisibilitySync = () => {
+  if (document.visibilityState === 'visible') {
+    refreshSessionIndexForSync(true);
+  }
+};
+
+const handleWindowFocusSync = () => {
+  refreshSessionIndexForSync(true);
 };
 
 watch(
@@ -312,9 +349,10 @@ watch(appMode, (mode) => {
   }
 
   if (mode === 'chat') {
-    refreshIndex({ force: true }).catch((error) => {
-      console.error('[Main] Failed to refresh sessions when entering chat mode:', error);
-    });
+    refreshSessionIndexForSync(true);
+    startSessionAutoSync();
+  } else {
+    stopSessionAutoSync();
   }
 });
 
@@ -553,7 +591,10 @@ onMounted(async () => {
   handleViewportResize();
   window.addEventListener('resize', handleViewportResize);
   window.addEventListener('keydown', handleGlobalEsc, true);
+  window.addEventListener('focus', handleWindowFocusSync);
+  document.addEventListener('visibilitychange', handleVisibilitySync);
   mediaQuery.addEventListener('change', handleSystemThemeChange);
+  startSessionAutoSync();
 
   fetchAllDocsMetadata();
 
@@ -585,9 +626,12 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  stopSessionAutoSync();
   stopSidebarResize();
   window.removeEventListener('resize', handleViewportResize);
   window.removeEventListener('keydown', handleGlobalEsc, true);
+  window.removeEventListener('focus', handleWindowFocusSync);
+  document.removeEventListener('visibilitychange', handleVisibilitySync);
   mediaQuery.removeEventListener('change', handleSystemThemeChange);
   document.documentElement.classList.remove('macos-vibrancy-main');
   document.body?.classList.remove('macos-vibrancy-main');
@@ -604,18 +648,12 @@ onBeforeUnmount(() => {
     <el-container class="common-layout">
       <el-aside class="app-sidebar" :class="{ 'mobile-collapsed': !shouldShowSidebarBody }">
         <div class="sidebar-panel">
-          <div class="sidebar-top-row" :class="{ 'window-drag-region': isMacOS }">
-            <button
-              v-if="appMode === 'settings'"
-              class="back-chat-btn rounded-action-btn no-drag"
-              type="button"
-              @click="backToChatMode"
-            >
-              <ArrowLeft :size="15" />
-              <span>{{ t('mainSettings.backToChat') }}</span>
-            </button>
-
-            <div v-else class="chat-top-actions no-drag">
+          <div
+            v-if="appMode === 'chat'"
+            class="sidebar-top-row"
+            :class="{ 'window-drag-region': isMacOS }"
+          >
+            <div class="chat-top-actions no-drag">
               <button
                 v-if="isCompactMobile"
                 type="button"
@@ -628,19 +666,10 @@ onBeforeUnmount(() => {
                     : t('mainChat.actions.showSidebar')
                 }}
               </button>
-              <el-tooltip :content="t('mainChat.actions.refresh')" placement="bottom">
-                <button
-                  type="button"
-                  class="icon-btn circle-action-btn"
-                  @click="refreshIndex({ force: true })"
-                >
-                  <Refresh :size="15" :class="{ spinning: isSessionIndexLoading }" />
-                </button>
-              </el-tooltip>
             </div>
 
             <el-tooltip :content="t('app.header.help') || '使用指南'" placement="right">
-              <el-button class="help-button circle-action-btn no-drag" text @click="openHelpDialog">
+              <el-button class="help-button no-drag" text @click="openHelpDialog">
                 <el-badge :is-dot="hasAnyUpdate" class="bell-badge">
                   <el-icon :size="18"><Bell /></el-icon>
                 </el-badge>
@@ -662,22 +691,12 @@ onBeforeUnmount(() => {
                   @click="startNewSession(assistant.code)"
                 >
                   <span
-                    class="assistant-chevron"
+                    class="assistant-folder"
                     @click.stop="toggleAssistantExpand(assistant.code)"
                   >
-                    <ChevronDown v-if="expandedAssistantCode === assistant.code" :size="14" />
-                    <ChevronRight v-else :size="14" />
+                    <FolderOpen v-if="expandedAssistantCode === assistant.code" :size="14" />
+                    <FolderMinus v-else :size="14" />
                   </span>
-
-                  <img
-                    v-if="getAssistantIcon(assistant.code)"
-                    :src="getAssistantIcon(assistant.code)"
-                    class="assistant-icon"
-                    alt="assistant"
-                  />
-                  <span v-else class="assistant-icon assistant-icon-fallback">{{
-                    assistant.code[0]
-                  }}</span>
 
                   <span class="assistant-name" :title="assistant.code">{{ assistant.code }}</span>
                   <span class="assistant-count">{{
@@ -690,29 +709,24 @@ onBeforeUnmount(() => {
                     v-for="session in sessionMap[assistant.code] || []"
                     :key="session.id"
                     type="button"
-                    class="session-item"
+                    class="assistant-row session-item"
                     :class="{ 'is-loading': activeSessionId === session.id }"
+                    :title="`${formatSessionTime(session.lastmod)}${
+                      session.preview ? ` · ${session.preview}` : ''
+                    }`"
                     @click="openHistorySession(session)"
                   >
-                    <div class="session-main-line">
-                      <span class="session-name" :title="session.conversationName">{{
-                        session.conversationName
-                      }}</span>
-                      <span class="session-source" :class="session.source">{{
-                        session.source === 'local'
-                          ? t('mainChat.sources.local')
-                          : t('mainChat.sources.cloud')
-                      }}</span>
-                    </div>
-                    <div class="session-meta-line">
-                      <span class="session-time">{{ formatSessionTime(session.lastmod) }}</span>
-                      <span
-                        v-if="session.preview"
-                        class="session-preview"
-                        :title="session.preview"
-                        >{{ session.preview }}</span
-                      >
-                    </div>
+                    <span class="assistant-folder session-kind-icon">
+                      <ChatDotRound :size="13" />
+                    </span>
+                    <span class="assistant-name session-name" :title="session.conversationName">{{
+                      session.conversationName
+                    }}</span>
+                    <span class="session-source" :class="session.source">{{
+                      session.source === 'local'
+                        ? t('mainChat.sources.local')
+                        : t('mainChat.sources.cloud')
+                    }}</span>
                   </button>
 
                   <div
@@ -733,14 +747,10 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
-            <div v-show="shouldShowSidebarBody" class="sidebar-bottom no-drag">
-              <button
-                class="mode-switch-btn rounded-action-btn"
-                type="button"
-                @click="openSettingsMode"
-              >
-                <SettingIcon :size="15" />
-                <span>{{ t('mainSettings.entry') }}</span>
+            <div v-show="shouldShowSidebarBody" class="sidebar-nav-item no-drag">
+              <button type="button" class="nav-item" @click="openSettingsMode">
+                <el-icon class="nav-icon"><SettingIcon /></el-icon>
+                <span class="nav-label">{{ t('mainSettings.entry') }}</span>
               </button>
             </div>
           </template>
@@ -753,7 +763,7 @@ onBeforeUnmount(() => {
                 type="button"
                 class="nav-item"
                 @click="selectSettingsTab(item.id)"
-                :class="{ 'active-tab': settingsTab === item.id }"
+                :class="{ 'active-tab': settingsTab === item.id && item.id !== 'back' }"
               >
                 <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
                 <span class="nav-label">{{ item.label }}</span>
@@ -950,24 +960,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 34px;
+  min-height: 30px;
   padding: 2px 4px 8px;
-}
-
-.back-chat-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  border: none;
-  color: var(--text-secondary);
-  font-size: 12px;
-  padding: 0 12px;
-  height: 32px;
-  cursor: pointer;
-}
-
-.back-chat-btn:hover {
-  color: var(--text-primary);
 }
 
 .chat-top-actions {
@@ -975,23 +969,6 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   min-width: 0;
-}
-
-.icon-btn {
-  width: 30px;
-  height: 30px;
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-secondary);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.icon-btn:hover {
-  color: var(--text-primary);
 }
 
 .mobile-toggle-btn {
@@ -1003,16 +980,6 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
 }
 
-.spinning {
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 .help-button {
   width: 32px;
   height: 32px;
@@ -1022,10 +989,14 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  background: transparent !important;
+  box-shadow: none !important;
+  transition: background-color 0.18s ease;
 }
 
 .help-button:hover {
   color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.62) !important;
 }
 
 .assistant-sidebar {
@@ -1055,7 +1026,7 @@ onBeforeUnmount(() => {
   border-radius: var(--radius-md);
   min-height: 38px;
   display: grid;
-  grid-template-columns: 16px 22px 1fr auto;
+  grid-template-columns: 16px 1fr auto;
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
@@ -1068,7 +1039,7 @@ onBeforeUnmount(() => {
   background-color: rgba(255, 255, 255, 0.62);
 }
 
-.assistant-chevron {
+.assistant-folder {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1109,26 +1080,16 @@ onBeforeUnmount(() => {
 
 .assistant-sessions {
   margin-top: 2px;
-  padding: 0 8px 8px 38px;
+  padding: 0 4px 8px 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .session-item {
-  width: 100%;
-  border: 1px solid transparent;
-  border-radius: 10px;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  padding: 7px 8px;
-  transition: all 0.18s ease;
-}
-
-.session-item:hover {
-  border-color: color-mix(in srgb, var(--border-primary) 65%, transparent);
-  background: color-mix(in srgb, var(--bg-secondary) 74%, transparent);
+  min-height: 34px;
+  grid-template-columns: 16px 1fr auto;
+  padding: 7px 10px;
 }
 
 .session-item.is-loading {
@@ -1136,20 +1097,13 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-.session-main-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.session-name {
+  font-size: 12px;
+  font-weight: 500;
 }
 
-.session-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: 12px;
-  color: var(--text-primary);
+.session-kind-icon {
+  color: var(--text-tertiary);
 }
 
 .session-source {
@@ -1168,26 +1122,6 @@ onBeforeUnmount(() => {
   background: rgba(18, 147, 104, 0.12);
 }
 
-.session-meta-line {
-  margin-top: 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.session-time,
-.session-preview {
-  font-size: 11px;
-  color: var(--text-tertiary);
-  line-height: 1.3;
-}
-
-.session-preview {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .assistant-empty-sessions,
 .assistant-empty-state,
 .assistant-error {
@@ -1200,26 +1134,34 @@ onBeforeUnmount(() => {
   color: #cf5c5c;
 }
 
-.sidebar-bottom {
+.sidebar-nav-item {
   padding-top: 6px;
   border-top: 1px solid color-mix(in srgb, var(--border-primary) 70%, transparent);
 }
 
-.mode-switch-btn {
+.sidebar-nav-item .nav-item {
   width: 100%;
-  height: 36px;
-  border: none;
-  color: var(--text-secondary);
-  display: inline-flex;
+  height: 40px;
+  display: grid;
+  grid-template-columns: 18px 1fr;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 0 12px;
+  margin: 0;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background-color: transparent;
   cursor: pointer;
-  font-size: 13px;
+  appearance: none;
+  text-align: left;
+  font: inherit;
+  color: var(--text-secondary);
+  transition: all 0.18s ease;
 }
 
-.mode-switch-btn:hover {
+.sidebar-nav-item .nav-item:hover {
   color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.62);
 }
 
 .sidebar-nav {
@@ -1349,10 +1291,6 @@ onBeforeUnmount(() => {
   background-color: var(--workspace-surface-bg);
 }
 
-.chat-workspace-content {
-  padding: 0;
-}
-
 .chat-workspace-content :deep(main) {
   height: 100%;
 }
@@ -1401,20 +1339,16 @@ onBeforeUnmount(() => {
 }
 
 html.dark .help-button,
-html.dark .icon-btn,
 html.dark .nav-item,
-html.dark .mode-switch-btn,
-html.dark .back-chat-btn,
+html.dark .sidebar-nav-item .nav-item,
 html.dark .mobile-toggle-btn,
 html.dark .assistant-row {
   color: #bfbcb8;
 }
 
 html.dark .help-button:hover,
-html.dark .icon-btn:hover,
 html.dark .nav-item:hover,
-html.dark .mode-switch-btn:hover,
-html.dark .back-chat-btn:hover,
+html.dark .sidebar-nav-item .nav-item:hover,
 html.dark .mobile-toggle-btn:hover,
 html.dark .assistant-row:hover {
   color: #efede9;
@@ -1450,10 +1384,6 @@ html.dark .window-root.fallback-vibrancy {
 @media (max-width: 900px) {
   .assistant-sessions {
     padding-left: 32px;
-  }
-
-  .session-preview {
-    display: none;
   }
 }
 
