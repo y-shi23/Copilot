@@ -1516,6 +1516,11 @@ html.dark .window-root {
   --workspace-edge-color: rgba(6, 8, 11, 0.88);
 }
 
+html.dark .window-root.native-vibrancy {
+  --layout-shell-bg: transparent;
+  --sidebar-vibrancy-tint: rgba(30, 30, 32, 0.28);
+}
+
 html.dark .window-root.fallback-vibrancy {
   --layout-shell-bg: #191b1e;
   --workspace-surface-bg: #181818;

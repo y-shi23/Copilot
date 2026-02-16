@@ -452,7 +452,7 @@
     "moveUpTooltip": "Move Up",
     "moveDownTooltip": "Move Down",
     "deleteProviderTooltip": "Delete Provider",
-    "deepseekUserTokenLabel": "userToken",
+    "deepseekUserTokenLabel": "Token",
     "deepseekUserTokenPlaceholder": "Enter DeepSeek userToken (or auto-fill after login)",
     "deepseekUserTokenDescription": "DeepSeek official channel uses userToken authentication; manual paste is also supported.",
     "deepseekLoginBtn": "Sign in to DeepSeek",

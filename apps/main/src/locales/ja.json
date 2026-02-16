@@ -452,7 +452,7 @@
     "moveUpTooltip": "上に移動",
     "moveDownTooltip": "下に移動",
     "deleteProviderTooltip": "サービスプロバイダーを削除",
-    "deepseekUserTokenLabel": "userToken",
+    "deepseekUserTokenLabel": "Token",
     "deepseekUserTokenPlaceholder": "DeepSeek userToken を入力（ログイン後の自動入力にも対応）",
     "deepseekUserTokenDescription": "DeepSeek 公式チャネルは userToken で認証します。手動貼り付けにも対応しています。",
     "deepseekLoginBtn": "DeepSeek にログイン",

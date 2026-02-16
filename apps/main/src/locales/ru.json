@@ -452,7 +452,7 @@
     "moveUpTooltip": "Переместить вверх",
     "moveDownTooltip": "Переместить вниз",
     "deleteProviderTooltip": "Удалить провайдера",
-    "deepseekUserTokenLabel": "userToken",
+    "deepseekUserTokenLabel": "Token",
     "deepseekUserTokenPlaceholder": "Введите userToken DeepSeek (или заполните автоматически после входа)",
     "deepseekUserTokenDescription": "Официальный канал DeepSeek использует авторизацию по userToken; ручная вставка также поддерживается.",
     "deepseekLoginBtn": "Войти в DeepSeek",

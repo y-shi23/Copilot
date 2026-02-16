@@ -452,7 +452,7 @@
     "moveUpTooltip": "上移",
     "moveDownTooltip": "下移",
     "deleteProviderTooltip": "删除服务商",
-    "deepseekUserTokenLabel": "userToken",
+    "deepseekUserTokenLabel": "Token",
     "deepseekUserTokenPlaceholder": "输入 DeepSeek userToken（可在登录后自动填充）",
     "deepseekUserTokenDescription": "DeepSeek 官方渠道使用 userToken 鉴权，也支持手动粘贴。",
     "deepseekLoginBtn": "登录 DeepSeek",

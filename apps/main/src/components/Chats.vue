@@ -236,25 +236,24 @@ onUnmounted(() => {
           class="history-table"
           style="width: 100%"
           height="100%"
+          :flexible="false"
         >
           <el-table-column type="selection" width="50" align="center" />
           <el-table-column
             prop="conversationName"
             label="会话名称"
-            min-width="220"
+            min-width="200"
             show-overflow-tooltip
           />
-          <el-table-column prop="assistantCode" label="助手" width="130" align="center" />
           <el-table-column prop="updatedAt" label="更新时间" width="180" align="center" sortable>
             <template #default="scope">{{
               formatDate(scope.row.updatedAt || scope.row.lastmod)
             }}</template>
           </el-table-column>
-          <el-table-column prop="size" label="大小" width="110" align="center" sortable>
+          <el-table-column prop="size" label="大小" width="100" align="center" sortable>
             <template #default="scope">{{ formatBytes(scope.row.size) }}</template>
           </el-table-column>
-          <el-table-column prop="preview" label="预览" min-width="240" show-overflow-tooltip />
-          <el-table-column label="操作" width="170" align="center">
+          <el-table-column label="操作" width="120" align="center" fixed="right">
             <template #default="scope">
               <div class="row-action-group">
                 <el-tooltip content="打开会话" placement="top">
@@ -336,6 +335,8 @@ onUnmounted(() => {
 <style scoped>
 .chats-page-container {
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .chats-content-wrapper {
@@ -343,12 +344,18 @@ onUnmounted(() => {
   flex-direction: column;
   height: 100%;
   gap: 12px;
+  padding: 0 24px 16px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 .chats-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 8px 0;
+  flex-shrink: 0;
 }
 
 .toolbar-title {
@@ -365,17 +372,62 @@ onUnmounted(() => {
 .table-container {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
+}
+
+.table-container :deep(.el-table) {
+  --el-table-border-color: var(--border-primary, #e4e7ed);
+  background-color: transparent;
+}
+
+.table-container :deep(.el-table__inner-wrapper::before) {
+  display: none;
+}
+
+.table-container :deep(.el-table__body-wrapper) {
+  overflow-x: hidden;
+}
+
+.table-container :deep(.el-table__header-wrapper) {
+  overflow-x: hidden;
+}
+
+.table-container :deep(.el-table__fixed-right) {
+  right: 0 !important;
+  background: transparent;
+}
+
+.table-container :deep(.el-table__fixed-right::before) {
+  display: none;
+}
+
+.table-container :deep(.el-table th.el-table__cell) {
+  background-color: transparent;
+}
+
+.table-container :deep(.el-table tr) {
+  background-color: transparent;
+}
+
+.table-container :deep(.el-table tbody tr:hover > td.el-table__cell) {
+  background-color: var(--bg-tertiary);
 }
 
 .row-action-group {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
+}
+
+.row-action-btn {
+  padding: 4px;
 }
 
 .pagination-wrapper {
   display: flex;
   justify-content: flex-end;
+  padding-top: 8px;
+  flex-shrink: 0;
 }
 
 .clean-dialog {
