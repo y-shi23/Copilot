@@ -688,12 +688,9 @@ onBeforeUnmount(() => {
                 <button
                   type="button"
                   class="assistant-row"
-                  @click="startNewSession(assistant.code)"
+                  @click="toggleAssistantExpand(assistant.code)"
                 >
-                  <span
-                    class="assistant-folder"
-                    @click.stop="toggleAssistantExpand(assistant.code)"
-                  >
+                  <span class="assistant-folder">
                     <FolderOpen v-if="expandedAssistantCode === assistant.code" :size="14" />
                     <FolderMinus v-else :size="14" />
                   </span>
@@ -716,9 +713,6 @@ onBeforeUnmount(() => {
                     }`"
                     @click="openHistorySession(session)"
                   >
-                    <span class="assistant-folder session-kind-icon">
-                      <ChatDotRound :size="13" />
-                    </span>
                     <span class="assistant-name session-name" :title="session.conversationName">{{
                       session.conversationName
                     }}</span>
@@ -1089,7 +1083,7 @@ onBeforeUnmount(() => {
 
 .session-item {
   min-height: 34px;
-  grid-template-columns: 16px 1fr auto;
+  grid-template-columns: 1fr auto;
   padding: 7px 10px;
 }
 
@@ -1099,18 +1093,19 @@ onBeforeUnmount(() => {
 }
 
 .session-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   font-weight: 500;
-}
-
-.session-kind-icon {
-  color: var(--text-tertiary);
 }
 
 .session-source {
   font-size: 10px;
   padding: 1px 6px;
   border-radius: 999px;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .session-source.local {
