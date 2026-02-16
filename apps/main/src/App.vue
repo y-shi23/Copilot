@@ -1132,7 +1132,6 @@ onBeforeUnmount(() => {
 
 .sidebar-nav-item {
   padding-top: 6px;
-  border-top: 1px solid color-mix(in srgb, var(--border-primary) 70%, transparent);
 }
 
 .sidebar-nav-item .nav-item {
