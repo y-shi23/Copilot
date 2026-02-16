@@ -13,6 +13,45 @@ import { buildMcpSystemPrompt } from '../utils/mcpPrompt';
 const DEEPSEEK_OFFICIAL_CHANNEL = 'deepseek-official';
 const STAINLESS_HEADER_PREFIX = 'x-stainless-';
 
+function parseDeepSeekUserTokenValue(rawValue: any): string {
+  const source = String(rawValue || '').trim();
+  if (!source) return '';
+
+  try {
+    const parsed = JSON.parse(source);
+    if (typeof parsed === 'string') {
+      return parseDeepSeekUserTokenValue(parsed);
+    }
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const value = (parsed as any).value;
+      if (typeof value === 'string') {
+        return value.trim();
+      }
+      if (value !== undefined && value !== null) {
+        return String(value).trim();
+      }
+    }
+  } catch (_error) {
+    // keep raw source
+  }
+
+  return source;
+}
+
+function resolveDeepSeekToken(rawApiKey: any): string {
+  if (Array.isArray(rawApiKey)) {
+    const pool = [...rawApiKey];
+    while (pool.length > 0) {
+      const index = Math.floor(Math.random() * pool.length);
+      const candidate = pool.splice(index, 1)[0];
+      const token = parseDeepSeekUserTokenValue(candidate);
+      if (token) return token;
+    }
+    return '';
+  }
+  return parseDeepSeekUserTokenValue(rawApiKey);
+}
+
 function removeStainlessHeaders(headersInput: any) {
   const headers = new Headers(headersInput || {});
   const keysToDelete = [];
@@ -180,10 +219,11 @@ export function useAskAi(options: any) {
       let effectiveBaseUrl = base_url.value;
 
       if (providerChannel === DEEPSEEK_OFFICIAL_CHANNEL) {
-        const sampledToken = String(window.api.getRandomItem(effectiveApiKey) || '').trim();
+        const sampledToken = resolveDeepSeekToken(effectiveApiKey);
         if (!sampledToken) {
           throw new Error('DeepSeek userToken 未配置，请先在服务商页面登录 DeepSeek 或手动填写。');
         }
+        effectiveApiKey = sampledToken;
 
         const proxyResult = await window.api.ensureDeepSeekProxy?.();
         if (!proxyResult?.ok || !proxyResult.baseUrl) {
@@ -196,8 +236,13 @@ export function useAskAi(options: any) {
 
       const { OpenAI } = await import('openai');
 
+      const apiKeyProvider = () =>
+        providerChannel === DEEPSEEK_OFFICIAL_CHANNEL
+          ? String(effectiveApiKey || '').trim()
+          : window.api.getRandomItem(effectiveApiKey);
+
       const openaiConfig: any = {
-        apiKey: () => window.api.getRandomItem(effectiveApiKey),
+        apiKey: apiKeyProvider,
         baseURL: effectiveBaseUrl,
         dangerouslyAllowBrowser: true,
         maxRetries: 3,

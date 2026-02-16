@@ -7,6 +7,7 @@ const {
   ipcMain,
   Notification,
   screen,
+  session,
   nativeTheme,
 } = require('electron');
 const fs = require('fs');
@@ -35,7 +36,9 @@ const LAUNCHER_MAX_HEIGHT = 440;
 const DEEPSEEK_PROXY_HOST = '127.0.0.1';
 const DEEPSEEK_PROXY_PREFERRED_PORT = 5001;
 const DEEPSEEK_PROXY_READY_TIMEOUT_MS = 12000;
-const DEEPSEEK_LOGIN_TIMEOUT_MS = 10 * 60 * 1000;
+const DEEPSEEK_LOGIN_URL = 'https://chat.deepseek.com';
+const DEEPSEEK_LOGIN_PARTITION = 'persist:deepseek-login';
+const DEEPSEEK_LOGIN_ACCEPT_LANGUAGE = 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7';
 
 const deepSeekProxyState = {
   started: false,
@@ -47,6 +50,93 @@ const deepSeekProxyState = {
 };
 
 let deepSeekLoginPromise = null;
+let deepSeekLoginHeadersPatched = false;
+
+function extractDeepSeekUserToken(rawToken) {
+  const source = String(rawToken || '').trim();
+  if (!source) return '';
+
+  try {
+    const parsed = JSON.parse(source);
+    if (typeof parsed === 'string') {
+      return extractDeepSeekUserToken(parsed);
+    }
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const value = parsed.value;
+      if (typeof value === 'string') {
+        return value.trim();
+      }
+      if (value !== undefined && value !== null) {
+        return String(value).trim();
+      }
+    }
+  } catch (_error) {
+    // keep raw source
+  }
+
+  return source;
+}
+
+function getDeepSeekLoginUserAgent() {
+  let platformSection = 'X11; Linux x86_64';
+  if (process.platform === 'darwin') {
+    platformSection = 'Macintosh; Intel Mac OS X 10_15_7';
+  } else if (process.platform === 'win32') {
+    platformSection = 'Windows NT 10.0; Win64; x64';
+  }
+  const chromeVersion = String(process.versions.chrome || '124.0.0.0');
+  return `Mozilla/5.0 (${platformSection}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+}
+
+function getDeepSeekSecChUaPlatform() {
+  if (process.platform === 'darwin') return '"macOS"';
+  if (process.platform === 'win32') return '"Windows"';
+  return '"Linux"';
+}
+
+function setHeaderCaseInsensitive(headers, name, value) {
+  const existingKey = Object.keys(headers).find(
+    (key) => String(key).toLowerCase() === name.toLowerCase(),
+  );
+  if (existingKey && existingKey !== name) {
+    delete headers[existingKey];
+  }
+  headers[name] = value;
+}
+
+function deleteHeaderCaseInsensitive(headers, name) {
+  const existingKey = Object.keys(headers).find(
+    (key) => String(key).toLowerCase() === name.toLowerCase(),
+  );
+  if (existingKey) {
+    delete headers[existingKey];
+  }
+}
+
+function installDeepSeekLoginHeaderPatch(targetSession, userAgent) {
+  if (deepSeekLoginHeadersPatched) return;
+  deepSeekLoginHeadersPatched = true;
+
+  targetSession.webRequest.onBeforeSendHeaders(
+    { urls: ['https://chat.deepseek.com/*'] },
+    (details, callback) => {
+      const requestHeaders = { ...(details.requestHeaders || {}) };
+
+      setHeaderCaseInsensitive(requestHeaders, 'User-Agent', userAgent);
+      setHeaderCaseInsensitive(requestHeaders, 'Accept-Language', DEEPSEEK_LOGIN_ACCEPT_LANGUAGE);
+      setHeaderCaseInsensitive(
+        requestHeaders,
+        'Sec-CH-UA',
+        '"Not A(Brand";v="99", "Google Chrome";v="124", "Chromium";v="124"',
+      );
+      setHeaderCaseInsensitive(requestHeaders, 'Sec-CH-UA-Mobile', '?0');
+      setHeaderCaseInsensitive(requestHeaders, 'Sec-CH-UA-Platform', getDeepSeekSecChUaPlatform());
+      deleteHeaderCaseInsensitive(requestHeaders, 'X-Requested-With');
+
+      callback({ cancel: false, requestHeaders });
+    },
+  );
+}
 
 function resolveAppFile(...parts) {
   return path.join(app.getAppPath(), ...parts);
@@ -57,6 +147,10 @@ function resolveMainPreloadPath() {
   return path.isAbsolute(DEV_PRELOAD_PATH)
     ? DEV_PRELOAD_PATH
     : path.resolve(app.getAppPath(), DEV_PRELOAD_PATH);
+}
+
+function resolveDeepSeekLoginPreloadPath() {
+  return resolveAppFile('electron', 'deepseek_login_preload.js');
 }
 
 function resolveMainEntryUrl() {
@@ -596,6 +690,10 @@ async function ensureDeepSeekProxy() {
 }
 
 function createDeepSeekLoginWindow(owner) {
+  const userAgent = getDeepSeekLoginUserAgent();
+  const loginSession = session.fromPartition(DEEPSEEK_LOGIN_PARTITION);
+  installDeepSeekLoginHeaderPatch(loginSession, userAgent);
+  const loginPreloadPath = resolveDeepSeekLoginPreloadPath();
   const loginWindow = new BrowserWindow({
     width: 440,
     height: 760,
@@ -607,12 +705,15 @@ function createDeepSeekLoginWindow(owner) {
     modal: false,
     title: 'DeepSeek Login',
     webPreferences: {
+      preload: fs.existsSync(loginPreloadPath) ? loginPreloadPath : undefined,
       contextIsolation: true,
       sandbox: true,
       nodeIntegration: false,
+      partition: DEEPSEEK_LOGIN_PARTITION,
     },
   });
-  loginWindow.loadURL('https://chat.deepseek.com');
+  loginWindow.webContents.setUserAgent(userAgent);
+  loginWindow.loadURL(DEEPSEEK_LOGIN_URL, { userAgent });
   return loginWindow;
 }
 
@@ -625,16 +726,14 @@ function loginDeepSeek(owner) {
     const loginWindow = createDeepSeekLoginWindow(owner);
     let settled = false;
     let pollTimer = null;
-    let timeoutTimer = null;
+    let latestToken = '';
+    let allowClose = false;
+    let closeGuardInProgress = false;
 
     const cleanup = () => {
       if (pollTimer) {
         clearInterval(pollTimer);
         pollTimer = null;
-      }
-      if (timeoutTimer) {
-        clearTimeout(timeoutTimer);
-        timeoutTimer = null;
       }
     };
 
@@ -651,7 +750,7 @@ function loginDeepSeek(owner) {
     const tryReadUserToken = async () => {
       if (settled || loginWindow.isDestroyed()) return;
       try {
-        const token = await loginWindow.webContents.executeJavaScript(
+        const rawToken = await loginWindow.webContents.executeJavaScript(
           `(() => {
             try {
               const raw = localStorage.getItem('userToken');
@@ -662,17 +761,14 @@ function loginDeepSeek(owner) {
           })()`,
           true,
         );
-        if (token) {
-          settle({ ok: true, userToken: String(token) });
+        const parsedToken = extractDeepSeekUserToken(rawToken);
+        if (parsedToken) {
+          latestToken = parsedToken;
         }
       } catch (_error) {
         // ignore and keep polling
       }
     };
-
-    timeoutTimer = setTimeout(() => {
-      settle({ ok: false, error: 'Timed out waiting for DeepSeek login.' });
-    }, DEEPSEEK_LOGIN_TIMEOUT_MS);
 
     pollTimer = setInterval(() => {
       tryReadUserToken().catch(() => {});
@@ -682,11 +778,32 @@ function loginDeepSeek(owner) {
       tryReadUserToken().catch(() => {});
     });
 
+    loginWindow.on('close', (event) => {
+      if (allowClose || settled) return;
+      event.preventDefault();
+      if (closeGuardInProgress) return;
+      closeGuardInProgress = true;
+
+      tryReadUserToken()
+        .catch(() => {})
+        .finally(() => {
+          allowClose = true;
+          closeGuardInProgress = false;
+          if (!loginWindow.isDestroyed()) {
+            loginWindow.close();
+          }
+        });
+    });
+
     loginWindow.on('closed', () => {
       if (!settled) {
-        settled = true;
-        cleanup();
-        resolve({ ok: false, cancelled: true });
+        if (latestToken) {
+          settle({ ok: true, userToken: latestToken });
+        } else {
+          settled = true;
+          cleanup();
+          resolve({ ok: false, cancelled: true });
+        }
       }
     });
   }).finally(() => {
@@ -771,6 +888,8 @@ function ensureBuildArtifacts() {
   }
 
   const requiredPaths = [
+    resolveAppFile('electron', 'launcher_preload.js'),
+    resolveAppFile('electron', 'deepseek_login_preload.js'),
     resolveAppFile('runtime', 'main', 'index.html'),
     resolveAppFile('runtime', 'main', 'launcher.html'),
     resolveAppFile('runtime', 'preload.js'),
@@ -1108,6 +1227,9 @@ ipcMain.on('launcher:execute', (_event, action = {}) => {
     from: 'launcher',
   });
 });
+
+app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
+app.commandLine.appendSwitch('lang', 'zh-CN');
 
 app.whenReady().then(() => {
   ensureBuildArtifacts();

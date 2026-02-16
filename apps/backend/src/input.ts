@@ -59,6 +59,45 @@ function getRandomItem(list: RandomItemInput): string {
   }
 }
 
+function parseDeepSeekUserTokenValue(rawValue: unknown): string {
+  const source = String(rawValue || '').trim();
+  if (!source) return '';
+
+  try {
+    const parsed = JSON.parse(source);
+    if (typeof parsed === 'string') {
+      return parseDeepSeekUserTokenValue(parsed);
+    }
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const value = (parsed as { value?: unknown }).value;
+      if (typeof value === 'string') {
+        return value.trim();
+      }
+      if (value !== undefined && value !== null) {
+        return String(value).trim();
+      }
+    }
+  } catch (_error) {
+    // keep raw token
+  }
+
+  return source;
+}
+
+function resolveDeepSeekToken(rawApiKey: string | string[]): string {
+  if (Array.isArray(rawApiKey)) {
+    const pool = [...rawApiKey];
+    while (pool.length > 0) {
+      const index = Math.floor(Math.random() * pool.length);
+      const candidate = pool.splice(index, 1)[0];
+      const token = parseDeepSeekUserTokenValue(candidate);
+      if (token) return token;
+    }
+    return '';
+  }
+  return parseDeepSeekUserTokenValue(rawApiKey);
+}
+
 // 函数：处理文本
 async function requestTextOpenAI(
   code: string,
@@ -85,10 +124,11 @@ async function requestTextOpenAI(
   }
 
   if (providerChannel === DEEPSEEK_OFFICIAL_CHANNEL) {
-    const token = getRandomItem(apiKey).trim();
+    const token = resolveDeepSeekToken(apiKey);
     if (!token) {
       throw new Error('DeepSeek userToken 未配置，请先在服务商页面登录 DeepSeek 或手动填写。');
     }
+    apiKey = token;
     if (!ipcRenderer || typeof ipcRenderer.invoke !== 'function') {
       throw new Error('DeepSeek 代理不可用：IPC 环境未就绪。');
     }

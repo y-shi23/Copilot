@@ -807,6 +807,41 @@ function normalizeProviderKeys(rawValue) {
     .filter((item) => item);
 }
 
+function parseDeepSeekUserTokenValue(rawValue) {
+  const source = String(rawValue || '').trim();
+  if (!source) return '';
+
+  try {
+    const parsed = JSON.parse(source);
+    if (typeof parsed === 'string') {
+      return parseDeepSeekUserTokenValue(parsed);
+    }
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const value = parsed.value;
+      if (typeof value === 'string') {
+        return value.trim();
+      }
+      if (value !== undefined && value !== null) {
+        return String(value).trim();
+      }
+    }
+  } catch (_error) {
+    // keep raw input
+  }
+
+  return source;
+}
+
+function normalizeDeepSeekApiKeyField(rawValue) {
+  if (Array.isArray(rawValue)) {
+    const normalized = rawValue
+      .map((item) => parseDeepSeekUserTokenValue(item))
+      .filter((item) => item);
+    return normalized.length <= 1 ? normalized[0] || '' : normalized;
+  }
+  return parseDeepSeekUserTokenValue(rawValue);
+}
+
 async function ensureDeepSeekProxyUrlForSelected(options = { notifyError: true }) {
   if (!isDeepSeekOfficialProvider.value || !selectedProvider.value || !provider_key.value) {
     return selectedProvider.value?.url || '';
@@ -855,8 +890,9 @@ async function loginDeepSeekOfficial() {
       throw new Error(loginResult.error || t('providers.alerts.deepseekLoginFailed'));
     }
 
-    selectedProvider.value.api_key = loginResult.userToken;
-    const saved = await saveSingleProviderSetting('api_key', loginResult.userToken);
+    const normalizedToken = normalizeDeepSeekApiKeyField(loginResult.userToken);
+    selectedProvider.value.api_key = normalizedToken;
+    const saved = await saveSingleProviderSetting('api_key', normalizedToken);
     if (!saved) {
       throw new Error(t('providers.alerts.saveFailed'));
     }
@@ -1099,9 +1135,16 @@ function saveModelOrder() {
 // 对于简单的开关和输入框，使用精确的 saveSetting
 async function saveSingleProviderSetting(key, value) {
   if (!provider_key.value) return false;
+  let effectiveValue = value;
+  if (key === 'api_key' && isDeepSeekOfficialProvider.value) {
+    effectiveValue = normalizeDeepSeekApiKeyField(value);
+    if (selectedProvider.value) {
+      selectedProvider.value.api_key = effectiveValue;
+    }
+  }
   const keyPath = `providers.${provider_key.value}.${key}`;
   try {
-    const result = await window.api.saveSetting(keyPath, value);
+    const result = await window.api.saveSetting(keyPath, effectiveValue);
     if (result && result.success === false) {
       throw new Error(result.message || 'saveSetting failed');
     }
@@ -1115,6 +1158,9 @@ async function saveSingleProviderSetting(key, value) {
 const apiKeyCount = computed(() => {
   if (!selectedProvider.value) {
     return 0;
+  }
+  if (isDeepSeekOfficialProvider.value) {
+    return normalizeDeepSeekApiKeyField(selectedProvider.value.api_key) ? 1 : 0;
   }
   const keys = normalizeProviderKeys(selectedProvider.value.api_key);
   return keys.length;
