@@ -1,3 +1,4 @@
+install: npm i @ziuchen/deepseek-api
 deepseek-api
 An OpenAI-compatible DeepSeek API proxy server implemented with Node.js 20+.
 

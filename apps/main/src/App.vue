@@ -961,7 +961,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 30px;
+  min-height: 32px;
   padding: 2px 4px 8px;
 }
 
@@ -1305,6 +1305,19 @@ onBeforeUnmount(() => {
   border: none;
   box-shadow: none;
   border-radius: 0;
+}
+
+.chat-workspace-content :deep(.model-header) {
+  height: 54px !important;
+  padding: 13px 10px 0 !important;
+}
+
+.chat-workspace-content :deep(.chat-main) {
+  padding: 4px 20px 20px !important;
+}
+
+.chat-workspace-content :deep(.input-footer) {
+  padding: 8px 20px 20px !important;
 }
 
 .settings-workspace-content {
