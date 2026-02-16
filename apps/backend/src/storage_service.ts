@@ -69,7 +69,25 @@ function randomTag() {
 }
 
 function normalizePostgresUrl(raw) {
-  return String(raw || '').trim();
+  let value = String(raw || '').trim();
+  if (!value) return '';
+
+  const hasWrappingQuotes =
+    (value.startsWith('"') && value.endsWith('"')) ||
+    (value.startsWith("'") && value.endsWith("'")) ||
+    (value.startsWith('`') && value.endsWith('`'));
+
+  if (hasWrappingQuotes && value.length > 1) {
+    value = value.slice(1, -1).trim();
+  }
+
+  // Supabase docs commonly use "postgresql://"; pg accepts both.
+  // Canonicalize to a single scheme to avoid duplicate reconnection churn.
+  if (/^postgresql:\/\//i.test(value)) {
+    return value.replace(/^postgresql:\/\//i, 'postgres://');
+  }
+
+  return value;
 }
 
 function extractConversationPreview(sessionObject) {
@@ -1413,4 +1431,5 @@ module.exports = {
   StorageService,
   testPostgresConnection,
   maskPostgresUrl,
+  normalizePostgresUrl,
 };

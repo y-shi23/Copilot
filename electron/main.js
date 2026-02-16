@@ -84,7 +84,16 @@ var require_storage_service = __commonJS({
       return crypto.randomUUID().replace(/-/g, "").slice(0, 8);
     }
     function normalizePostgresUrl(raw) {
-      return String(raw || "").trim();
+      let value = String(raw || "").trim();
+      if (!value) return "";
+      const hasWrappingQuotes = value.startsWith('"') && value.endsWith('"') || value.startsWith("'") && value.endsWith("'") || value.startsWith("`") && value.endsWith("`");
+      if (hasWrappingQuotes && value.length > 1) {
+        value = value.slice(1, -1).trim();
+      }
+      if (/^postgresql:\/\//i.test(value)) {
+        return value.replace(/^postgresql:\/\//i, "postgres://");
+      }
+      return value;
     }
     function extractConversationPreview(sessionObject) {
       const messages = Array.isArray(sessionObject?.chat_show) ? sessionObject.chat_show : Array.isArray(sessionObject?.history) ? sessionObject.history : [];
@@ -517,13 +526,7 @@ var require_storage_service = __commonJS({
       INSERT INTO outbox (entity_type, entity_id, op, payload_json, attempts, next_retry_at, created_at)
       VALUES (?, ?, ?, ?, 0, 0, ?);
       `,
-          [
-            String(entityType),
-            String(entityId),
-            String(op),
-            JSON.stringify(payload ?? {}),
-            nowMs()
-          ]
+          [String(entityType), String(entityId), String(op), JSON.stringify(payload ?? {}), nowMs()]
         );
       }
       getOutboxQueueSize() {
@@ -548,12 +551,15 @@ var require_storage_service = __commonJS({
           clearTimeout(this.syncTimer);
           this.syncTimer = null;
         }
-        this.syncTimer = setTimeout(() => {
-          this.syncTimer = null;
-          this.syncNow().catch((error) => {
-            this.lastError = `Sync failed: ${String(error?.message || error)}`;
-          });
-        }, Math.max(0, Number(delayMs) || 0));
+        this.syncTimer = setTimeout(
+          () => {
+            this.syncTimer = null;
+            this.syncNow().catch((error) => {
+              this.lastError = `Sync failed: ${String(error?.message || error)}`;
+            });
+          },
+          Math.max(0, Number(delayMs) || 0)
+        );
       }
       async syncNow() {
         await this.init();
@@ -594,10 +600,11 @@ var require_storage_service = __commonJS({
               } catch (error) {
                 const attempts = Number(row.attempts || 0) + 1;
                 const delay2 = calcBackoffMs(attempts);
-                this.runMutation(
-                  "UPDATE outbox SET attempts = ?, next_retry_at = ? WHERE seq = ?;",
-                  [attempts, nowMs() + delay2, row.seq]
-                );
+                this.runMutation("UPDATE outbox SET attempts = ?, next_retry_at = ? WHERE seq = ?;", [
+                  attempts,
+                  nowMs() + delay2,
+                  row.seq
+                ]);
                 failed += 1;
                 this.pgConnected = false;
                 this.lastError = String(error?.message || error);
@@ -631,7 +638,9 @@ var require_storage_service = __commonJS({
         try {
           if (row.entity_type === "doc") {
             if (row.op === "delete") {
-              await client.query("DELETE FROM app_docs WHERE id = $1;", [String(payload.id || row.entity_id)]);
+              await client.query("DELETE FROM app_docs WHERE id = $1;", [
+                String(payload.id || row.entity_id)
+              ]);
               return;
             }
             const updatedAt = Number(payload.updatedAt || nowMs());
@@ -643,11 +652,7 @@ var require_storage_service = __commonJS({
           SET data_json = excluded.data_json,
               updated_at = excluded.updated_at;
           `,
-              [
-                String(payload.id || row.entity_id),
-                JSON.stringify(payload.data ?? {}),
-                updatedAt
-              ]
+              [String(payload.id || row.entity_id), JSON.stringify(payload.data ?? {}), updatedAt]
             );
             return;
           }
@@ -827,14 +832,18 @@ var require_storage_service = __commonJS({
           throw new Error("Session payload is required and must be an object.");
         }
         const sessionJson = JSON.stringify(sessionObject);
-        const assistantCode = String(payload.assistantCode || payload.CODE || sessionObject.CODE || "AI");
+        const assistantCode = String(
+          payload.assistantCode || payload.CODE || sessionObject.CODE || "AI"
+        );
         const conversationName = String(
           payload.conversationName || payload.name || sessionObject.conversationName || `Session-${assistantCode}-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}`
         ).trim();
         if (!conversationName) {
           throw new Error("conversationName is required.");
         }
-        const preview = String(payload.preview || extractConversationPreview(sessionObject) || "").trim();
+        const preview = String(
+          payload.preview || extractConversationPreview(sessionObject) || ""
+        ).trim();
         return {
           conversationId: conversationId || crypto.randomUUID(),
           assistantCode,
@@ -1213,7 +1222,8 @@ var require_storage_service = __commonJS({
     module2.exports = {
       StorageService: StorageService2,
       testPostgresConnection: testPostgresConnection2,
-      maskPostgresUrl
+      maskPostgresUrl,
+      normalizePostgresUrl
     };
   }
 });
@@ -1234,7 +1244,10 @@ var fs = require("fs");
 var net = require("net");
 var path = require("path");
 var { pathToFileURL } = require("url");
-var { StorageService, testPostgresConnection } = require_storage_service();
+var {
+  StorageService,
+  testPostgresConnection
+} = require_storage_service();
 var managedWindows = /* @__PURE__ */ new Map();
 var mainWindow = null;
 var launcherWindow = null;

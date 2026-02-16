@@ -599,7 +599,8 @@ const deleteVoice = (voiceToDelete) => {
             <div class="setting-text-content">
               <span class="setting-option-label">Postgres 连接串</span>
               <span class="setting-option-description"
-                >未配置时仅使用本地 SQLite。配置后自动同步到 Postgres。</span
+                >未配置时仅使用本地 SQLite。配置后自动同步到 Postgres（支持 postgres:// 与
+                postgresql://）。</span
               >
             </div>
             <el-input
@@ -611,7 +612,7 @@ const deleteVoice = (voiceToDelete) => {
                 }
               "
               @change="savePostgresUrl"
-              placeholder="postgres://user:password@host:5432/dbname?sslmode=require"
+              placeholder="postgresql://postgres:YOUR_PASSWORD@YOUR_PROJECT_REF.supabase.co:5432/postgres?sslmode=require"
               style="width: 520px; max-width: 100%"
               clearable
             />

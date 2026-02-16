@@ -12,8 +12,9 @@ interface StorageServiceInstance {
   runLegacyMigrations: () => Promise<void>;
 }
 
-const { StorageService } = require('../src/storage_service.ts') as {
+const { StorageService, normalizePostgresUrl } = require('../src/storage_service.ts') as {
   StorageService: new (options: any) => StorageServiceInstance;
+  normalizePostgresUrl: (raw: string) => string;
 };
 
 const createdServices: { service: StorageServiceInstance; tempDir: string }[] = [];
@@ -51,6 +52,18 @@ afterEach(async () => {
 });
 
 describe('storage docs', () => {
+  it('normalizes postgresql scheme and trims wrapping quotes', () => {
+    expect(normalizePostgresUrl(' postgresql://postgres:pwd@db.host:5432/postgres ')).toBe(
+      'postgres://postgres:pwd@db.host:5432/postgres',
+    );
+    expect(normalizePostgresUrl('"postgresql://postgres:pwd@db.host:5432/postgres"')).toBe(
+      'postgres://postgres:pwd@db.host:5432/postgres',
+    );
+    expect(normalizePostgresUrl(" 'postgres://postgres:pwd@db.host:5432/postgres' ")).toBe(
+      'postgres://postgres:pwd@db.host:5432/postgres',
+    );
+  });
+
   it('supports put/get/remove with _rev conflict checks', async () => {
     const service = await createService();
 
