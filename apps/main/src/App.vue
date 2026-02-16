@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// -nocheck
+// @ts-nocheck
 import {
   ref,
   watch,
@@ -7,10 +7,8 @@ import {
   provide,
   onBeforeUnmount,
   computed,
-  h,
   defineAsyncComponent,
 } from 'vue';
-
 import { useI18n } from 'vue-i18n';
 import {
   Bell,
@@ -20,9 +18,17 @@ import {
   Cloud as Cloudy,
   Settings as SettingIcon,
   FileText as Document,
+  ChevronDown,
+  ChevronRight,
+  RefreshCw as Refresh,
+  ArrowLeft,
 } from 'lucide-vue-next';
-import { ElBadge } from 'element-plus'; // 确保引入 ElBadge
+import { ElBadge, ElMessage } from 'element-plus';
+import { useAssistantSessionIndex } from './composables/useAssistantSessionIndex';
 
+const MainChatWorkspace = defineAsyncComponent(
+  () => import('./components/chat/MainChatWorkspace.vue'),
+);
 const Chats = defineAsyncComponent(() => import('./components/Chats.vue'));
 const Prompts = defineAsyncComponent(() => import('./components/Prompts.vue'));
 const Mcp = defineAsyncComponent(() => import('./components/Mcp.vue'));
@@ -30,62 +36,64 @@ const Setting = defineAsyncComponent(() => import('./components/Setting.vue'));
 const Providers = defineAsyncComponent(() => import('./components/Providers.vue'));
 const Skills = defineAsyncComponent(() => import('./components/Skills.vue'));
 
-const { t, locale } = useI18n();
-const tab = ref(0);
-const header_text = ref(t('app.header.chats'));
+const { t } = useI18n();
+const config = ref(null);
+provide('config', config);
 
-const McpToolIcon = {
-  name: 'McpToolIcon',
-  render() {
-    return h(
-      'svg',
-      {
-        xmlns: 'http://www.w3.org/2000/svg',
-        viewBox: '0 0 24 24',
-        fill: 'none',
-        stroke: 'currentColor',
-        'stroke-width': '2',
-        'stroke-linecap': 'round',
-        'stroke-linejoin': 'round',
-      },
-      [
-        h('path', { d: 'm15 12-8.373 8.373a1 1 0 1 1-3-3L12 9' }),
-        h('path', { d: 'm18 15 4-4' }),
-        h('path', {
-          d: 'm21.5 11.5-1.914-1.914A2 2 0 0 1 19 8.172V7l-2.26-2.26a6 6 0 0 0-4.202-1.756L9 2.96l.92.82A6.18 6.18 0 0 1 12 8.4V10l2 2h1.172a2 2 0 0 1 1.414.586L18.5 14.5',
-        }),
-      ],
-    );
-  },
-};
+const appMode = ref('chat'); // chat | settings
+const settingsTab = ref('history'); // history | prompts | mcp | skills | providers | system
+const selectedAssistantCode = ref('');
+const expandedAssistantCode = ref('');
+const sessionLoadRequest = ref(null);
+const sessionRequestNonce = ref(0);
+const activeSessionId = ref('');
+const chatWorkspaceRef = ref(null);
 
-const navItems = computed(() => [
-  { id: 0, label: t('app.tabs.chats'), icon: ChatDotRound },
-  { id: 1, label: t('app.tabs.prompts'), icon: MagicStick },
-  { id: 2, label: t('app.tabs.mcp'), icon: McpToolIcon },
-  { id: 3, label: t('app.tabs.skills'), icon: Collection },
-  { id: 4, label: t('app.tabs.providers'), icon: Cloudy },
-  { id: 5, label: t('app.tabs.settings'), icon: SettingIcon },
+const {
+  enabledAssistants,
+  sessionMap,
+  sessionCountByAssistant,
+  loading: isSessionIndexLoading,
+  errorMessage: sessionIndexError,
+  refreshIndex,
+  loadSessionPayload,
+} = useAssistantSessionIndex(config);
+
+const settingsNavItems = computed(() => [
+  { id: 'history', label: t('mainSettings.tabs.history'), icon: ChatDotRound },
+  { id: 'prompts', label: t('mainSettings.tabs.prompts'), icon: MagicStick },
+  { id: 'mcp', label: t('mainSettings.tabs.mcp'), icon: Collection },
+  { id: 'skills', label: t('mainSettings.tabs.skills'), icon: Collection },
+  { id: 'providers', label: t('mainSettings.tabs.providers'), icon: Cloudy },
+  { id: 'system', label: t('mainSettings.tabs.system'), icon: SettingIcon },
 ]);
 
-const config = ref(null);
+const settingsHeaderText = computed(() => {
+  const item = settingsNavItems.value.find((nav) => nav.id === settingsTab.value);
+  return item?.label || t('mainSettings.tabs.history');
+});
+
 const platformName = String(
   navigator.userAgentData?.platform || navigator.platform || '',
 ).toLowerCase();
 const isMacOS = computed(() => platformName.includes('mac'));
 
-const SIDEBAR_WIDTH_STORAGE_KEY = 'anywhere_main_sidebar_width_v1';
-const SIDEBAR_DEFAULT_WIDTH = 230;
-const SIDEBAR_MIN_WIDTH = 230; // About 15% wider than the previous 220px fixed width.
+const SIDEBAR_WIDTH_STORAGE_KEY = 'anywhere_main_sidebar_width_v2';
+const SIDEBAR_DEFAULT_WIDTH = 286;
+const SIDEBAR_MIN_WIDTH = 240;
 const SIDEBAR_MAX_WIDTH = 480;
-const SIDEBAR_MOBILE_BREAKPOINT = 700;
+const SIDEBAR_MOBILE_BREAKPOINT = 760;
+const CHAT_MOBILE_BREAKPOINT = 700;
 const SIDEBAR_KEYBOARD_STEP = 12;
 
 const viewportWidth = ref(window.innerWidth || 1200);
 const sidebarWidth = ref(SIDEBAR_DEFAULT_WIDTH);
 const isSidebarResizing = ref(false);
+const isMobileSidebarOpen = ref(false);
 
 const isSidebarResizable = computed(() => viewportWidth.value > SIDEBAR_MOBILE_BREAKPOINT);
+const isCompactMobile = computed(() => viewportWidth.value <= CHAT_MOBILE_BREAKPOINT);
+const shouldShowSidebarBody = computed(() => !isCompactMobile.value || isMobileSidebarOpen.value);
 const sidebarMaxWidth = computed(() => {
   const byViewport = Math.floor(viewportWidth.value * 0.46);
   return Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, byViewport));
@@ -106,7 +114,7 @@ const clampSidebarWidth = (rawWidth) => {
 const persistSidebarWidth = () => {
   try {
     localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidth.value));
-  } catch (_error) {
+  } catch {
     // ignore localStorage failures
   }
 };
@@ -158,6 +166,9 @@ const nudgeSidebarWidth = (delta) => {
 
 const handleViewportResize = () => {
   viewportWidth.value = window.innerWidth || 1200;
+  if (!isCompactMobile.value && !isMobileSidebarOpen.value) {
+    isMobileSidebarOpen.value = true;
+  }
   if (!isSidebarResizable.value) {
     stopSidebarResize();
     return;
@@ -171,10 +182,6 @@ const applyMainVibrancyBodyClass = () => {
   document.body?.classList.toggle('macos-vibrancy-main', enableNativeVibrancy);
 };
 
-//将 config provide 给所有子组件
-provide('config', config);
-
-// This watcher is now very effective because of the CSS variables and shared state.
 watch(
   () => config.value?.isDarkMode,
   (isDark) => {
@@ -188,83 +195,142 @@ watch(
   { deep: true },
 );
 
-const handleGlobalEsc = (e) => {
-  if (e.key === 'Escape') {
-    // 1. 优先检查图片预览组件 (Image Viewer)
-    const imageViewerCloseBtn = document.querySelector('.el-image-viewer__close');
-    if (imageViewerCloseBtn && window.getComputedStyle(imageViewerCloseBtn).display !== 'none') {
-      e.stopPropagation(); // 阻止 uTools 退出
-      imageViewerCloseBtn.click(); // 手动触发关闭
+const createSessionRequest = (payload) => {
+  sessionRequestNonce.value += 1;
+  sessionLoadRequest.value = {
+    nonce: sessionRequestNonce.value,
+    ...payload,
+  };
+};
+
+const startNewSession = (assistantCode) => {
+  if (!assistantCode) return;
+  selectedAssistantCode.value = assistantCode;
+  expandedAssistantCode.value = assistantCode;
+  createSessionRequest({ mode: 'new', assistantCode });
+  if (isCompactMobile.value) {
+    isMobileSidebarOpen.value = false;
+  }
+};
+
+const toggleAssistantExpand = (assistantCode) => {
+  if (expandedAssistantCode.value === assistantCode) {
+    expandedAssistantCode.value = '';
+    return;
+  }
+  expandedAssistantCode.value = assistantCode;
+};
+
+const openHistorySession = async (sessionItem) => {
+  activeSessionId.value = sessionItem.id;
+  try {
+    const payload = await loadSessionPayload(sessionItem);
+    const assistantCode = payload.assistantCode || sessionItem.assistantCode;
+    selectedAssistantCode.value = assistantCode;
+    expandedAssistantCode.value = assistantCode;
+    createSessionRequest({
+      mode: 'load',
+      assistantCode,
+      conversationName: payload.conversationName,
+      sessionData: payload.sessionData,
+    });
+  } catch (error) {
+    console.error('[Main] Failed to load session:', error);
+    ElMessage.error(t('mainChat.errors.loadSessionFailed'));
+  } finally {
+    activeSessionId.value = '';
+    if (isCompactMobile.value) {
+      isMobileSidebarOpen.value = false;
+    }
+  }
+};
+
+const formatSessionTime = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '' : date.toLocaleString();
+};
+
+const getAssistantIcon = (assistantCode) => {
+  return config.value?.prompts?.[assistantCode]?.icon || '';
+};
+
+const openSettingsMode = async () => {
+  try {
+    await chatWorkspaceRef.value?.flushSession?.();
+  } catch {
+    // ignore flush errors while changing mode
+  }
+  isMobileSidebarOpen.value = true;
+  appMode.value = 'settings';
+};
+
+const backToChatMode = () => {
+  if (isCompactMobile.value) {
+    isMobileSidebarOpen.value = false;
+  }
+  appMode.value = 'chat';
+};
+
+const selectSettingsTab = (tabId) => {
+  settingsTab.value = tabId;
+  if (isCompactMobile.value) {
+    isMobileSidebarOpen.value = false;
+  }
+};
+
+const toggleMobileSidebar = () => {
+  if (!isCompactMobile.value) return;
+  isMobileSidebarOpen.value = !isMobileSidebarOpen.value;
+};
+
+watch(
+  enabledAssistants,
+  (assistants) => {
+    if (!assistants.length) {
+      selectedAssistantCode.value = '';
+      expandedAssistantCode.value = '';
       return;
     }
 
-    // 2. 检查可见的弹窗遮罩层 (Dialog Overlays)
-    const overlays = Array.from(document.querySelectorAll('.el-overlay')).filter((el) => {
-      return el.style.display !== 'none' && !el.classList.contains('is-hidden');
+    const hasSelected = assistants.some((item) => item.code === selectedAssistantCode.value);
+    if (!hasSelected) {
+      const firstCode = assistants[0].code;
+      selectedAssistantCode.value = firstCode;
+      expandedAssistantCode.value = firstCode;
+      createSessionRequest({ mode: 'new', assistantCode: firstCode });
+    }
+  },
+  { immediate: true },
+);
+
+watch(appMode, (mode) => {
+  if (isCompactMobile.value) {
+    isMobileSidebarOpen.value = mode === 'settings';
+  } else {
+    isMobileSidebarOpen.value = true;
+  }
+
+  if (mode === 'chat') {
+    refreshIndex({ force: true }).catch((error) => {
+      console.error('[Main] Failed to refresh sessions when entering chat mode:', error);
     });
-
-    if (overlays.length > 0) {
-      // 找到层级最高（最上层）的弹窗
-      const topOverlay = overlays.reduce((max, current) => {
-        return (parseInt(window.getComputedStyle(current).zIndex) || 0) >
-          (parseInt(window.getComputedStyle(max).zIndex) || 0)
-          ? current
-          : max;
-      });
-
-      // 阻止 uTools 退出
-      e.stopPropagation();
-
-      // A. 尝试点击右上角的关闭(X)按钮
-      const headerBtn = topOverlay.querySelector(
-        '.el-dialog__headerbtn, .el-message-box__headerbtn',
-      );
-      if (headerBtn) {
-        headerBtn.click();
-        return;
-      }
-
-      // B. 尝试点击底部的取消/关闭按钮
-      const footer = topOverlay.querySelector('.el-dialog__footer, .el-message-box__btns');
-      if (footer) {
-        // 特殊处理 Setting.vue 中备份管理的布局 (关闭按钮在 .footer-right)
-        const rightBtn = footer.querySelector('.footer-right .el-button');
-        if (rightBtn) {
-          rightBtn.click();
-          return;
-        }
-        // 通用处理：点击底部第一个按钮 (通常是 取消/Cancel)
-        const buttons = footer.querySelectorAll('.el-button');
-        if (buttons.length > 0) {
-          buttons[0].click();
-          return;
-        }
-      }
-    }
   }
-};
+});
 
-const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-const handleSystemThemeChange = (e) => {
-  // 只有当设置为 "system" 时才响应
-  if (config.value?.themeMode === 'system') {
-    const isDark = e.matches;
-    if (config.value.isDarkMode !== isDark) {
-      config.value.isDarkMode = isDark;
-      // 同步更新到数据库，确保独立窗口打开时也是正确的颜色
-      if (window.api && window.api.saveSetting) {
-        window.api.saveSetting('isDarkMode', isDark);
-      }
-    }
-  }
-};
+watch(
+  isCompactMobile,
+  (mobile) => {
+    isMobileSidebarOpen.value = mobile ? appMode.value === 'settings' : true;
+  },
+  { immediate: true },
+);
 
 const showDocDialog = ref(false);
 const docLoading = ref(false);
 const currentDocContent = ref('');
 const activeDocIndex = ref('0');
 
-// 文档列表配置，增加 i18nKey 用于动态标题，lastUpdated 动态获取
 const docList = ref([
   { i18nKey: 'doc.titles.chat', file: 'chat_doc.md', lastUpdated: null },
   { i18nKey: 'doc.titles.ai', file: 'ai_doc.md', lastUpdated: null },
@@ -274,10 +340,6 @@ const docList = ref([
   { i18nKey: 'doc.titles.setting', file: 'setting_doc.md', lastUpdated: null },
 ]);
 
-// 阅读状态管理
-const readStatusKey = 'anywhere_doc_last_read';
-const docReadMap = ref({});
-
 let markedParserPromise = null;
 const getMarkedParser = async () => {
   if (!markedParserPromise) {
@@ -286,21 +348,8 @@ const getMarkedParser = async () => {
   return markedParserPromise;
 };
 
-// 初始化读取状态
-const loadReadStatus = () => {
-  try {
-    const stored = localStorage.getItem(readStatusKey);
-    docReadMap.value = stored ? JSON.parse(stored) : {};
-  } catch (e) {
-    docReadMap.value = {};
-  }
-};
-
-// 预取所有文档的元数据（更新时间）
 const fetchAllDocsMetadata = async () => {
-  // 使用镜像代理
   const baseUrl = 'https://raw.githubusercontent.com/Komorebi-yaodong/Anywhere/main/docs/';
-  // 正则匹配：**文档更新时间：2026年1月28日**
   const dateRegex = /\*\*文档更新时间：(\d{4})年(\d{1,2})月(\d{1,2})日\*\*/;
 
   const promises = docList.value.map(async (doc) => {
@@ -311,11 +360,9 @@ const fetchAllDocsMetadata = async () => {
 
       const match = text.match(dateRegex);
       if (match) {
-        // 转换为兼容格式 YYYY/MM/DD 00:00:00
         const year = match[1];
         const month = match[2];
         const day = match[3];
-        // 假设更新时间为当天的开始，确保只要用户在当天任意时刻阅读过，updatedTime(00:00) <= readTime(XX:XX) 就会不显示红点
         doc.lastUpdated = `${year}/${month}/${day} 00:00:00`;
       }
     } catch (e) {
@@ -326,43 +373,32 @@ const fetchAllDocsMetadata = async () => {
   await Promise.all(promises);
 };
 
-// 检查是否有更新
 const checkDocHasUpdate = (index) => {
   const doc = docList.value[index];
   if (!doc || !doc.lastUpdated) return false;
 
-  // 从配置中读取状态
   const readMap = config.value?.docReadStatus || {};
   const lastRead = readMap[doc.file];
-
-  // 如果从未读过，或者更新时间晚于阅读时间，显示红点
   if (!lastRead) return true;
 
-  // Date比较
   const updateTime = new Date(doc.lastUpdated).getTime();
   const readTime = new Date(lastRead).getTime();
 
   return updateTime > readTime;
 };
 
-// 检查是否有任意文档更新（用于铃铛图标）
 const hasAnyUpdate = computed(() => {
   return docList.value.some((_, index) => checkDocHasUpdate(index));
 });
 
-// 标记文档为已读
 const markDocAsRead = async (filename) => {
   if (!config.value) return;
-
-  // 1. 初始化对象 (如果不存在)
   if (!config.value.docReadStatus) {
     config.value.docReadStatus = {};
   }
 
-  // 2. 更新内存中的配置 (触发界面响应)
   config.value.docReadStatus[filename] = new Date().toISOString();
 
-  // 3. 持久化保存到 uTools 数据库，这里保存整个 docReadStatus 对象
   try {
     await window.api.saveSetting(
       'docReadStatus',
@@ -374,27 +410,21 @@ const markDocAsRead = async (filename) => {
 };
 
 const fetchAndParseDoc = async (filename) => {
-  // 标记当前文档为已读
   markDocAsRead(filename);
 
   docLoading.value = true;
   try {
-    // 使用 GitHub 镜像代理地址
     const baseUrl = 'https://raw.githubusercontent.com/Komorebi-yaodong/Anywhere/main/docs/';
     const response = await fetch(`${baseUrl}${filename}`);
     if (!response.ok) throw new Error('Network response was not ok');
 
     let text = await response.text();
-
-    // 图片路径修正逻辑 (同样使用镜像)
     const imgBaseUrl = 'https://raw.githubusercontent.com/Komorebi-yaodong/Anywhere/main/image/';
 
-    // 替换 Windows 风格反斜杠路径 (..\image\) 和 Unix 风格路径 (../image/)
     text = text.replace(
       /!\[(.*?)\]\((\.\.[\\/])?image[\\/](.*?)\)/g,
-      (match, alt, prefix, filename) => {
-        // 对文件名进行 encodeURI 处理，防止中文乱码
-        return `![${alt}](${imgBaseUrl}${encodeURIComponent(filename)})`;
+      (_match, alt, _prefix, imgFile) => {
+        return `![${alt}](${imgBaseUrl}${encodeURIComponent(imgFile)})`;
       },
     );
 
@@ -408,7 +438,6 @@ const fetchAndParseDoc = async (filename) => {
   }
 };
 
-// 监听文档切换
 watch(activeDocIndex, (newIndex) => {
   const doc = docList.value[newIndex];
   if (doc) {
@@ -416,15 +445,11 @@ watch(activeDocIndex, (newIndex) => {
   }
 });
 
-// 打开弹窗时加载第一个文档，并更新阅读状态
 const openHelpDialog = () => {
   showDocDialog.value = true;
-
   const index = parseInt(activeDocIndex.value) || 0;
   const targetDoc = docList.value[index];
-
   if (targetDoc) {
-    // 无论是首次打开还是切换，都重新加载（可能内容有变）并标记已读
     fetchAndParseDoc(targetDoc.file);
   }
 };
@@ -433,52 +458,105 @@ const handleDocLinks = (event) => {
   const target = event.target.closest('a');
   if (!target) return;
 
-  // 阻止默认跳转（防止在当前窗口打开导致页面白屏）
   event.preventDefault();
-
   const href = target.getAttribute('href');
   if (!href) return;
 
-  // 1. 处理 HTTP/HTTPS 外部链接 -> 调用系统浏览器打开
   if (href.startsWith('http://') || href.startsWith('https://')) {
     if (window.utools && window.utools.shellOpenExternal) {
       window.utools.shellOpenExternal(href);
     } else {
-      window.open(href, '_blank'); // 兜底方案
+      window.open(href, '_blank');
     }
     return;
   }
 
-  // 2. 处理文档间跳转 (例如: ./mcp_doc.md) -> 切换左侧菜单
   if (href.endsWith('.md')) {
-    // 提取文件名 (兼容 ./xxx.md 或 xxx.md)
-    const filename = href.split(/[/\\]/).pop();
+    const filename = href.split(/[\/\\]/).pop();
     const targetIndex = docList.value.findIndex((doc) => doc.file === filename);
-
     if (targetIndex !== -1) {
       activeDocIndex.value = String(targetIndex);
     }
   }
 };
 
+const handleGlobalEsc = (e) => {
+  if (e.key !== 'Escape') return;
+
+  const imageViewerCloseBtn = document.querySelector('.el-image-viewer__close');
+  if (imageViewerCloseBtn && window.getComputedStyle(imageViewerCloseBtn).display !== 'none') {
+    e.stopPropagation();
+    imageViewerCloseBtn.click();
+    return;
+  }
+
+  const overlays = Array.from(document.querySelectorAll('.el-overlay')).filter((el) => {
+    return el.style.display !== 'none' && !el.classList.contains('is-hidden');
+  });
+
+  if (overlays.length > 0) {
+    const topOverlay = overlays.reduce((max, current) => {
+      return (parseInt(window.getComputedStyle(current).zIndex) || 0) >
+        (parseInt(window.getComputedStyle(max).zIndex) || 0)
+        ? current
+        : max;
+    });
+
+    e.stopPropagation();
+
+    const headerBtn = topOverlay.querySelector('.el-dialog__headerbtn, .el-message-box__headerbtn');
+    if (headerBtn) {
+      headerBtn.click();
+      return;
+    }
+
+    const footer = topOverlay.querySelector('.el-dialog__footer, .el-message-box__btns');
+    if (footer) {
+      const rightBtn = footer.querySelector('.footer-right .el-button');
+      if (rightBtn) {
+        rightBtn.click();
+        return;
+      }
+      const buttons = footer.querySelectorAll('.el-button');
+      if (buttons.length > 0) {
+        buttons[0].click();
+      }
+    }
+  }
+};
+
+const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+const handleSystemThemeChange = (e) => {
+  if (config.value?.themeMode === 'system') {
+    const isDark = e.matches;
+    if (config.value.isDarkMode !== isDark) {
+      config.value.isDarkMode = isDark;
+      if (window.api && window.api.saveSetting) {
+        window.api.saveSetting('isDarkMode', isDark);
+      }
+    }
+  }
+};
+
 onMounted(async () => {
   applyMainVibrancyBodyClass();
+
   try {
     const storedWidth = Number(localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
     if (Number.isFinite(storedWidth)) {
       sidebarWidth.value = storedWidth;
     }
-  } catch (_error) {
+  } catch {
     // ignore localStorage failures
   }
+
   handleViewportResize();
   window.addEventListener('resize', handleViewportResize);
-
-  // 异步获取文档更新时间，获取后会自动更新UI红点
-  fetchAllDocsMetadata();
-
   window.addEventListener('keydown', handleGlobalEsc, true);
   mediaQuery.addEventListener('change', handleSystemThemeChange);
+
+  fetchAllDocsMetadata();
+
   try {
     const result = await window.api.getConfig();
     if (result && result.config) {
@@ -499,7 +577,6 @@ onMounted(async () => {
     config.value = JSON.parse(JSON.stringify(window.api.defaultConfig.config));
   }
 
-  // Immediately apply dark mode on mount
   if (config.value?.isDarkMode) {
     document.documentElement.classList.add('dark');
   } else {
@@ -516,27 +593,6 @@ onBeforeUnmount(() => {
   document.body?.classList.remove('macos-vibrancy-main');
   document.body?.classList.remove('sidebar-resizing');
 });
-
-function changeTab(newTab) {
-  tab.value = newTab;
-  updateHeaderText();
-}
-
-function updateHeaderText() {
-  const tabMap = {
-    0: 'app.header.chats',
-    1: 'app.header.prompts',
-    2: 'app.header.mcp',
-    3: 'app.header.skills',
-    4: 'app.header.providers',
-    5: 'app.header.settings',
-  };
-  header_text.value = t(tabMap[tab.value]);
-}
-
-watch(locale, () => {
-  updateHeaderText();
-});
 </script>
 
 <template>
@@ -546,12 +602,45 @@ watch(locale, () => {
     :style="rootInlineStyles"
   >
     <el-container class="common-layout">
-      <el-aside class="app-sidebar">
+      <el-aside class="app-sidebar" :class="{ 'mobile-collapsed': !shouldShowSidebarBody }">
         <div class="sidebar-panel">
-          <div class="brand-section" :class="{ 'window-drag-region': isMacOS }">
-            <div class="brand-left-spacer" aria-hidden="true"></div>
+          <div class="sidebar-top-row" :class="{ 'window-drag-region': isMacOS }">
+            <button
+              v-if="appMode === 'settings'"
+              class="back-chat-btn rounded-action-btn no-drag"
+              type="button"
+              @click="backToChatMode"
+            >
+              <ArrowLeft :size="15" />
+              <span>{{ t('mainSettings.backToChat') }}</span>
+            </button>
+
+            <div v-else class="chat-top-actions no-drag">
+              <button
+                v-if="isCompactMobile"
+                type="button"
+                class="mobile-toggle-btn rounded-action-btn"
+                @click="toggleMobileSidebar"
+              >
+                {{
+                  shouldShowSidebarBody
+                    ? t('mainChat.actions.hideSidebar')
+                    : t('mainChat.actions.showSidebar')
+                }}
+              </button>
+              <el-tooltip :content="t('mainChat.actions.refresh')" placement="bottom">
+                <button
+                  type="button"
+                  class="icon-btn circle-action-btn"
+                  @click="refreshIndex({ force: true })"
+                >
+                  <Refresh :size="15" :class="{ spinning: isSessionIndexLoading }" />
+                </button>
+              </el-tooltip>
+            </div>
+
             <el-tooltip :content="t('app.header.help') || '使用指南'" placement="right">
-              <el-button class="help-button no-drag" text @click="openHelpDialog">
+              <el-button class="help-button circle-action-btn no-drag" text @click="openHelpDialog">
                 <el-badge :is-dot="hasAnyUpdate" class="bell-badge">
                   <el-icon :size="18"><Bell /></el-icon>
                 </el-badge>
@@ -559,21 +648,121 @@ watch(locale, () => {
             </el-tooltip>
           </div>
 
-          <nav class="sidebar-nav">
-            <button
-              v-for="item in navItems"
-              :key="item.id"
-              type="button"
-              class="nav-item"
-              @click="changeTab(item.id)"
-              :class="{ 'active-tab': tab === item.id }"
-            >
-              <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
-              <span class="nav-label">{{ item.label }}</span>
-            </button>
-          </nav>
+          <template v-if="appMode === 'chat'">
+            <div v-show="shouldShowSidebarBody" class="assistant-sidebar no-drag">
+              <div
+                v-for="assistant in enabledAssistants"
+                :key="assistant.code"
+                class="assistant-group"
+                :class="{ active: selectedAssistantCode === assistant.code }"
+              >
+                <button
+                  type="button"
+                  class="assistant-row"
+                  @click="startNewSession(assistant.code)"
+                >
+                  <span
+                    class="assistant-chevron"
+                    @click.stop="toggleAssistantExpand(assistant.code)"
+                  >
+                    <ChevronDown v-if="expandedAssistantCode === assistant.code" :size="14" />
+                    <ChevronRight v-else :size="14" />
+                  </span>
+
+                  <img
+                    v-if="getAssistantIcon(assistant.code)"
+                    :src="getAssistantIcon(assistant.code)"
+                    class="assistant-icon"
+                    alt="assistant"
+                  />
+                  <span v-else class="assistant-icon assistant-icon-fallback">{{
+                    assistant.code[0]
+                  }}</span>
+
+                  <span class="assistant-name" :title="assistant.code">{{ assistant.code }}</span>
+                  <span class="assistant-count">{{
+                    sessionCountByAssistant[assistant.code] || 0
+                  }}</span>
+                </button>
+
+                <div v-if="expandedAssistantCode === assistant.code" class="assistant-sessions">
+                  <button
+                    v-for="session in sessionMap[assistant.code] || []"
+                    :key="session.id"
+                    type="button"
+                    class="session-item"
+                    :class="{ 'is-loading': activeSessionId === session.id }"
+                    @click="openHistorySession(session)"
+                  >
+                    <div class="session-main-line">
+                      <span class="session-name" :title="session.conversationName">{{
+                        session.conversationName
+                      }}</span>
+                      <span class="session-source" :class="session.source">{{
+                        session.source === 'local'
+                          ? t('mainChat.sources.local')
+                          : t('mainChat.sources.cloud')
+                      }}</span>
+                    </div>
+                    <div class="session-meta-line">
+                      <span class="session-time">{{ formatSessionTime(session.lastmod) }}</span>
+                      <span
+                        v-if="session.preview"
+                        class="session-preview"
+                        :title="session.preview"
+                        >{{ session.preview }}</span
+                      >
+                    </div>
+                  </button>
+
+                  <div
+                    v-if="(sessionMap[assistant.code] || []).length === 0"
+                    class="assistant-empty-sessions"
+                  >
+                    {{ t('mainChat.empty.assistantSessions') }}
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="enabledAssistants.length === 0" class="assistant-empty-state">
+                {{ t('mainChat.empty.assistants') }}
+              </div>
+
+              <div v-if="sessionIndexError" class="assistant-error">
+                {{ t('mainChat.errors.indexFailed') }}: {{ sessionIndexError }}
+              </div>
+            </div>
+
+            <div v-show="shouldShowSidebarBody" class="sidebar-bottom no-drag">
+              <button
+                class="mode-switch-btn rounded-action-btn"
+                type="button"
+                @click="openSettingsMode"
+              >
+                <SettingIcon :size="15" />
+                <span>{{ t('mainSettings.entry') }}</span>
+              </button>
+            </div>
+          </template>
+
+          <template v-else>
+            <nav v-show="shouldShowSidebarBody" class="sidebar-nav no-drag">
+              <button
+                v-for="item in settingsNavItems"
+                :key="item.id"
+                type="button"
+                class="nav-item"
+                @click="selectSettingsTab(item.id)"
+                :class="{ 'active-tab': settingsTab === item.id }"
+              >
+                <el-icon class="nav-icon"><component :is="item.icon" /></el-icon>
+                <span class="nav-label">{{ item.label }}</span>
+              </button>
+            </nav>
+          </template>
         </div>
       </el-aside>
+
       <div
         v-if="isSidebarResizable"
         class="sidebar-resize-handle no-drag"
@@ -591,20 +780,31 @@ watch(locale, () => {
       ></div>
 
       <el-main class="workspace-main" v-if="config">
-        <header class="workspace-header" :class="{ 'window-drag-region': isMacOS }">
-          <el-text class="header-title-text">{{ header_text }}</el-text>
-        </header>
-        <div class="workspace-content">
-          <Chats v-if="tab === 0" key="chats" />
-          <Prompts v-if="tab === 1" key="prompts" />
-          <Mcp v-if="tab === 2" key="mcp" />
-          <Skills v-if="tab === 3" key="skills" />
-          <Providers v-if="tab === 4" key="providers" />
-          <Setting v-if="tab === 5" key="settings" />
-        </div>
+        <template v-if="appMode === 'chat'">
+          <div class="workspace-content chat-workspace-content">
+            <MainChatWorkspace
+              ref="chatWorkspaceRef"
+              :assistant-code="selectedAssistantCode"
+              :session-load-request="sessionLoadRequest"
+            />
+          </div>
+        </template>
+
+        <template v-else>
+          <header class="workspace-header" :class="{ 'window-drag-region': isMacOS }">
+            <el-text class="header-title-text">{{ settingsHeaderText }}</el-text>
+          </header>
+          <div class="workspace-content settings-workspace-content">
+            <Chats v-if="settingsTab === 'history'" key="history" />
+            <Prompts v-if="settingsTab === 'prompts'" key="prompts" />
+            <Mcp v-if="settingsTab === 'mcp'" key="mcp" />
+            <Skills v-if="settingsTab === 'skills'" key="skills" />
+            <Providers v-if="settingsTab === 'providers'" key="providers" />
+            <Setting v-if="settingsTab === 'system'" key="system" />
+          </div>
+        </template>
       </el-main>
 
-      <!-- 帮助文档弹窗 -->
       <el-dialog
         v-model="showDocDialog"
         :title="t('doc.title')"
@@ -624,7 +824,6 @@ watch(locale, () => {
                 <el-icon><Document /></el-icon>
                 <span class="menu-item-text">
                   {{ t(doc.i18nKey) }}
-                  <!-- 文档具体红点 -->
                   <span v-if="checkDocHasUpdate(index)" class="doc-update-dot"></span>
                 </span>
               </el-menu-item>
@@ -661,7 +860,7 @@ watch(locale, () => {
   --sidebar-vibrancy-tint: rgba(255, 255, 255, 0.1);
   --sidebar-fallback-tint: rgba(247, 246, 244, 0.62);
   --sidebar-vibrancy-divider: color-mix(in srgb, var(--border-primary) 62%, transparent);
-  --sidebar-region-width: 268px;
+  --sidebar-region-width: 286px;
   width: 100%;
   height: 100%;
   display: flex;
@@ -740,77 +939,287 @@ watch(locale, () => {
 
 .sidebar-panel {
   height: 100%;
-  padding: 10px 8px 10px 8px;
+  padding: 10px 8px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   background-color: transparent;
 }
 
-.sidebar-resize-handle {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: var(--sidebar-region-width);
-  width: 12px;
-  transform: translateX(-50%);
-  z-index: 3;
-  background: transparent;
-  border: none;
-  padding: 0;
-  margin: 0;
-  cursor: col-resize;
-}
-
-.sidebar-resize-handle::before {
-  content: '';
-  position: absolute;
-  top: 12px;
-  bottom: 12px;
-  left: 50%;
-  width: 1px;
-  transform: translateX(-50%);
-  background-color: color-mix(in srgb, var(--border-primary) 78%, transparent);
-  transition:
-    background-color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.sidebar-resize-handle:hover::before,
-.sidebar-resize-handle.is-resizing::before,
-.sidebar-resize-handle:focus-visible::before {
-  background-color: color-mix(in srgb, var(--text-accent) 74%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-accent) 16%, transparent);
-}
-
-.sidebar-resize-handle:focus-visible {
-  outline: none;
-}
-
-.brand-section {
+.sidebar-top-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   min-height: 34px;
-  padding: 2px 2px 10px 4px;
+  padding: 2px 4px 8px;
 }
 
-.brand-left-spacer {
-  width: 70px;
-  min-width: 70px;
-  height: 1px;
+.back-chat-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  padding: 0 12px;
+  height: 32px;
+  cursor: pointer;
+}
+
+.back-chat-btn:hover {
+  color: var(--text-primary);
+}
+
+.chat-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.icon-btn:hover {
+  color: var(--text-primary);
+}
+
+.mobile-toggle-btn {
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.spinning {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .help-button {
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-md);
+  width: 32px;
+  height: 32px;
   color: var(--text-secondary);
+  border: none;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .help-button:hover {
   color: var(--text-primary);
-  background-color: rgba(255, 255, 255, 0.65);
+}
+
+.assistant-sidebar {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 2px 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.assistant-group {
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+}
+
+.assistant-group.active {
+  background-color: rgba(255, 255, 255, 0.52);
+}
+
+.assistant-row {
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: 16px 22px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.assistant-row:hover {
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.62);
+}
+
+.assistant-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+}
+
+.assistant-icon {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.assistant-icon-fallback {
+  background: color-mix(in srgb, var(--bg-tertiary) 80%, transparent);
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.assistant-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.assistant-count {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  padding: 0 6px;
+}
+
+.assistant-sessions {
+  margin-top: 2px;
+  padding: 0 8px 8px 38px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.session-item {
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  padding: 7px 8px;
+  transition: all 0.18s ease;
+}
+
+.session-item:hover {
+  border-color: color-mix(in srgb, var(--border-primary) 65%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 74%, transparent);
+}
+
+.session-item.is-loading {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
+.session-main-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.session-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.session-source {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.session-source.local {
+  color: #246cbb;
+  background: rgba(42, 120, 207, 0.12);
+}
+
+.session-source.cloud {
+  color: #0e7a5b;
+  background: rgba(18, 147, 104, 0.12);
+}
+
+.session-meta-line {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-time,
+.session-preview {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  line-height: 1.3;
+}
+
+.session-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistant-empty-sessions,
+.assistant-empty-state,
+.assistant-error {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  padding: 6px 10px;
+}
+
+.assistant-error {
+  color: #cf5c5c;
+}
+
+.sidebar-bottom {
+  padding-top: 6px;
+  border-top: 1px solid color-mix(in srgb, var(--border-primary) 70%, transparent);
+}
+
+.mode-switch-btn {
+  width: 100%;
+  height: 36px;
+  border: none;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.mode-switch-btn:hover {
+  color: var(--text-primary);
 }
 
 .sidebar-nav {
@@ -853,11 +1262,6 @@ watch(locale, () => {
   box-shadow: none;
 }
 
-.nav-item:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--text-accent) 45%, transparent);
-  outline-offset: 1px;
-}
-
 .nav-icon {
   font-size: 16px;
   width: 18px;
@@ -873,6 +1277,42 @@ watch(locale, () => {
   letter-spacing: 0.01em;
 }
 
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--sidebar-region-width);
+  width: 12px;
+  transform: translateX(-50%);
+  z-index: 3;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: col-resize;
+}
+
+.sidebar-resize-handle::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background-color: color-mix(in srgb, var(--border-primary) 78%, transparent);
+  transition:
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.sidebar-resize-handle:hover::before,
+.sidebar-resize-handle.is-resizing::before,
+.sidebar-resize-handle:focus-visible::before {
+  background-color: color-mix(in srgb, var(--text-accent) 74%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-accent) 16%, transparent);
+}
+
 .workspace-main {
   padding: 0;
   margin: 0;
@@ -886,65 +1326,112 @@ watch(locale, () => {
   border: 1px solid var(--workspace-edge-color);
   border-left: none;
   background-color: var(--workspace-surface-bg);
-  box-shadow: none;
 }
 
 .workspace-header {
-  padding: 24px 24px 14px;
+  padding: 20px 24px 12px;
   flex-shrink: 0;
   background-color: var(--workspace-surface-bg);
+}
+
+.header-title-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.01em;
 }
 
 .workspace-content {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 10px 10px 10px;
+  padding: 10px;
   background-color: var(--workspace-surface-bg);
 }
 
-html.dark .app-sidebar {
+.chat-workspace-content {
+  padding: 0;
+}
+
+.chat-workspace-content :deep(main) {
+  height: 100%;
+}
+
+.settings-workspace-content {
+  padding-top: 0;
+}
+
+.doc-container {
+  display: flex;
+  min-height: 60vh;
+}
+
+.doc-sidebar {
+  width: 240px;
+  border-right: 1px solid var(--border-primary);
+  background-color: var(--bg-secondary);
+}
+
+.doc-content {
+  flex: 1;
+  padding: 12px 16px;
+  background-color: var(--bg-primary);
+}
+
+.doc-menu {
+  border-right: none;
   background-color: transparent;
 }
 
-html.dark .help-button {
-  color: #b9b7b4;
+.menu-item-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
-html.dark .help-button:hover {
-  color: #f0eeea;
-  background-color: rgba(255, 255, 255, 0.1);
+.doc-update-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--text-accent);
 }
 
-html.dark .nav-item {
+.markdown-body :deep(a) {
+  color: var(--text-accent);
+}
+
+html.dark .help-button,
+html.dark .icon-btn,
+html.dark .nav-item,
+html.dark .mode-switch-btn,
+html.dark .back-chat-btn,
+html.dark .mobile-toggle-btn,
+html.dark .assistant-row {
   color: #bfbcb8;
 }
 
-html.dark .nav-item:hover {
+html.dark .help-button:hover,
+html.dark .icon-btn:hover,
+html.dark .nav-item:hover,
+html.dark .mode-switch-btn:hover,
+html.dark .back-chat-btn:hover,
+html.dark .mobile-toggle-btn:hover,
+html.dark .assistant-row:hover {
   color: #efede9;
   background-color: rgba(255, 255, 255, 0.08);
 }
 
 html.dark .nav-item.active-tab {
-  border-color: transparent;
   color: #f7f4ef;
   background-color: rgba(255, 255, 255, 0.14);
-  box-shadow: none;
 }
 
-html.dark .workspace-main {
-  background-color: var(--workspace-surface-bg);
-  border-top-color: var(--workspace-edge-color);
-  border-right-color: var(--workspace-edge-color);
-  border-bottom-color: var(--workspace-edge-color);
+html.dark .assistant-group.active {
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
-html.dark .workspace-header {
-  background-color: var(--workspace-surface-bg);
-}
-
-html.dark .workspace-content {
-  background-color: var(--workspace-surface-bg);
+html.dark .session-item:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
 html.dark .window-root {
@@ -960,237 +1447,17 @@ html.dark .window-root.fallback-vibrancy {
   --sidebar-fallback-tint: rgba(44, 42, 42, 0.92);
 }
 
-html.dark .window-root.native-vibrancy {
-  --layout-shell-bg: transparent;
-}
-
-html.dark .window-root.native-vibrancy .common-layout::before {
-  background: linear-gradient(180deg, rgba(43, 41, 40, 0.58) 0%, rgba(34, 33, 35, 0.68) 100%);
-}
-
-html.dark .window-root.fallback-vibrancy .common-layout::before {
-  background: linear-gradient(180deg, rgba(44, 42, 42, 0.9) 0%, rgba(36, 35, 37, 0.94) 100%);
-}
-
-.header-title-text {
-  font-size: 19px;
-  font-weight: 600;
-  color: var(--text-primary);
-  letter-spacing: 0.01em;
-}
-
-.bell-badge :deep(.el-badge__content.is-fixed.is-dot) {
-  right: 3px;
-  top: 3px;
-  background-color: var(--text-accent);
-}
-
-.doc-container {
-  display: flex;
-  height: 60vh;
-  border-radius: var(--radius-xl);
-  overflow: hidden;
-}
-
-.doc-sidebar {
-  width: 190px;
-  border-right: 1px solid var(--border-primary);
-  background-color: var(--bg-secondary);
-  flex-shrink: 0;
-}
-
-.doc-menu {
-  border-right: none;
-  background-color: transparent;
-}
-
-.doc-menu :deep(.el-menu-item) {
-  height: 42px;
-  line-height: 42px;
-  color: var(--text-secondary);
-  font-size: 13px;
-  margin: 4px 8px;
-  border-radius: var(--radius-md);
-}
-
-.doc-menu :deep(.el-menu-item:hover) {
-  background-color: color-mix(in srgb, var(--bg-secondary) 50%, transparent);
-}
-
-.doc-menu :deep(.el-menu-item.is-active) {
-  color: var(--text-accent);
-  background-color: color-mix(in srgb, var(--text-accent) 12%, transparent);
-  font-weight: 600;
-  border-right: none;
-}
-
-.menu-item-text {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-}
-
-.doc-update-dot {
-  width: 6px;
-  height: 6px;
-  background-color: var(--text-accent);
-  border-radius: 50%;
-  margin-left: 8px;
-  display: inline-block;
-}
-
-.doc-content {
-  flex: 1;
-  background-color: var(--bg-primary);
-  padding: 0;
-  overflow: hidden;
-}
-
-.markdown-body {
-  padding: 0px 40px;
-  color: var(--text-primary);
-  font-family:
-    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif, 'Apple Color Emoji',
-    'Segoe UI Emoji', 'Segoe UI Symbol';
-  font-size: 15px; /* 稍微调大字号更易阅读 */
-  line-height: 1.75; /* 增加行高，增加呼吸感 */
-  -webkit-font-smoothing: antialiased; /* 让字体在 Mac 上更清晰 */
-}
-
-/* 标题样式优化 */
-.markdown-body :deep(h1),
-.markdown-body :deep(h2) {
-  padding-bottom: 0.4em;
-  margin-top: 1.5em;
-  margin-bottom: 1em;
-  color: var(--text-primary);
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
-}
-
-.markdown-body :deep(h3),
-.markdown-body :deep(h4) {
-  margin-top: 1.4em;
-  margin-bottom: 0.8em;
-  color: var(--text-primary);
-  font-weight: 600; /* 强制加粗 */
-  line-height: 1.4;
-}
-
-/* 正文段落 */
-.markdown-body :deep(p) {
-  margin-bottom: 1.2em;
-  text-align: justify; /* 两端对齐，使大段文字更整齐 */
-}
-
-/* 列表优化 */
-.markdown-body :deep(ul),
-.markdown-body :deep(ol) {
-  padding-left: 24px;
-  margin-bottom: 1.2em;
-}
-
-.markdown-body :deep(li) {
-  margin-bottom: 0.4em; /* 列表项之间增加一点间距 */
-}
-
-/* 粗体优化 */
-.markdown-body :deep(strong),
-.markdown-body :deep(b) {
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-/* 行内代码块优化 */
-.markdown-body :deep(code) {
-  background-color: color-mix(in srgb, var(--bg-tertiary) 78%, transparent);
-  padding: 2px 6px;
-  border-radius: var(--radius-sm);
-  font-family:
-    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
-  font-size: 0.85em;
-  color: var(--text-primary);
-  margin: 0 2px;
-}
-
-.markdown-body :deep(pre) {
-  background-color: color-mix(in srgb, var(--bg-tertiary) 72%, transparent);
-  padding: 16px;
-  border-radius: var(--radius-md);
-  overflow-x: auto;
-  margin-bottom: 1.2em;
-  line-height: 1.5;
-}
-
-.markdown-body :deep(pre code) {
-  background-color: transparent;
-  padding: 0;
-  color: var(--text-primary);
-  margin: 0;
-  font-size: 13px;
-  font-family:
-    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
-}
-
-.markdown-body :deep(blockquote) {
-  margin: 1.2em 0;
-  padding: 8px 16px;
-  color: var(--text-secondary);
-  border-left: 3px solid var(--text-accent);
-  background-color: color-mix(in srgb, var(--bg-tertiary) 50%, transparent);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-}
-
-.markdown-body :deep(blockquote p) {
-  margin-bottom: 0;
-}
-
-.markdown-body :deep(img) {
-  max-width: 100%;
-  border-radius: var(--radius-md);
-  margin: 12px 0;
-  display: block;
-}
-
-/* 链接优化 */
-.markdown-body :deep(a) {
-  color: var(--text-accent);
-  text-decoration: none;
-  font-weight: 500;
-  border-bottom: 1px solid transparent;
-  transition: border-color 0.2s;
-  cursor: pointer;
-}
-.markdown-body :deep(a:hover) {
-  border-bottom-color: var(--text-accent); /* 悬浮时显示下划线效果 */
-}
-
-/* 弹窗样式微调 */
-:deep(.doc-dialog .el-dialog__body) {
-  padding: 0 !important;
-}
-:deep(.doc-dialog .el-dialog__header) {
-  padding: 12px 20px 8px 20px !important;
-  margin-right: 0;
-  border-bottom: none;
-}
-
-@media (max-width: 860px) {
-  .common-layout,
-  .el-container {
-    padding: 8px 10px;
-    gap: 0;
+@media (max-width: 900px) {
+  .assistant-sessions {
+    padding-left: 32px;
   }
 
-  .workspace-header {
-    padding: 14px 14px 12px;
+  .session-preview {
+    display: none;
   }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 760px) {
   .window-root {
     --sidebar-region-width: 100%;
   }
@@ -1216,26 +1483,44 @@ html.dark .window-root.fallback-vibrancy .common-layout::before {
     margin-bottom: 0;
   }
 
+  .sidebar-panel {
+    height: auto;
+    max-height: 52vh;
+  }
+
   .workspace-main {
     border: none;
-    border-top: none;
     border-radius: 0;
-    box-shadow: none;
+  }
+
+  .workspace-header {
+    padding: 14px 14px 12px;
+  }
+
+  .doc-container {
+    flex-direction: column;
+  }
+
+  .doc-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid var(--border-primary);
   }
 
   html.dark .app-sidebar {
     border-bottom-color: rgba(255, 255, 255, 0.12);
   }
+}
 
-  .sidebar-panel {
-    height: auto;
-    padding: 4px 0;
+@media (max-width: 700px) {
+  .app-sidebar.mobile-collapsed .sidebar-panel {
+    max-height: 54px;
+    overflow: hidden;
   }
 
-  .sidebar-nav {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
+  .mobile-toggle-btn {
+    font-size: 11px;
+    padding: 0 8px;
   }
 }
 </style>

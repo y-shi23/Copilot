@@ -664,5 +664,37 @@
     "deleteFailedMultiple": "Error deleting selected files.",
     "saveSuccess": "Saved successfully",
     "saveFailed": "Save failed"
+  },
+  "mainSettings": {
+    "entry": "Settings",
+    "backToChat": "Back to Chat",
+    "navigationTitle": "Settings",
+    "tabs": {
+      "history": "Chat History",
+      "prompts": "Agent Prompts",
+      "mcp": "MCP Servers",
+      "skills": "Skills",
+      "providers": "Providers",
+      "system": "System Settings"
+    }
+  },
+  "mainChat": {
+    "actions": {
+      "refresh": "Refresh sessions",
+      "showSidebar": "Show sidebar",
+      "hideSidebar": "Hide sidebar"
+    },
+    "sources": {
+      "local": "Local",
+      "cloud": "Cloud"
+    },
+    "empty": {
+      "assistants": "No enabled assistants",
+      "assistantSessions": "No history for this assistant"
+    },
+    "errors": {
+      "loadSessionFailed": "Failed to load session",
+      "indexFailed": "Failed to load history index"
+    }
   }
 }

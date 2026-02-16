@@ -664,5 +664,37 @@
     "deleteFailedMultiple": "Ошибка при удалении выбранных файлов.",
     "saveSuccess": "Успешно сохранено",
     "saveFailed": "Ошибка сохранения"
+  },
+  "mainSettings": {
+    "entry": "Настройки",
+    "backToChat": "Назад к чату",
+    "navigationTitle": "Настройки",
+    "tabs": {
+      "history": "История чатов",
+      "prompts": "Быстрые ассистенты",
+      "mcp": "MCP серверы",
+      "skills": "Навыки",
+      "providers": "Провайдеры",
+      "system": "Системные настройки"
+    }
+  },
+  "mainChat": {
+    "actions": {
+      "refresh": "Обновить список сессий",
+      "showSidebar": "Показать боковую панель",
+      "hideSidebar": "Скрыть боковую панель"
+    },
+    "sources": {
+      "local": "Локально",
+      "cloud": "Облако"
+    },
+    "empty": {
+      "assistants": "Нет включенных ассистентов",
+      "assistantSessions": "Для этого ассистента нет истории"
+    },
+    "errors": {
+      "loadSessionFailed": "Не удалось загрузить сессию",
+      "indexFailed": "Не удалось загрузить индекс истории"
+    }
   }
 }

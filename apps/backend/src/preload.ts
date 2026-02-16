@@ -19,6 +19,8 @@ const {
   savePromptWindowSettings,
   saveMcpToolCache,
   getMcpToolCache,
+  getCachedBackgroundImage,
+  cacheBackgroundImage,
 } = require('./data');
 
 const { getRandomItem } = require('./input');
@@ -227,6 +229,13 @@ window.api = {
   shellShowItemInFolder: (fullPath) => {
     utools.shellShowItemInFolder(fullPath);
   },
+  shellOpenPath: (fullPath) => {
+    utools.shellOpenPath(fullPath);
+  },
+  getCachedBackgroundImage,
+  cacheBackgroundImage: (url) => {
+    cacheBackgroundImage(url).catch((e) => console.error(e));
+  },
   // 生成 Skill Tool 定义 (供前端构建请求参数时使用)
   getSkillToolDefinition: async (rootPath, enabledSkillNames = []) => {
     try {
@@ -284,6 +293,41 @@ window.api = {
       2,
     );
   },
+  toggleSkillForkMode: async (rootPath, skillId, enableFork) => {
+    try {
+      const details = getSkillDetails(rootPath, skillId);
+      const meta = details.metadata;
+      const body = details.content;
+
+      if (enableFork) {
+        meta['context'] = 'fork';
+      } else {
+        delete meta['context'];
+      }
+
+      const lines = ['---'];
+      if (meta.name) lines.push(`name: ${meta.name}`);
+      if (meta.description) lines.push(`description: ${meta.description}`);
+      if (meta['disable-model-invocation'] === true) lines.push('disable-model-invocation: true');
+      if (meta.context === 'fork') lines.push('context: fork');
+
+      if (meta['allowed-tools']) {
+        let tools = meta['allowed-tools'];
+        if (typeof tools === 'string') lines.push(`allowed-tools: [${tools}]`);
+        else if (Array.isArray(tools)) lines.push(`allowed-tools: [${tools.join(', ')}]`);
+      }
+
+      lines.push('---');
+      lines.push('');
+      lines.push(body || '');
+
+      const content = lines.join('\n');
+      return saveSkill(rootPath, skillId, content);
+    } catch (e) {
+      console.error('Toggle Fork Mode Error:', e);
+      throw e;
+    }
+  },
   // 暴露 path.join 给前端创建新 Skill 文件夹用
   pathJoin: (...args) => require('path').join(...args),
 };
@@ -292,6 +336,31 @@ if (!window.utools) {
   window.utools = {};
 }
 window.utools.shellOpenExternal = utools.shellOpenExternal;
+
+window.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('click', (event) => {
+    let target = event.target;
+    while (target && target.tagName !== 'A') {
+      target = target.parentNode;
+    }
+
+    if (target && target.tagName === 'A') {
+      const filePath = target.getAttribute('data-filepath');
+      if (filePath) {
+        event.preventDefault();
+        event.stopPropagation();
+        const cleanPath = decodeURIComponent(filePath);
+        utools.shellOpenPath(cleanPath);
+        return;
+      }
+
+      if (target.href && target.href.startsWith('http')) {
+        event.preventDefault();
+        utools.shellOpenExternal(target.href);
+      }
+    }
+  });
+});
 
 const commandHandlers = {
   'Sanft Settings': async () => {

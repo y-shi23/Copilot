@@ -664,5 +664,37 @@
     "deleteFailedMultiple": "删除选中的文件时出错",
     "saveSuccess": "保存成功",
     "saveFailed": "保存失败"
+  },
+  "mainSettings": {
+    "entry": "设置",
+    "backToChat": "返回聊天",
+    "navigationTitle": "设置",
+    "tabs": {
+      "history": "历史对话",
+      "prompts": "快捷助手",
+      "mcp": "MCP 服务",
+      "skills": "Skill 技能",
+      "providers": "服务商",
+      "system": "系统设置"
+    }
+  },
+  "mainChat": {
+    "actions": {
+      "refresh": "刷新会话列表",
+      "showSidebar": "显示侧栏",
+      "hideSidebar": "收起侧栏"
+    },
+    "sources": {
+      "local": "本地",
+      "cloud": "云端"
+    },
+    "empty": {
+      "assistants": "暂无已启用的快捷助手",
+      "assistantSessions": "该助手暂无历史对话"
+    },
+    "errors": {
+      "loadSessionFailed": "加载会话失败",
+      "indexFailed": "加载历史索引失败"
+    }
   }
 }
