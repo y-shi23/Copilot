@@ -756,6 +756,7 @@ onBeforeUnmount(() => {
           </template>
 
           <template v-else>
+            <div class="sidebar-top-row" :class="{ 'window-drag-region': isMacOS }"></div>
             <nav v-show="shouldShowSidebarBody" class="sidebar-nav no-drag">
               <button
                 v-for="item in settingsNavItems"
@@ -1291,8 +1292,19 @@ onBeforeUnmount(() => {
   background-color: var(--workspace-surface-bg);
 }
 
+.chat-workspace-content {
+  padding: 0;
+  overflow: hidden;
+}
+
 .chat-workspace-content :deep(main) {
   height: 100%;
+}
+
+.chat-workspace-content :deep(.app-container) {
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
 }
 
 .settings-workspace-content {
