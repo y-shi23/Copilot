@@ -642,7 +642,11 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="window-root"
-    :class="{ 'native-vibrancy': isMacOS, 'fallback-vibrancy': !isMacOS }"
+    :class="{
+      'native-vibrancy': isMacOS,
+      'fallback-vibrancy': !isMacOS,
+      'mode-chat': appMode === 'chat',
+    }"
     :style="rootInlineStyles"
   >
     <el-container class="common-layout">
@@ -920,14 +924,14 @@ onBeforeUnmount(() => {
 
 .window-root.native-vibrancy .common-layout::before {
   background-color: var(--sidebar-vibrancy-tint);
-  box-shadow: inset -1px 0 0 var(--sidebar-vibrancy-divider);
+  box-shadow: none;
 }
 
 .window-root.fallback-vibrancy .common-layout::before {
   background-color: var(--sidebar-fallback-tint);
   backdrop-filter: blur(20px) saturate(125%);
   -webkit-backdrop-filter: blur(20px) saturate(125%);
-  box-shadow: inset -1px 0 0 var(--sidebar-vibrancy-divider);
+  box-shadow: none;
 }
 
 .app-sidebar {
@@ -1229,6 +1233,12 @@ onBeforeUnmount(() => {
   cursor: col-resize;
 }
 
+.sidebar-resize-handle:focus,
+.sidebar-resize-handle:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
 .sidebar-resize-handle::before {
   content: '';
   position: absolute;
@@ -1244,10 +1254,14 @@ onBeforeUnmount(() => {
 }
 
 .sidebar-resize-handle:hover::before,
-.sidebar-resize-handle.is-resizing::before,
+.sidebar-resize-handle.is-resizing::before {
+  background-color: color-mix(in srgb, var(--text-accent) 74%, transparent);
+  box-shadow: none;
+}
+
 .sidebar-resize-handle:focus-visible::before {
   background-color: color-mix(in srgb, var(--text-accent) 74%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-accent) 16%, transparent);
+  box-shadow: none;
 }
 
 .workspace-main {
@@ -1260,8 +1274,11 @@ onBeforeUnmount(() => {
   position: relative;
   z-index: 1;
   border-radius: var(--radius-xl);
-  border: 1px solid var(--workspace-edge-color);
-  border-left: none;
+  border: none;
+  box-shadow:
+    inset 0 1px 0 var(--workspace-edge-color),
+    inset -1px 0 0 var(--workspace-edge-color),
+    inset 0 -1px 0 var(--workspace-edge-color);
   background-color: var(--workspace-surface-bg);
 }
 
@@ -1439,6 +1456,7 @@ html.dark .window-root.fallback-vibrancy {
 
   .workspace-main {
     border: none;
+    box-shadow: none;
     border-radius: 0;
   }
 
