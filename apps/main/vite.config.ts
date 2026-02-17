@@ -17,11 +17,15 @@ export default defineConfig({
         find: '@window',
         replacement: fileURLToPath(new URL('../window/src', import.meta.url)),
       },
+      {
+        find: '@animation',
+        replacement: fileURLToPath(new URL('../../animation', import.meta.url)),
+      },
     ],
   },
   server: {
     fs: {
-      allow: [fileURLToPath(new URL('..', import.meta.url))],
+      allow: [fileURLToPath(new URL('../..', import.meta.url))],
     },
   },
   build: {

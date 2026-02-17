@@ -13,6 +13,7 @@ import { ElContainer, ElMain } from 'element-plus';
 
 import ChatHeader from '@window/components/ChatHeader.vue';
 const ChatMessage = defineAsyncComponent(() => import('@window/components/ChatMessage.vue'));
+const NewChatAnimationStage = defineAsyncComponent(() => import('./NewChatAnimationStage.vue'));
 import ChatNavigationSidebar from '@window/components/ChatNavigationSidebar.vue';
 import ChatInput from '@window/components/ChatInput.vue';
 import ImageViewerOverlay from '@window/components/ImageViewerOverlay.vue';
@@ -51,6 +52,9 @@ const chatInputRef = ref(null);
 const lastSelectionStart = ref(null);
 const lastSelectionEnd = ref(null);
 const chatContainerRef = ref(null);
+const mainAreaWrapperRef = ref<HTMLElement | null>(null);
+const chatInputShellRef = ref<HTMLElement | null>(null);
+const newChatAnimationShellRef = ref<HTMLElement | null>(null);
 
 const isSessionDirty = ref(false);
 const hasSessionInitialized = ref(false);
@@ -110,6 +114,21 @@ const api_key = ref('');
 const history = ref([]);
 const chat_show = ref([]);
 const loading = ref(false);
+const animationRefreshNonce = ref(0);
+const nonSystemMessages = computed(() =>
+  chat_show.value.filter((message) => String(message?.role || '').toLowerCase() !== 'system'),
+);
+const showNewChatAnimation = computed(
+  () => hasSessionInitialized.value && !loading.value && nonSystemMessages.value.length === 0,
+);
+const chatInputShellTop = ref(0);
+const chatInputShellHeight = ref(0);
+const newChatAnimationTop = ref(0);
+const mainAreaWrapperStyle = computed(() => ({
+  '--chat-input-shell-top': `${Math.max(chatInputShellTop.value, 0)}px`,
+  '--chat-input-shell-height': `${Math.max(chatInputShellHeight.value, 0)}px`,
+  '--new-chat-animation-top': `${Math.max(newChatAnimationTop.value, 0)}px`,
+}));
 const prompt = ref('');
 const signalController = ref(null);
 const fileList = ref([]);
@@ -235,6 +254,69 @@ const {
   imageViewerSrcList,
   imageViewerInitialIndex,
 });
+
+const NEW_CHAT_STACK_GAP = 24;
+let layoutResizeObserver: ResizeObserver | null = null;
+
+const updateNewChatLayoutMetrics = () => {
+  const wrapper = mainAreaWrapperRef.value;
+  const inputShell = chatInputShellRef.value;
+  if (!wrapper || !inputShell) return;
+
+  const wrapperHeight = wrapper.clientHeight || 0;
+  const inputHeight = inputShell.offsetHeight || 0;
+  const animationHeight = showNewChatAnimation.value
+    ? newChatAnimationShellRef.value?.offsetHeight || 0
+    : 0;
+
+  chatInputShellHeight.value = inputHeight;
+
+  const normalInputTop = Math.max(wrapperHeight - inputHeight, 0);
+
+  if (!showNewChatAnimation.value) {
+    chatInputShellTop.value = normalInputTop;
+    newChatAnimationTop.value = Math.max((wrapperHeight - animationHeight) / 2, 0);
+    return;
+  }
+
+  const stackedHeight = animationHeight + NEW_CHAT_STACK_GAP + inputHeight;
+  const stackTop = Math.max((wrapperHeight - stackedHeight) / 2, 0);
+  newChatAnimationTop.value = stackTop;
+  chatInputShellTop.value = stackTop + animationHeight + NEW_CHAT_STACK_GAP;
+};
+
+const reconnectLayoutResizeObserver = () => {
+  if (layoutResizeObserver) {
+    layoutResizeObserver.disconnect();
+    layoutResizeObserver = null;
+  }
+
+  if (typeof ResizeObserver !== 'function') return;
+
+  layoutResizeObserver = new ResizeObserver(() => {
+    updateNewChatLayoutMetrics();
+  });
+
+  if (mainAreaWrapperRef.value) {
+    layoutResizeObserver.observe(mainAreaWrapperRef.value);
+  }
+  if (chatInputShellRef.value) {
+    layoutResizeObserver.observe(chatInputShellRef.value);
+  }
+  if (newChatAnimationShellRef.value) {
+    layoutResizeObserver.observe(newChatAnimationShellRef.value);
+  }
+};
+
+const scheduleLayoutMetricsUpdate = () => {
+  requestAnimationFrame(() => {
+    updateNewChatLayoutMetrics();
+  });
+};
+
+const handleLayoutResize = () => {
+  updateNewChatLayoutMetrics();
+};
 
 const toolCallControllers = ref(new Map());
 const isAutoApproveTools = ref(true);
@@ -446,6 +528,20 @@ watch(
   },
   { immediate: true },
 );
+watch(
+  showNewChatAnimation,
+  async () => {
+    await nextTick();
+    reconnectLayoutResizeObserver();
+    scheduleLayoutMetricsUpdate();
+  },
+  { immediate: true },
+);
+watch(animationRefreshNonce, async () => {
+  await nextTick();
+  reconnectLayoutResizeObserver();
+  scheduleLayoutMetricsUpdate();
+});
 
 onMounted(async () => {
   if (isInit.value) return;
@@ -465,6 +561,7 @@ onMounted(async () => {
   window.addEventListener('wheel', handleWheel, { passive: false });
   window.addEventListener('focus', handleWindowFocus);
   window.addEventListener('blur', handleWindowBlur);
+  window.addEventListener('resize', handleLayoutResize);
   attachChatDomObserver();
 
   await initializeWindow({
@@ -476,6 +573,9 @@ onMounted(async () => {
   startAutoSaveFallback();
   window.addEventListener('error', handleGlobalImageError, true);
   window.addEventListener('keydown', handleGlobalKeyDown);
+  await nextTick();
+  reconnectLayoutResizeObserver();
+  scheduleLayoutMetricsUpdate();
 
   if (window.api && window.api.onConfigUpdated) {
     window.api.onConfigUpdated((newConfig) => {
@@ -496,11 +596,16 @@ onBeforeUnmount(async () => {
   window.removeEventListener('wheel', handleWheel);
   window.removeEventListener('focus', handleWindowFocus);
   window.removeEventListener('blur', handleWindowBlur);
+  window.removeEventListener('resize', handleLayoutResize);
   if (textSearchInstance) textSearchInstance.destroy();
   if (!autoCloseOnBlur.value) window.removeEventListener('blur', closePage);
   await window.api.closeMcpClient();
   window.removeEventListener('error', handleGlobalImageError, true);
   window.removeEventListener('keydown', handleGlobalKeyDown);
+  if (layoutResizeObserver) {
+    layoutResizeObserver.disconnect();
+    layoutResizeObserver = null;
+  }
 
   document.documentElement.classList.remove('mac-native-vibrancy');
   document.body?.classList.remove('mac-native-vibrancy');
@@ -838,6 +943,9 @@ watch(
     const nonce = Number(request?.nonce || 0);
     if (!isInit.value || !nonce || nonce === lastSessionRequestNonce.value) return;
     lastSessionRequestNonce.value = nonce;
+    if (request.mode === 'new') {
+      animationRefreshNonce.value += 1;
+    }
 
     runWorkspaceTask(async (isStale: any) => {
       if (isStale()) return;
@@ -907,9 +1015,11 @@ const handleOpenSearch = () => {
         'has-bg': !!windowBackgroundImage,
         'native-vibrancy': isNativeMacVibrancy,
         'fallback-vibrancy': !isNativeMacVibrancy,
+        'is-new-chat-layout': showNewChatAnimation,
       }"
     >
       <ChatHeader
+        class="workspace-chat-header"
         :modelMap="modelMap"
         :model="model"
         :is-mcp-loading="isMcpLoading"
@@ -919,7 +1029,12 @@ const handleOpenSearch = () => {
         @open-search="handleOpenSearch"
       />
 
-      <div class="main-area-wrapper">
+      <div
+        ref="mainAreaWrapperRef"
+        class="main-area-wrapper"
+        :class="{ 'is-new-chat-layout': showNewChatAnimation }"
+        :style="mainAreaWrapperStyle"
+      >
         <el-main
           ref="chatContainerRef"
           class="chat-main custom-scrollbar"
@@ -955,8 +1070,18 @@ const handleOpenSearch = () => {
           />
         </el-main>
 
+        <Transition name="new-chat-stage">
+          <div
+            v-if="showNewChatAnimation"
+            ref="newChatAnimationShellRef"
+            class="new-chat-animation-shell"
+          >
+            <NewChatAnimationStage :refresh-nonce="animationRefreshNonce" />
+          </div>
+        </Transition>
+
         <ChatNavigationSidebar
-          v-if="chat_show.length > 0"
+          v-if="nonSystemMessages.length > 0"
           :nav-messages="navMessages"
           :focused-message-id="focusedMessageId"
           :next-button-tooltip="nextButtonTooltip"
@@ -969,33 +1094,39 @@ const handleOpenSearch = () => {
           @jump="scrollToMessageById"
         />
 
-        <ChatInput
-          ref="chatInputRef"
-          v-model:prompt="prompt"
-          v-model:fileList="fileList"
-          v-model:selectedVoice="selectedVoice"
-          v-model:tempReasoningEffort="tempReasoningEffort"
-          :loading="loading"
-          :ctrlEnterToSend="currentConfig.CtrlEnterToSend"
-          :layout="inputLayout"
-          :voiceList="currentConfig.voiceList"
-          :is-mcp-active="isMcpActive"
-          :all-mcp-servers="availableMcpServers"
-          :active-mcp-ids="sessionMcpServerIds"
-          :active-skill-ids="sessionSkillIds"
-          :all-skills="allSkillsList"
-          @submit="handleSubmit"
-          @cancel="handleCancel"
-          @clear-history="handleClearHistory"
-          @remove-file="handleRemoveFile"
-          @upload="handleUpload"
-          @send-audio="handleSendAudio"
-          @open-mcp-dialog="handleOpenMcpDialog"
-          @pick-file-start="handlePickFileStart"
-          @toggle-mcp="handleQuickMcpToggle"
-          @toggle-skill="handleQuickSkillToggle"
-          @open-skill-dialog="toggleSkillDialog"
-        />
+        <div
+          ref="chatInputShellRef"
+          class="chat-input-shell"
+          :class="{ 'is-centered': showNewChatAnimation }"
+        >
+          <ChatInput
+            ref="chatInputRef"
+            v-model:prompt="prompt"
+            v-model:fileList="fileList"
+            v-model:selectedVoice="selectedVoice"
+            v-model:tempReasoningEffort="tempReasoningEffort"
+            :loading="loading"
+            :ctrlEnterToSend="currentConfig.CtrlEnterToSend"
+            :layout="inputLayout"
+            :voiceList="currentConfig.voiceList"
+            :is-mcp-active="isMcpActive"
+            :all-mcp-servers="availableMcpServers"
+            :active-mcp-ids="sessionMcpServerIds"
+            :active-skill-ids="sessionSkillIds"
+            :all-skills="allSkillsList"
+            @submit="handleSubmit"
+            @cancel="handleCancel"
+            @clear-history="handleClearHistory"
+            @remove-file="handleRemoveFile"
+            @upload="handleUpload"
+            @send-audio="handleSendAudio"
+            @open-mcp-dialog="handleOpenMcpDialog"
+            @pick-file-start="handlePickFileStart"
+            @toggle-mcp="handleQuickMcpToggle"
+            @toggle-skill="handleQuickSkillToggle"
+            @open-skill-dialog="toggleSkillDialog"
+          />
+        </div>
       </div>
     </el-container>
   </main>
@@ -1067,3 +1198,80 @@ const handleOpenSearch = () => {
 <style src="@window/assets/app-global.css"></style>
 
 <style scoped lang="less" src="@window/assets/app-scoped.less"></style>
+
+<style scoped>
+.workspace-chat-header {
+  max-height: 80px;
+  overflow: hidden;
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    max-height 340ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 280ms ease,
+    transform 340ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.app-container.is-new-chat-layout .workspace-chat-header {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+}
+
+.main-area-wrapper {
+  --chat-input-shell-top: 0px;
+  --chat-input-shell-height: 0px;
+  --new-chat-animation-top: 0px;
+}
+
+.main-area-wrapper .chat-main {
+  padding-bottom: calc(var(--chat-input-shell-height) + 14px) !important;
+  transition:
+    padding-bottom 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms ease;
+}
+
+.main-area-wrapper.is-new-chat-layout .chat-main {
+  overflow-y: hidden;
+}
+
+.chat-input-shell {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--chat-input-shell-top);
+  z-index: 35;
+  transition: top 380ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: top;
+}
+
+.new-chat-animation-shell {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--new-chat-animation-top);
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transition:
+    top 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 260ms ease,
+    transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: top, opacity, transform;
+}
+
+.new-chat-stage-enter-active,
+.new-chat-stage-leave-active {
+  transition:
+    opacity 220ms ease,
+    transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.new-chat-stage-enter-from,
+.new-chat-stage-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
+}
+</style>
