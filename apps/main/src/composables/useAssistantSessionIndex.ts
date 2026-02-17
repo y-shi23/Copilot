@@ -16,13 +16,36 @@ export function useAssistantSessionIndex(configRef: any) {
 
   const enabledAssistants = computed(() => {
     const prompts = configRef.value?.prompts || {};
-    return Object.entries(prompts)
+    const enabledList = Object.entries(prompts)
       .filter(([, prompt]: any) => prompt?.enable)
       .map(([code, prompt]: any) => ({
         code,
         icon: prompt?.icon || '',
-      }))
-      .sort((a, b) => String(a.code).localeCompare(String(b.code)));
+      }));
+
+    const assistantMap = new Map<string, any>();
+    enabledList.forEach((assistant) => {
+      assistantMap.set(String(assistant.code), assistant);
+    });
+
+    const configuredOrder = Array.isArray(configRef.value?.assistantOrder)
+      ? configRef.value.assistantOrder
+      : [];
+    const orderedCodes: string[] = [];
+    configuredOrder.forEach((rawCode: any) => {
+      const code = String(rawCode || '').trim();
+      if (!code || !assistantMap.has(code) || orderedCodes.includes(code)) return;
+      orderedCodes.push(code);
+    });
+
+    const remainingCodes = enabledList
+      .map((assistant) => String(assistant.code))
+      .filter((code) => !orderedCodes.includes(code))
+      .sort((a, b) => a.localeCompare(b));
+
+    return [...orderedCodes, ...remainingCodes]
+      .map((code) => assistantMap.get(code))
+      .filter(Boolean);
   });
 
   const enabledAssistantCodeSet = computed(() => {

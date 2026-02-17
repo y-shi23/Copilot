@@ -10,6 +10,7 @@ import {
   defineAsyncComponent,
 } from 'vue';
 import { useI18n } from 'vue-i18n';
+import draggable from 'vuedraggable';
 import {
   Bell,
   MessageCircle as ChatDotRound,
@@ -56,6 +57,8 @@ const selectedSessionId = ref('');
 const sessionContextMenuVisible = ref(false);
 const sessionContextMenuPosition = ref({ x: 0, y: 0 });
 const sessionContextMenuTarget = ref(null);
+const localAssistantOrder = ref<any[]>([]);
+const isAssistantOrderDragging = ref(false);
 const chatWorkspaceRef = ref(null);
 
 const {
@@ -116,6 +119,7 @@ let sidebarResizeStartX = 0;
 let sidebarResizeStartWidth = SIDEBAR_DEFAULT_WIDTH;
 let sessionAutoSyncTimer = null;
 let sessionOpenRequestToken = 0;
+let suppressAssistantToggleUntil = 0;
 
 const clampSidebarWidth = (rawWidth) => {
   const width = Number(rawWidth);
@@ -233,6 +237,99 @@ const toggleAssistantExpand = (assistantCode) => {
   }
   expandedAssistantCode.value = assistantCode;
 };
+
+const canDragAssistantsReorder = computed(
+  () =>
+    appMode.value === 'chat' && !expandedAssistantCode.value && enabledAssistants.value.length > 1,
+);
+
+const normalizeAssistantOrder = (rawOrder: any[] = []) => {
+  const enabledCodes = enabledAssistants.value.map((assistant) => String(assistant.code));
+  const enabledCodeSet = new Set(enabledCodes);
+  const normalized: string[] = [];
+
+  rawOrder.forEach((rawCode) => {
+    const code = String(rawCode || '').trim();
+    if (!code || !enabledCodeSet.has(code) || normalized.includes(code)) return;
+    normalized.push(code);
+  });
+
+  enabledCodes.forEach((code) => {
+    if (!normalized.includes(code)) {
+      normalized.push(code);
+    }
+  });
+
+  return normalized;
+};
+
+const applyAssistantOrder = async (nextOrder: any[] = []) => {
+  const normalizedOrder = normalizeAssistantOrder(Array.isArray(nextOrder) ? nextOrder : []);
+  if (!config.value || typeof config.value !== 'object') return;
+
+  config.value.assistantOrder = [...normalizedOrder];
+
+  if (typeof window.api?.saveSetting !== 'function') return;
+  try {
+    await window.api.saveSetting('assistantOrder', [...normalizedOrder]);
+  } catch (error) {
+    console.error('[Main] Failed to persist assistant order:', error);
+    ElMessage.warning(t('common.saveFailed'));
+  }
+};
+
+const syncLocalAssistantOrder = (assistants: any[] = []) => {
+  const normalizedAssistants = Array.isArray(assistants) ? assistants : [];
+  const assistantByCode = new Map<string, any>();
+  normalizedAssistants.forEach((assistant) => {
+    const code = String(assistant?.code || '').trim();
+    if (!code) return;
+    assistantByCode.set(code, assistant);
+  });
+
+  const currentCodes = localAssistantOrder.value
+    .map((assistant) => String(assistant?.code || '').trim())
+    .filter(Boolean);
+  const nextCodes = [
+    ...currentCodes.filter((code) => assistantByCode.has(code)),
+    ...normalizedAssistants
+      .map((assistant) => String(assistant?.code || '').trim())
+      .filter((code) => code && !currentCodes.includes(code)),
+  ];
+
+  localAssistantOrder.value = nextCodes.map((code) => assistantByCode.get(code)).filter(Boolean);
+};
+
+const handleAssistantRowClick = (assistantCode: string) => {
+  if (Date.now() < suppressAssistantToggleUntil) return;
+  toggleAssistantExpand(assistantCode);
+};
+
+const handleAssistantSortStart = () => {
+  isAssistantOrderDragging.value = true;
+};
+
+const handleAssistantSortEnd = async () => {
+  isAssistantOrderDragging.value = false;
+  suppressAssistantToggleUntil = Date.now() + 120;
+  const nextOrder = localAssistantOrder.value
+    .map((assistant) => String(assistant?.code || '').trim())
+    .filter(Boolean);
+  const currentOrder = enabledAssistants.value
+    .map((assistant) => String(assistant?.code || '').trim())
+    .filter(Boolean);
+  if (nextOrder.join('|') === currentOrder.join('|')) return;
+  await applyAssistantOrder(nextOrder);
+};
+
+watch(
+  enabledAssistants,
+  (assistants) => {
+    if (isAssistantOrderDragging.value) return;
+    syncLocalAssistantOrder(Array.isArray(assistants) ? assistants : []);
+  },
+  { immediate: true },
+);
 
 const SESSION_COLLAPSE_DURATION_MS = 220;
 const SESSION_COLLAPSE_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)';
@@ -563,12 +660,7 @@ const getAssistantIcon = (assistantCode) => {
   return config.value?.prompts?.[assistantCode]?.icon || '';
 };
 
-const openSettingsMode = async () => {
-  try {
-    await chatWorkspaceRef.value?.flushSession?.();
-  } catch {
-    // ignore flush errors while changing mode
-  }
+const openSettingsMode = () => {
   isMobileSidebarOpen.value = true;
   appMode.value = 'settings';
 };
@@ -1014,86 +1106,103 @@ onBeforeUnmount(() => {
 
           <template v-if="appMode === 'chat'">
             <div v-show="shouldShowSidebarBody" class="assistant-sidebar no-drag">
-              <div
-                v-for="assistant in enabledAssistants"
-                :key="assistant.code"
-                class="assistant-group"
-                :class="{ active: selectedAssistantCode === assistant.code }"
+              <draggable
+                v-model="localAssistantOrder"
+                item-key="code"
+                class="assistant-sidebar-draggable"
+                :class="{ 'is-sort-enabled': canDragAssistantsReorder }"
+                :animation="250"
+                ghost-class="provider-drag-ghost"
+                :force-fallback="true"
+                fallback-class="provider-drag-fallback"
+                :fallback-on-body="true"
+                :disabled="!canDragAssistantsReorder"
+                @start="handleAssistantSortStart"
+                @end="handleAssistantSortEnd"
               >
-                <div
-                  class="assistant-row"
-                  role="button"
-                  tabindex="0"
-                  @click="toggleAssistantExpand(assistant.code)"
-                  @keydown.enter.prevent="toggleAssistantExpand(assistant.code)"
-                  @keydown.space.prevent="toggleAssistantExpand(assistant.code)"
-                >
-                  <span class="assistant-folder">
-                    <FolderOpen v-if="expandedAssistantCode === assistant.code" :size="14" />
-                    <FolderMinus v-else :size="14" />
-                  </span>
-
-                  <span class="assistant-name" :title="assistant.code">{{ assistant.code }}</span>
-                  <button
-                    type="button"
-                    class="assistant-new-session-btn"
-                    :title="t('mainChat.actions.newConversation')"
-                    :aria-label="t('mainChat.actions.newConversation')"
-                    @click.stop="startNewSession(assistant.code)"
-                    @keydown.enter.stop.prevent="startNewSession(assistant.code)"
-                    @keydown.space.stop.prevent="startNewSession(assistant.code)"
-                  >
-                    <SquarePen :size="13" />
-                  </button>
-                </div>
-
-                <Transition
-                  name="assistant-sessions-collapse"
-                  :css="false"
-                  @before-enter="onAssistantSessionsBeforeEnter"
-                  @enter="onAssistantSessionsEnter"
-                  @leave="onAssistantSessionsLeave"
-                  @enter-cancelled="onAssistantSessionsEnterCancelled"
-                  @leave-cancelled="onAssistantSessionsLeaveCancelled"
-                >
+                <template #item="{ element: assistant }">
                   <div
-                    v-if="expandedAssistantCode === assistant.code"
-                    class="assistant-sessions-collapse"
+                    class="assistant-group"
+                    :class="{ active: selectedAssistantCode === assistant.code }"
                   >
-                    <div class="assistant-sessions">
-                      <button
-                        v-for="session in sessionMap[assistant.code] || []"
-                        :key="session.id"
-                        type="button"
-                        class="assistant-row session-item"
-                        :class="{
-                          'is-loading': activeSessionId === session.id,
-                          'is-selected':
-                            selectedSessionId === (session.conversationId || session.id),
-                        }"
-                        :title="`${formatSessionTime(session.lastmod)}${
-                          session.preview ? ` · ${session.preview}` : ''
-                        }`"
-                        @click="openHistorySession(session)"
-                        @contextmenu.prevent.stop="openSessionContextMenu($event, session)"
-                      >
-                        <span
-                          class="assistant-name session-name"
-                          :title="session.conversationName"
-                          >{{ session.conversationName }}</span
-                        >
-                      </button>
+                    <div
+                      class="assistant-row"
+                      role="button"
+                      tabindex="0"
+                      @click="handleAssistantRowClick(assistant.code)"
+                      @keydown.enter.prevent="toggleAssistantExpand(assistant.code)"
+                      @keydown.space.prevent="toggleAssistantExpand(assistant.code)"
+                    >
+                      <span class="assistant-folder">
+                        <FolderOpen v-if="expandedAssistantCode === assistant.code" :size="14" />
+                        <FolderMinus v-else :size="14" />
+                      </span>
 
-                      <div
-                        v-if="(sessionMap[assistant.code] || []).length === 0"
-                        class="assistant-empty-sessions"
+                      <span class="assistant-name" :title="assistant.code">{{
+                        assistant.code
+                      }}</span>
+                      <button
+                        type="button"
+                        class="assistant-new-session-btn"
+                        :title="t('mainChat.actions.newConversation')"
+                        :aria-label="t('mainChat.actions.newConversation')"
+                        @click.stop="startNewSession(assistant.code)"
+                        @keydown.enter.stop.prevent="startNewSession(assistant.code)"
+                        @keydown.space.stop.prevent="startNewSession(assistant.code)"
                       >
-                        {{ t('mainChat.empty.assistantSessions') }}
-                      </div>
+                        <SquarePen :size="13" />
+                      </button>
                     </div>
+
+                    <Transition
+                      name="assistant-sessions-collapse"
+                      :css="false"
+                      @before-enter="onAssistantSessionsBeforeEnter"
+                      @enter="onAssistantSessionsEnter"
+                      @leave="onAssistantSessionsLeave"
+                      @enter-cancelled="onAssistantSessionsEnterCancelled"
+                      @leave-cancelled="onAssistantSessionsLeaveCancelled"
+                    >
+                      <div
+                        v-if="expandedAssistantCode === assistant.code"
+                        class="assistant-sessions-collapse"
+                      >
+                        <div class="assistant-sessions">
+                          <button
+                            v-for="session in sessionMap[assistant.code] || []"
+                            :key="session.id"
+                            type="button"
+                            class="assistant-row session-item"
+                            :class="{
+                              'is-loading': activeSessionId === session.id,
+                              'is-selected':
+                                selectedSessionId === (session.conversationId || session.id),
+                            }"
+                            :title="`${formatSessionTime(session.lastmod)}${
+                              session.preview ? ` · ${session.preview}` : ''
+                            }`"
+                            @click="openHistorySession(session)"
+                            @contextmenu.prevent.stop="openSessionContextMenu($event, session)"
+                          >
+                            <span
+                              class="assistant-name session-name"
+                              :title="session.conversationName"
+                              >{{ session.conversationName }}</span
+                            >
+                          </button>
+
+                          <div
+                            v-if="(sessionMap[assistant.code] || []).length === 0"
+                            class="assistant-empty-sessions"
+                          >
+                            {{ t('mainChat.empty.assistantSessions') }}
+                          </div>
+                        </div>
+                      </div>
+                    </Transition>
                   </div>
-                </Transition>
-              </div>
+                </template>
+              </draggable>
 
               <div v-if="enabledAssistants.length === 0" class="assistant-empty-state">
                 {{ t('mainChat.empty.assistants') }}
@@ -1148,18 +1257,16 @@ onBeforeUnmount(() => {
       ></div>
 
       <el-main class="workspace-main" v-if="config">
-        <template v-if="appMode === 'chat'">
-          <div class="workspace-content chat-workspace-content">
-            <MainChatWorkspace
-              ref="chatWorkspaceRef"
-              :assistant-code="selectedAssistantCode"
-              :session-load-request="sessionLoadRequest"
-              @conversation-saved="handleConversationSaved"
-            />
-          </div>
-        </template>
+        <div v-show="appMode === 'chat'" class="workspace-content chat-workspace-content">
+          <MainChatWorkspace
+            ref="chatWorkspaceRef"
+            :assistant-code="selectedAssistantCode"
+            :session-load-request="sessionLoadRequest"
+            @conversation-saved="handleConversationSaved"
+          />
+        </div>
 
-        <template v-else>
+        <template v-if="appMode !== 'chat'">
           <header class="workspace-header" :class="{ 'window-drag-region': isMacOS }">
             <el-text class="header-title-text">{{ settingsHeaderText }}</el-text>
           </header>
@@ -1388,9 +1495,16 @@ onBeforeUnmount(() => {
   min-height: 0;
   overflow-y: auto;
   padding: 2px 2px 4px;
+}
+
+.assistant-sidebar-draggable {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.assistant-sidebar-draggable.is-sort-enabled .assistant-row {
+  cursor: move;
 }
 
 .assistant-group {
@@ -1422,6 +1536,29 @@ onBeforeUnmount(() => {
 .assistant-row:hover {
   color: var(--text-primary);
   background-color: rgba(255, 255, 255, 0.62);
+}
+
+.provider-drag-ghost {
+  opacity: 0 !important;
+  transition: none !important;
+}
+
+:global(.provider-drag-fallback) {
+  opacity: 1 !important;
+  background-color: var(--bg-accent-light) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow:
+    0 8px 24px -4px rgba(0, 0, 0, 0.12),
+    0 2px 6px -1px rgba(0, 0, 0, 0.05) !important;
+  z-index: 9999 !important;
+  transition: box-shadow 0.2s ease !important;
+}
+
+:global(html.dark .provider-drag-fallback) {
+  background-color: var(--bg-accent-light) !important;
+  box-shadow:
+    0 8px 24px -4px rgba(0, 0, 0, 0.5),
+    0 2px 6px -1px rgba(0, 0, 0, 0.25) !important;
 }
 
 .assistant-row:focus-visible {

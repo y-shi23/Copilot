@@ -407,13 +407,30 @@ const handleFileChange = (event) => {
   if (files.length) emit('upload', { file: files[0], fileList: Array.from(files) });
   if (fileInputRef.value) fileInputRef.value.value = '';
 };
+
+const hasFileDragData = (event: DragEvent) => {
+  const dataTransfer = event?.dataTransfer;
+  if (!dataTransfer) return false;
+  if (dataTransfer.files && dataTransfer.files.length > 0) return true;
+  const types = Array.isArray(dataTransfer.types)
+    ? dataTransfer.types
+    : Array.from(dataTransfer.types || []);
+  return types.includes('Files');
+};
+
 const preventDefaults = (e) => e.preventDefault();
+const handleWindowDragOver = (event) => {
+  if (!hasFileDragData(event)) return;
+  preventDefaults(event);
+};
 const handleDragEnter = (event) => {
+  if (!hasFileDragData(event)) return;
   preventDefaults(event);
   dragCounter.value++;
   isDragging.value = true;
 };
 const handleDragLeave = (event) => {
+  if (!hasFileDragData(event)) return;
   preventDefaults(event);
   dragCounter.value--;
   if (dragCounter.value <= 0) {
@@ -422,6 +439,7 @@ const handleDragLeave = (event) => {
   }
 };
 const handleDrop = (event) => {
+  if (!hasFileDragData(event)) return;
   preventDefaults(event);
   isDragging.value = false;
   dragCounter.value = 0;
@@ -675,7 +693,7 @@ const handleClickOutside = (event) => {
 onMounted(() => {
   window.addEventListener('dragenter', handleDragEnter);
   window.addEventListener('dragleave', handleDragLeave);
-  window.addEventListener('dragover', preventDefaults);
+  window.addEventListener('dragover', handleWindowDragOver);
   window.addEventListener('drop', handleDrop);
   window.addEventListener('paste', handlePasteEvent);
   document.addEventListener('click', handleClickOutside);
@@ -685,7 +703,7 @@ onBeforeUnmount(() => {
   stopInputResize();
   window.removeEventListener('dragenter', handleDragEnter);
   window.removeEventListener('dragleave', handleDragLeave);
-  window.removeEventListener('dragover', preventDefaults);
+  window.removeEventListener('dragover', handleWindowDragOver);
   window.removeEventListener('drop', handleDrop);
   window.removeEventListener('paste', handlePasteEvent);
   document.removeEventListener('click', handleClickOutside);
