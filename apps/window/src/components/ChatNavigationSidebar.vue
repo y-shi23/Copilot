@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp, ChevronsDown, ChevronsUp } from 'lucide-vue-next';
 
 const props = defineProps<{
   navMessages: any[];
-  focusedMessageIndex: number | null;
+  focusedMessageId: string | number | null;
   nextButtonTooltip: string;
   showScrollToBottomButton: boolean;
   getMessagePreviewText: (msg: any) => string;
@@ -15,7 +15,7 @@ const emit = defineEmits<{
   (e: 'previous'): void;
   (e: 'next'): void;
   (e: 'bottom'): void;
-  (e: 'jump', index: number): void;
+  (e: 'jump', messageId: string | number): void;
 }>();
 </script>
 
@@ -41,7 +41,7 @@ const emit = defineEmits<{
           v-for="msg in props.navMessages"
           :key="msg.id"
           class="timeline-node-wrapper"
-          @click="emit('jump', msg.originalIndex)"
+          @click="emit('jump', msg.messageId)"
         >
           <el-tooltip
             :content="props.getMessagePreviewText(msg)"
@@ -52,7 +52,10 @@ const emit = defineEmits<{
           >
             <div
               class="timeline-node"
-              :class="[msg.role, { active: props.focusedMessageIndex === msg.originalIndex }]"
+              :class="[
+                msg.role,
+                { active: String(props.focusedMessageId ?? '') === String(msg.messageId ?? '') },
+              ]"
             ></div>
           </el-tooltip>
         </div>

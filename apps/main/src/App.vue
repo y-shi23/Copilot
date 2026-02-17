@@ -25,6 +25,7 @@ import {
   Pencil as EditIcon,
   Hammer as Wrench,
   SquarePen,
+  Trash2 as DeleteIcon,
 } from 'lucide-vue-next';
 import { ElBadge, ElMessage, ElMessageBox } from 'element-plus';
 import { useAssistantSessionIndex } from './composables/useAssistantSessionIndex';
@@ -51,6 +52,7 @@ const expandedAssistantCode = ref('');
 const sessionLoadRequest = ref(null);
 const sessionRequestNonce = ref(0);
 const activeSessionId = ref('');
+const selectedSessionId = ref('');
 const sessionContextMenuVisible = ref(false);
 const sessionContextMenuPosition = ref({ x: 0, y: 0 });
 const sessionContextMenuTarget = ref(null);
@@ -216,6 +218,7 @@ const startNewSession = (assistantCode) => {
   if (!assistantCode) return;
   selectedAssistantCode.value = assistantCode;
   expandedAssistantCode.value = assistantCode;
+  selectedSessionId.value = '';
   createSessionRequest({ mode: 'new', assistantCode });
   if (isCompactMobile.value) {
     isMobileSidebarOpen.value = false;
@@ -331,17 +334,27 @@ const onAssistantSessionsLeaveCancelled = (el) => {
   clearAssistantSessionsAnimation(node);
 };
 
+const getSessionConversationId = (sessionItem) => {
+  return String(sessionItem?.conversationId || sessionItem?.id || '').trim();
+};
+
 const openHistorySession = async (sessionItem) => {
-  activeSessionId.value = sessionItem.id;
+  const conversationId = getSessionConversationId(sessionItem);
+  if (!conversationId) return;
+  if (conversationId === selectedSessionId.value) return;
+
+  activeSessionId.value = conversationId;
   try {
     const payload = await loadSessionPayload(sessionItem);
     const assistantCode = payload.assistantCode || sessionItem.assistantCode;
+    const resolvedConversationId = String(payload.conversationId || conversationId).trim();
     selectedAssistantCode.value = assistantCode;
     expandedAssistantCode.value = assistantCode;
+    selectedSessionId.value = resolvedConversationId;
     createSessionRequest({
       mode: 'load',
       assistantCode,
-      conversationId: payload.conversationId || sessionItem.conversationId || sessionItem.id,
+      conversationId: resolvedConversationId,
       conversationName: payload.conversationName,
       sessionData: payload.sessionData,
     });
@@ -370,6 +383,19 @@ const openSessionContextMenu = (event, sessionItem) => {
     y: event.clientY,
   };
   sessionContextMenuVisible.value = true;
+};
+
+const syncActiveWorkspaceConversationMeta = (conversationId, conversationName = '') => {
+  const resolvedConversationId = String(conversationId || '').trim();
+  if (!resolvedConversationId) return;
+  if (resolvedConversationId !== selectedSessionId.value) return;
+
+  createSessionRequest({
+    mode: 'meta',
+    assistantCode: selectedAssistantCode.value || '',
+    conversationId: resolvedConversationId,
+    conversationName: String(conversationName || '').trim(),
+  });
 };
 
 const renameSessionFromSidebar = async () => {
@@ -401,6 +427,7 @@ const renameSessionFromSidebar = async () => {
     if (!nextName || nextName === target.conversationName) return;
 
     await window.api.renameConversation(target.conversationId, nextName);
+    syncActiveWorkspaceConversationMeta(target.conversationId, nextName);
     await refreshIndex({ force: true });
     ElMessage.success(t('mainChat.sessionMenu.renameSuccess'));
   } catch (error: any) {
@@ -421,6 +448,7 @@ const regenerateSessionNameFromSidebar = async () => {
       throw new Error('renameConversation API is unavailable');
     }
     await window.api.renameConversation(target.conversationId, '新对话');
+    syncActiveWorkspaceConversationMeta(target.conversationId, '新对话');
     await refreshIndex({ force: true });
   };
 
@@ -446,6 +474,7 @@ const regenerateSessionNameFromSidebar = async () => {
 
     const title = String(result?.title || '').trim() || '新对话';
     await window.api.renameConversation(target.conversationId, title);
+    syncActiveWorkspaceConversationMeta(target.conversationId, title);
     await refreshIndex({ force: true });
 
     if (result?.ok) {
@@ -462,6 +491,52 @@ const regenerateSessionNameFromSidebar = async () => {
       console.error('[Main] Failed to apply fallback session title:', renameError);
       ElMessage.error(t('mainChat.sessionMenu.regenerateFailed'));
     }
+  }
+};
+
+const deleteSessionFromSidebar = async () => {
+  const target = sessionContextMenuTarget.value;
+  hideSessionContextMenu();
+
+  const conversationId = getSessionConversationId(target);
+  if (!conversationId) return;
+
+  try {
+    if (typeof window.api.deleteConversations !== 'function') {
+      throw new Error('deleteConversations API is unavailable');
+    }
+
+    await ElMessageBox.confirm(
+      t('chats.confirmDelete', {
+        filename: target?.conversationName || conversationId,
+      }),
+      t('common.warningTitle'),
+      {
+        type: 'warning',
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
+      },
+    );
+
+    await window.api.deleteConversations([conversationId]);
+
+    if (conversationId === selectedSessionId.value) {
+      const fallbackAssistantCode = String(
+        target?.assistantCode || selectedAssistantCode.value || '',
+      );
+      if (fallbackAssistantCode) {
+        startNewSession(fallbackAssistantCode);
+      } else {
+        selectedSessionId.value = '';
+      }
+    }
+
+    await refreshIndex({ force: true });
+    ElMessage.success(t('common.deleteSuccess'));
+  } catch (error: any) {
+    if (error === 'cancel' || error === 'close') return;
+    console.error('[Main] Failed to delete session from sidebar:', error);
+    ElMessage.error(String(error?.message || t('common.deleteFailed')));
   }
 };
 
@@ -515,7 +590,11 @@ const refreshSessionIndexForSync = (force = true) => {
   });
 };
 
-const handleConversationSaved = () => {
+const handleConversationSaved = (payload) => {
+  const conversationId = String(payload?.conversationId || '').trim();
+  if (conversationId) {
+    selectedSessionId.value = conversationId;
+  }
   refreshSessionIndexForSync(true);
 };
 
@@ -550,6 +629,7 @@ watch(
     if (!assistants.length) {
       selectedAssistantCode.value = '';
       expandedAssistantCode.value = '';
+      selectedSessionId.value = '';
       return;
     }
 
@@ -558,6 +638,7 @@ watch(
       const firstCode = assistants[0].code;
       selectedAssistantCode.value = firstCode;
       expandedAssistantCode.value = firstCode;
+      selectedSessionId.value = '';
       createSessionRequest({ mode: 'new', assistantCode: firstCode });
     }
   },
@@ -967,7 +1048,11 @@ onBeforeUnmount(() => {
                         :key="session.id"
                         type="button"
                         class="assistant-row session-item"
-                        :class="{ 'is-loading': activeSessionId === session.id }"
+                        :class="{
+                          'is-loading': activeSessionId === session.id,
+                          'is-selected':
+                            selectedSessionId === (session.conversationId || session.id),
+                        }"
                         :title="`${formatSessionTime(session.lastmod)}${
                           session.preview ? ` · ${session.preview}` : ''
                         }`"
@@ -1088,6 +1173,10 @@ onBeforeUnmount(() => {
           <div class="session-context-item" @click="regenerateSessionNameFromSidebar">
             <el-icon class="session-context-icon"><MagicStick /></el-icon>
             <span>{{ t('mainChat.sessionMenu.regenerate') }}</span>
+          </div>
+          <div class="session-context-item" @click="deleteSessionFromSidebar">
+            <el-icon class="session-context-icon"><DeleteIcon /></el-icon>
+            <span>{{ t('common.delete') }}</span>
           </div>
         </div>
       </teleport>
@@ -1421,6 +1510,11 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
+.session-item.is-selected {
+  color: var(--text-primary);
+  background-color: color-mix(in srgb, var(--bg-tertiary) 84%, transparent);
+}
+
 .session-name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1749,6 +1843,11 @@ html.dark .assistant-group.active {
 
 html.dark .session-item:hover {
   background: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .session-item.is-selected {
+  color: #f4f1ed;
+  background: rgba(255, 255, 255, 0.14);
 }
 
 html.dark .window-root {

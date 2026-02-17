@@ -221,6 +221,16 @@ window.api = {
   triggerStorageSync: async () => {
     return ipcRenderer.invoke('storage:sync-now');
   },
+  onConversationsChanged: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const handler = (_event, payload = {}) => {
+      callback(payload || {});
+    };
+    ipcRenderer.on('storage:conversations-changed', handler);
+    return () => {
+      ipcRenderer.removeListener('storage:conversations-changed', handler);
+    };
+  },
   generateConversationTitle: async (payload = {}) => {
     try {
       const configResult = await getConfig();

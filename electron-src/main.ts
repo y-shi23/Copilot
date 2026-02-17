@@ -44,6 +44,7 @@ const DEEPSEEK_PROXY_READY_TIMEOUT_MS = 12000;
 const DEEPSEEK_LOGIN_URL = 'https://chat.deepseek.com';
 const DEEPSEEK_LOGIN_PARTITION = 'persist:deepseek-login';
 const DEEPSEEK_LOGIN_ACCEPT_LANGUAGE = 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7';
+const STORAGE_CONVERSATIONS_CHANGED_CHANNEL = 'storage:conversations-changed';
 
 const deepSeekProxyState = {
   started: false,
@@ -249,11 +250,47 @@ async function ensureStorageServiceReady() {
     storageService = new StorageService({
       dataRoot: getShimDataRoot(),
       legacyDocsPath: getShimDocumentsPath(),
+      onSyncSummary: (summary = {}) => {
+        if (summary?.ok && Number(summary?.applied || 0) > 0) {
+          notifyConversationsChanged({
+            source: 'sync-pull',
+            pulled: Number(summary.pulled || 0),
+            applied: Number(summary.applied || 0),
+            staleSkipped: Number(summary.staleSkipped || 0),
+          });
+        }
+      },
     });
   }
 
   await storageService.init();
   return storageService;
+}
+
+function notifyConversationsChanged(payload = {}) {
+  const message = {
+    at: new Date().toISOString(),
+    ...payload,
+  };
+
+  const targets = [];
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    targets.push(mainWindow.webContents);
+  }
+
+  managedWindows.forEach((win) => {
+    if (win && !win.isDestroyed()) {
+      targets.push(win.webContents);
+    }
+  });
+
+  const seen = new Set();
+  targets.forEach((webContents) => {
+    if (!webContents || webContents.isDestroyed()) return;
+    if (seen.has(webContents.id)) return;
+    seen.add(webContents.id);
+    webContents.send(STORAGE_CONVERSATIONS_CHANGED_CHANNEL, message);
+  });
 }
 
 function readStoredDocData(docId) {
@@ -1227,24 +1264,54 @@ ipcMain.handle('storage:conversation-get', async (_event, conversationId) => {
 
 ipcMain.handle('storage:conversation-upsert', async (_event, payload = {}) => {
   const service = await ensureStorageServiceReady();
-  return service.upsertConversation(payload || {});
+  const result = service.upsertConversation(payload || {});
+  if (result?.ok && result?.unchanged !== true) {
+    notifyConversationsChanged({
+      source: 'conversation-upsert',
+      conversationId: result.conversationId || '',
+      assistantCode: result.assistantCode || '',
+    });
+  }
+  return result;
 });
 
 ipcMain.handle('storage:conversation-rename', async (_event, payload = {}) => {
   const service = await ensureStorageServiceReady();
   const conversationId = payload?.conversationId;
   const conversationName = payload?.conversationName;
-  return service.renameConversation(conversationId, conversationName);
+  const result = service.renameConversation(conversationId, conversationName);
+  if (result?.ok) {
+    notifyConversationsChanged({
+      source: 'conversation-rename',
+      conversationId: result.conversationId || '',
+      conversationName: result.conversationName || '',
+    });
+  }
+  return result;
 });
 
 ipcMain.handle('storage:conversation-delete', async (_event, ids = []) => {
   const service = await ensureStorageServiceReady();
-  return service.deleteConversations(Array.isArray(ids) ? ids : []);
+  const result = service.deleteConversations(Array.isArray(ids) ? ids : []);
+  if (result?.ok && Number(result?.deletedCount || 0) > 0) {
+    notifyConversationsChanged({
+      source: 'conversation-delete',
+      deletedCount: Number(result.deletedCount || 0),
+    });
+  }
+  return result;
 });
 
 ipcMain.handle('storage:conversation-clean', async (_event, days = 30) => {
   const service = await ensureStorageServiceReady();
-  return service.cleanConversations(days);
+  const result = service.cleanConversations(days);
+  if (result?.ok && Number(result?.deletedCount || 0) > 0) {
+    notifyConversationsChanged({
+      source: 'conversation-clean',
+      deletedCount: Number(result.deletedCount || 0),
+    });
+  }
+  return result;
 });
 
 ipcMain.handle('storage:health-get', async () => {

@@ -15,6 +15,7 @@ import {
 export function useSessionPersistence(options: any) {
   const {
     refs,
+    messageStore,
     messageRefs,
     showDismissibleMessage,
     handleTogglePin,
@@ -29,8 +30,6 @@ export function useSessionPersistence(options: any) {
     autoCloseOnBlur,
     model,
     currentConfig,
-    history,
-    chat_show,
     selectedVoice,
     sessionMcpServerIds,
     sessionSkillIds,
@@ -46,7 +45,6 @@ export function useSessionPersistence(options: any) {
     isSessionDirty,
     collapsedMessages,
     focusedMessageIndex,
-    messageIdCounter,
     tempReasoningEffort,
     tempSessionSkillIds,
     currentConversationId,
@@ -95,6 +93,7 @@ export function useSessionPersistence(options: any) {
 
   const getSessionDataAsObject = () => {
     const currentPromptConfig = currentConfig.value.prompts[CODE.value] || {};
+    const snapshot = messageStore.sessionSnapshot.value || { history: [], chat_show: [] };
     return {
       anywhere_history: true,
       conversationId: currentConversationId.value || '',
@@ -105,8 +104,8 @@ export function useSessionPersistence(options: any) {
       autoCloseOnBlur: autoCloseOnBlur.value,
       model: model.value,
       currentPromptConfig,
-      history: history.value,
-      chat_show: chat_show.value,
+      history: snapshot.history,
+      chat_show: snapshot.chat_show,
       selectedVoice: selectedVoice.value,
       activeMcpServerIds: sessionMcpServerIds.value || [],
       activeSkillIds: sessionSkillIds.value || [],
@@ -181,7 +180,7 @@ export function useSessionPersistence(options: any) {
           instance.confirmButtonLoading = true;
           try {
             defaultConversationName.value = finalBasename;
-            const sessionData = getSessionDataAsObject();
+            const sessionData = JSON.parse(JSON.stringify(getSessionDataAsObject()));
             const result = await window.api.upsertConversation({
               conversationId: currentConversationId.value || sessionData.conversationId || '',
               conversationName: finalBasename,
@@ -223,7 +222,7 @@ export function useSessionPersistence(options: any) {
       timestamp,
       modelLabel: modelMap.value[model.value] || 'N/A',
       currentSystemPrompt: currentSystemPrompt.value,
-      chatShow: chat_show.value,
+      chatShow: messageStore.visibleMessages.value,
       formatTimestamp,
     });
 
@@ -390,7 +389,7 @@ export function useSessionPersistence(options: any) {
                 timestamp,
                 modelLabel: modelMap.value[model.value] || 'N/A',
                 currentSystemPrompt: currentSystemPrompt.value,
-                chatShow: chat_show.value,
+                chatShow: messageStore.visibleMessages.value,
                 userAvatar: UserAvart.value,
                 aiAvatar: AIAvart.value,
                 formatTimestamp,
@@ -668,7 +667,7 @@ export function useSessionPersistence(options: any) {
     }, 100);
   };
 
-  const loadSession = async (jsonData: any) => {
+  const loadSession = async (jsonData: any, options: any = {}) => {
     loading.value = true;
     hasSessionInitialized.value = false;
     isSessionDirty.value = false;
@@ -677,9 +676,24 @@ export function useSessionPersistence(options: any) {
     focusedMessageIndex.value = null;
 
     try {
-      currentConversationId.value = String(jsonData?.conversationId || '').trim();
-      if (typeof jsonData?.conversationName === 'string' && jsonData.conversationName.trim()) {
-        defaultConversationName.value = jsonData.conversationName.trim();
+      const externalConversationId = String(options?.conversationId || '').trim();
+      const payloadConversationId = String(jsonData?.conversationId || '').trim();
+      const resolvedConversationId =
+        externalConversationId ||
+        payloadConversationId ||
+        String(currentConversationId.value || '').trim();
+      if (resolvedConversationId) {
+        currentConversationId.value = resolvedConversationId;
+      }
+
+      const externalConversationName = String(options?.conversationName || '').trim();
+      const payloadConversationName = String(jsonData?.conversationName || '').trim();
+      const resolvedConversationName =
+        externalConversationName ||
+        payloadConversationName ||
+        String(defaultConversationName.value || '').trim();
+      if (resolvedConversationName) {
+        defaultConversationName.value = resolvedConversationName;
       }
 
       CODE.value = jsonData.CODE;
@@ -688,11 +702,9 @@ export function useSessionPersistence(options: any) {
       isInit.value = jsonData.isInit;
       autoCloseOnBlur.value = jsonData.autoCloseOnBlur;
 
-      history.value = jsonData.history;
-      chat_show.value = jsonData.chat_show;
       selectedVoice.value = jsonData.selectedVoice || '';
       tempReasoningEffort.value = jsonData.currentPromptConfig?.reasoning_effort || 'default';
-      isAutoApproveTools.value = jsonData.isAutoApproveTools || true;
+      isAutoApproveTools.value = jsonData.isAutoApproveTools ?? true;
 
       const configData = await window.api.getConfig();
       currentConfig.value = configData.config;
@@ -756,41 +768,13 @@ export function useSessionPersistence(options: any) {
         tempSessionSkillIds.value = [];
       }
 
-      if (chat_show.value && chat_show.value.length > 0) {
-        chat_show.value.forEach((msg: any) => {
-          if (msg.id === undefined) {
-            msg.id = messageIdCounter.value++;
-          }
-        });
-        const maxId = Math.max(...chat_show.value.map((m: any) => m.id || 0));
-        messageIdCounter.value = maxId + 1;
-      }
-
-      const systemMessageIndex = history.value.findIndex((m: any) => m.role === 'system');
-      if (systemMessageIndex !== -1) {
-        currentSystemPrompt.value = history.value[systemMessageIndex].content;
-
-        if (
-          !chat_show.value[systemMessageIndex] ||
-          chat_show.value[systemMessageIndex].role !== 'system'
-        ) {
-          chat_show.value.unshift({
-            role: 'system',
-            content: currentSystemPrompt.value,
-            id: messageIdCounter.value++,
-          });
-        }
-      } else if (currentConfig.value.prompts[CODE.value]?.prompt) {
-        currentSystemPrompt.value = currentConfig.value.prompts[CODE.value].prompt;
-        history.value.unshift({ role: 'system', content: currentSystemPrompt.value });
-        chat_show.value.unshift({
-          role: 'system',
-          content: currentSystemPrompt.value,
-          id: messageIdCounter.value++,
-        });
-      } else {
-        currentSystemPrompt.value = '';
-      }
+      messageStore.loadFromSessionData(jsonData, {
+        fallbackSystemPrompt: currentConfig.value.prompts?.[CODE.value]?.prompt || '',
+      });
+      const restoredSystemMessage = (messageStore.visibleMessages.value || []).find(
+        (msg: any) => String(msg?.role || '').toLowerCase() === 'system',
+      );
+      currentSystemPrompt.value = String(restoredSystemMessage?.content || '');
 
       if (model.value) {
         currentProviderID.value = model.value.split('|')[0];
@@ -828,12 +812,11 @@ export function useSessionPersistence(options: any) {
       if (validMcpServerIds.length > 0) {
         sessionMcpServerIds.value = [...validMcpServerIds];
         tempSessionMcpServerIds.value = [...validMcpServerIds];
-        applyMcpTools(false);
       } else {
         sessionMcpServerIds.value = [];
         tempSessionMcpServerIds.value = [];
-        applyMcpTools(false);
       }
+      applyMcpTools(false);
 
       isSessionDirty.value = false;
       hasSessionInitialized.value = true;

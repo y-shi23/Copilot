@@ -30,6 +30,7 @@ import { useAskAi } from '@window/composables/useAskAi';
 import { useAutoSave } from '@window/composables/useAutoSave';
 import { useChatMessageActions } from '@window/composables/useChatMessageActions';
 import { useChatViewport } from '@window/composables/useChatViewport';
+import { useConversationMessageStore } from '@window/composables/useConversationMessageStore';
 import { useFileHandlers } from '@window/composables/useFileHandlers';
 import { useMcpSkillManager } from '@window/composables/useMcpSkillManager';
 import { usePromptModelSettings } from '@window/composables/usePromptModelSettings';
@@ -118,6 +119,11 @@ const currentConversationId = ref('');
 const selectedVoice = ref(null);
 const tempReasoningEffort = ref('default');
 const messageIdCounter = ref(0);
+const messageStore = useConversationMessageStore({
+  historyRef: history,
+  chatShowRef: chat_show,
+  messageIdCounter,
+});
 const sourcePromptConfig = ref(null);
 const cachedBackgroundBlobUrl = ref('');
 
@@ -201,6 +207,8 @@ const {
   messageRefs,
   setMessageRef,
   getMessageComponentByIndex,
+  getMessageComponentById,
+  focusedMessageId,
   nextButtonTooltip,
   scrollToBottom,
   scrollToTop,
@@ -214,6 +222,7 @@ const {
   attachChatDomObserver,
   detachChatDomObserver,
   navMessages,
+  scrollToMessageById,
   scrollToMessageByIndex,
 } = useChatViewport({
   chatShow: chat_show,
@@ -303,16 +312,20 @@ const {
 });
 
 const isCollapsed = (index) => collapsedMessages.value.has(index);
+const resolveVisibleIndexById = (messageId) =>
+  chat_show.value.findIndex((msg) => String(msg?.id) === String(messageId));
 
 const handleTogglePin = () => {
   autoCloseOnBlur.value = !autoCloseOnBlur.value;
   if (autoCloseOnBlur.value) window.addEventListener('blur', closePage);
   else window.removeEventListener('blur', closePage);
 };
-const handleDeleteMessage = (index) => deleteMessage(index);
-const handleCopyText = (content, index) => copyText(content, index);
-const handleReAsk = () => reaskAI();
-const handleToggleCollapse = async (index, event) => {
+const handleDeleteMessage = (messageId) => deleteMessage(messageId);
+const handleCopyText = (content, messageId) => copyText(content, messageId);
+const handleReAsk = (messageId) => reaskAI(messageId);
+const handleToggleCollapse = async (messageId, event) => {
+  const index = resolveVisibleIndexById(messageId);
+  if (index === -1) return;
   const chatContainer = chatContainerRef.value?.$el;
   const buttonElement = event.currentTarget;
   const messageElement = buttonElement.closest('.chat-message');
@@ -501,8 +514,6 @@ const { getSessionDataAsObject, handleSaveAction, loadSession, checkAndLoadSessi
       autoCloseOnBlur,
       model,
       currentConfig,
-      history,
-      chat_show,
       selectedVoice,
       sessionMcpServerIds,
       sessionSkillIds,
@@ -520,7 +531,6 @@ const { getSessionDataAsObject, handleSaveAction, loadSession, checkAndLoadSessi
       isSessionDirty,
       collapsedMessages,
       focusedMessageIndex,
-      messageIdCounter,
       tempReasoningEffort,
       tempSessionSkillIds,
       favicon,
@@ -530,6 +540,7 @@ const { getSessionDataAsObject, handleSaveAction, loadSession, checkAndLoadSessi
       api_key,
       tempSessionMcpServerIds,
     },
+    messageStore,
     messageRefs,
     showDismissibleMessage,
     handleTogglePin,
@@ -543,12 +554,12 @@ const { scheduleAutoSave, markSessionDirty, flushAutoSave, startAutoSaveFallback
       loading,
       currentConfig,
       CODE,
-      chat_show,
       defaultConversationName,
       currentConversationId,
       isSessionDirty,
       hasSessionInitialized,
     },
+    messageStore,
     getSessionDataAsObject: (...args) => getSessionDataAsObject(...args),
     onConversationPersisted: (payload) => {
       emit('conversation-saved', payload);
@@ -569,9 +580,6 @@ const { askAI } = useAskAi({
     loading,
     isMcpLoading,
     prompt,
-    history,
-    chat_show,
-    messageIdCounter,
     isSticky,
     currentConfig,
     CODE,
@@ -591,6 +599,7 @@ const { askAI } = useAskAi({
     signalController,
     chatInputRef,
   },
+  messageStore,
   showDismissibleMessage,
   sendFile,
   scrollToBottom,
@@ -616,24 +625,24 @@ const {
 } = useChatMessageActions({
   refs: {
     loading,
-    chat_show,
-    history,
     collapsedMessages,
     messageRefs,
     focusedMessageIndex,
-    messageIdCounter,
     currentConfig,
     CODE,
     isSessionDirty,
     defaultConversationName,
+    currentConversationId,
     chatInputRef,
     chatContainerRef,
   },
+  messageStore,
   showDismissibleMessage,
   scheduleCodeBlockEnhancement,
   markSessionDirty,
+  scheduleAutoSave,
   askAI: (...args) => askAI(...args),
-  getMessageComponentByIndex,
+  getMessageComponentById,
 });
 
 const {
@@ -679,9 +688,6 @@ const { initializeWindow } = useWindowInitialization({
     base_url,
     api_key,
     currentSystemPrompt,
-    history,
-    chat_show,
-    messageIdCounter,
     sessionSkillIds,
     tempSessionSkillIds,
     basic_msg,
@@ -695,6 +701,7 @@ const { initializeWindow } = useWindowInitialization({
     prompt,
     chatInputRef,
   },
+  messageStore,
   defaultConfig,
   showDismissibleMessage,
   loadBackground,
@@ -723,14 +730,12 @@ const { openModelDialog, changeModel, showSystemPromptDialog, saveSystemPrompt, 
       currentSystemPrompt,
       systemPromptContent,
       systemPromptDialogVisible,
-      history,
-      chat_show,
-      messageIdCounter,
       CODE,
       sourcePromptConfig,
       AIAvart,
       changeModel_page,
     },
+    messageStore,
     defaultConfig,
     showDismissibleMessage,
   });
@@ -760,38 +765,76 @@ const applyAssistantContext = async (assistantCode, options = {}) => {
   });
 };
 
+let workspaceTaskChain: Promise<any> = Promise.resolve();
+let workspaceTaskToken = 0;
+const runWorkspaceTask = (task: any) => {
+  workspaceTaskToken += 1;
+  const token = workspaceTaskToken;
+
+  workspaceTaskChain = workspaceTaskChain
+    .catch(() => {
+      // keep chain alive
+    })
+    .then(async () => {
+      if (token !== workspaceTaskToken) return;
+      await task(() => token !== workspaceTaskToken);
+    })
+    .catch((error) => {
+      console.error('[MainWorkspace] Task execution failed:', error);
+    });
+};
+
 watch(
   () => props.assistantCode,
-  async (nextCode) => {
+  (nextCode) => {
     if (!isInit.value || !nextCode) return;
     if (nextCode === CODE.value) return;
-    await applyAssistantContext(nextCode, { force: true });
+    runWorkspaceTask(async (isStale: any) => {
+      if (isStale()) return;
+      await applyAssistantContext(nextCode, { force: true });
+    });
   },
 );
 
 const lastSessionRequestNonce = ref(0);
 watch(
   () => props.sessionLoadRequest,
-  async (request) => {
+  (request) => {
     const nonce = Number(request?.nonce || 0);
     if (!isInit.value || !nonce || nonce === lastSessionRequestNonce.value) return;
     lastSessionRequestNonce.value = nonce;
 
-    if (request.mode === 'new') {
-      await applyAssistantContext(request.assistantCode || props.assistantCode || 'AI', {
-        force: true,
-      });
-      return;
-    }
+    runWorkspaceTask(async (isStale: any) => {
+      if (isStale()) return;
 
-    if (request.mode === 'load' && request.sessionData) {
-      await closePage();
-      currentConversationId.value = String(request.conversationId || '');
-      if (request.conversationName) {
-        defaultConversationName.value = request.conversationName;
+      if (request.mode === 'meta') {
+        const nextConversationId = String(request.conversationId || '').trim();
+        if (nextConversationId) {
+          currentConversationId.value = nextConversationId;
+        }
+        const nextConversationName = String(request.conversationName || '').trim();
+        if (nextConversationName) {
+          defaultConversationName.value = nextConversationName;
+        }
+        return;
       }
-      await loadSession(request.sessionData);
-    }
+
+      if (request.mode === 'new') {
+        await applyAssistantContext(request.assistantCode || props.assistantCode || 'AI', {
+          force: true,
+        });
+        return;
+      }
+
+      if (request.mode === 'load' && request.sessionData) {
+        await closePage();
+        if (isStale()) return;
+        await loadSession(request.sessionData, {
+          conversationId: String(request.conversationId || '').trim(),
+          conversationName: String(request.conversationName || '').trim(),
+        });
+      }
+    });
   },
   { deep: true },
 );
@@ -880,7 +923,7 @@ const handleOpenSearch = () => {
         <ChatNavigationSidebar
           v-if="chat_show.length > 0"
           :nav-messages="navMessages"
-          :focused-message-index="focusedMessageIndex"
+          :focused-message-id="focusedMessageId"
           :next-button-tooltip="nextButtonTooltip"
           :show-scroll-to-bottom-button="showScrollToBottomButton"
           :get-message-preview-text="getMessagePreviewText"
@@ -888,7 +931,7 @@ const handleOpenSearch = () => {
           @previous="navigateToPreviousMessage"
           @next="navigateToNextMessage"
           @bottom="forceScrollToBottom"
-          @jump="scrollToMessageByIndex"
+          @jump="scrollToMessageById"
         />
 
         <ChatInput

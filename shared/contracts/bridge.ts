@@ -47,6 +47,19 @@ export interface StorageHealthInfo {
   lastError: string;
 }
 
+export interface StorageSyncResult {
+  ok: boolean;
+  skipped?: boolean;
+  reason?: string;
+  pushed?: number;
+  pulled?: number;
+  applied?: number;
+  staleSkipped?: number;
+  processed?: number;
+  failed?: number;
+  error?: string;
+}
+
 export interface ConversationTitlePayload {
   sessionData: Record<string, any>;
   language?: string;
@@ -112,6 +125,7 @@ export interface MainWindowApi {
   toggleAlwaysOnTop?: AnyFn;
   onAlwaysOnTopChanged?: AnyFn;
   onConfigUpdated?: AnyFn;
+  onConversationsChanged?: (callback: (payload: Record<string, any>) => void) => () => void;
   getCachedBackgroundImage?: AnyFn;
   cacheBackgroundImage?: AnyFn;
   toggleSkillForkMode?: AnyFn;
@@ -142,7 +156,7 @@ export interface MainWindowApi {
   cleanConversations?: (days: number) => Promise<Record<string, any>>;
   getStorageHealth?: () => Promise<StorageHealthInfo>;
   testPostgresConnection?: (connectionString: string) => Promise<{ ok: boolean; error?: string }>;
-  triggerStorageSync?: () => Promise<Record<string, any>>;
+  triggerStorageSync?: () => Promise<StorageSyncResult>;
   generateConversationTitle?: (
     payload: ConversationTitlePayload,
   ) => Promise<ConversationTitleResult>;

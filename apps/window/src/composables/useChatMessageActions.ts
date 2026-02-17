@@ -4,87 +4,49 @@ import { nextTick } from 'vue';
 export function useChatMessageActions(options: any) {
   const {
     refs,
+    messageStore,
     showDismissibleMessage,
     scheduleCodeBlockEnhancement,
     markSessionDirty,
+    scheduleAutoSave,
     askAI,
-    getMessageComponentByIndex,
+    getMessageComponentById,
   } = options;
+
   const {
     loading,
-    chat_show,
-    history,
     collapsedMessages,
     messageRefs,
     focusedMessageIndex,
-    messageIdCounter,
     currentConfig,
     CODE,
     isSessionDirty,
     defaultConversationName,
+    currentConversationId,
     chatInputRef,
     chatContainerRef,
   } = refs;
 
-  const mapVisibleIndexToHistoryIndex = (index: number) => {
-    let historyIdx = -1;
-    let showCounter = -1;
-    for (let i = 0; i < history.value.length; i++) {
-      if (history.value[i].role !== 'tool') {
-        showCounter++;
-      }
-      if (showCounter === index) {
-        historyIdx = i;
-        break;
-      }
-    }
-    return historyIdx;
-  };
-
-  const updateMessageContent = (message: any, newContent: string) => {
-    if (!message) return;
-    if (typeof message.content === 'string' || message.content === null) {
-      message.content = newContent;
-      return;
-    }
-    if (Array.isArray(message.content)) {
-      const textPart = message.content.find(
-        (p: any) => p.type === 'text' && !(p.text && p.text.toLowerCase().startsWith('file name:')),
-      );
-      if (textPart) {
-        textPart.text = newContent;
-      } else {
-        message.content.push({ type: 'text', text: newContent });
-      }
-    }
-  };
-
-  const copyText = async (content: any, index: number) => {
-    if (loading.value && index === chat_show.value.length - 1) return;
+  const copyText = async (content: any, messageId: string | number) => {
+    const visible = messageStore.visibleMessages.value || [];
+    const lastMessage = visible.length > 0 ? visible[visible.length - 1] : null;
+    if (loading.value && lastMessage && String(lastMessage.id) === String(messageId)) return;
     await window.api.copyText(content);
   };
 
-  const handleEditMessage = (index: number, newContent: string) => {
-    if (index < 0 || index >= chat_show.value.length) return;
-
-    const historyIdx = mapVisibleIndexToHistoryIndex(index);
-    updateMessageContent(chat_show.value[index], newContent);
-
-    if (historyIdx !== -1 && history.value[historyIdx]) {
-      updateMessageContent(history.value[historyIdx], newContent);
-    } else {
-      console.error(
-        '错误：无法将 chat_show 索引映射到 history 索引。下次API请求可能会使用旧数据。',
-      );
-    }
-
+  const handleEditMessage = (messageId: string | number, newContent: string) => {
+    const changed = messageStore.editVisibleById(messageId, newContent);
+    if (!changed) return;
     markSessionDirty();
+    if (typeof scheduleAutoSave === 'function') {
+      scheduleAutoSave({ immediate: true });
+    }
     scheduleCodeBlockEnhancement();
   };
 
-  const handleEditStart = async (index: number) => {
+  const handleEditStart = async (messageId: string | number) => {
     const scrollContainer = chatContainerRef.value?.$el;
-    const childComponent = getMessageComponentByIndex(index);
+    const childComponent = getMessageComponentById(messageId);
     const element = childComponent?.$el;
 
     if (!scrollContainer || !element || !childComponent) return;
@@ -99,134 +61,124 @@ export function useChatMessageActions(options: any) {
     });
   };
 
-  const reaskAI = async () => {
+  const reaskAI = async (assistantMessageId?: string | number) => {
     if (loading.value) return;
 
-    const lastVisibleMessageIndexInHistory = history.value.findLastIndex(
-      (msg: any) => msg.role !== 'tool',
+    const visible = (messageStore.visibleMessages.value || []).filter(
+      (message: any) => String(message?.role || '').toLowerCase() !== 'system',
     );
+    const lastVisibleMessage = visible.length > 0 ? visible[visible.length - 1] : null;
 
-    if (lastVisibleMessageIndexInHistory === -1) {
+    if (!lastVisibleMessage) {
       showDismissibleMessage.warning('没有可以重新提问的用户消息');
       return;
     }
+    if (String(lastVisibleMessage.role || '') !== 'assistant') {
+      showDismissibleMessage.warning('仅支持对最后一条 AI 消息重新生成');
+      return;
+    }
+    if (
+      assistantMessageId !== undefined &&
+      assistantMessageId !== null &&
+      String(assistantMessageId) !== String(lastVisibleMessage.id)
+    ) {
+      showDismissibleMessage.warning('仅支持对最后一条 AI 消息重新生成');
+      return;
+    }
 
-    const lastVisibleMessage = history.value[lastVisibleMessageIndexInHistory];
-    if (lastVisibleMessage.role === 'assistant') {
-      const historyItemsToRemove = history.value.length - lastVisibleMessageIndexInHistory;
-      const showItemsToRemove = history.value
-        .slice(lastVisibleMessageIndexInHistory)
-        .filter((m: any) => m.role !== 'tool').length;
-
-      history.value.splice(lastVisibleMessageIndexInHistory, historyItemsToRemove);
-      if (showItemsToRemove > 0) {
-        chat_show.value.splice(chat_show.value.length - showItemsToRemove);
-      }
-    } else if (lastVisibleMessage.role !== 'user') {
-      showDismissibleMessage.warning('无法从此消息类型重新提问。');
+    const rollbackResult = messageStore.rollbackLastTurnForRegenerate();
+    if (!rollbackResult?.ok) {
+      showDismissibleMessage.warning('没有可以重新提问的用户消息');
       return;
     }
 
     collapsedMessages.value.clear();
     await nextTick();
+    markSessionDirty();
+    if (typeof scheduleAutoSave === 'function') {
+      scheduleAutoSave({ immediate: true });
+    }
     await askAI(true);
   };
 
   const handleEditEnd = async ({ id, action, content }: any) => {
     if (action !== 'save') return;
 
-    const currentIndex = chat_show.value.findIndex((m: any) => m.id === id);
-    if (currentIndex === -1) return;
+    const currentMessage = messageStore.getVisibleMessageById(id);
+    if (!currentMessage) return;
 
-    handleEditMessage(currentIndex, content);
+    handleEditMessage(id, content);
     showDismissibleMessage.success('消息已更新');
 
+    const visible = messageStore.visibleMessages.value || [];
+    const lastVisible = visible.length > 0 ? visible[visible.length - 1] : null;
     if (
-      currentIndex === chat_show.value.length - 1 &&
-      chat_show.value[currentIndex].role === 'user'
+      lastVisible &&
+      String(lastVisible.id) === String(id) &&
+      String(currentMessage.role || '').toLowerCase() === 'user'
     ) {
       await nextTick();
       await reaskAI();
     }
   };
 
-  const deleteMessage = (index: number) => {
+  const deleteMessage = (messageId: string | number) => {
     if (loading.value) {
       showDismissibleMessage.warning('请等待当前回复完成后再操作');
       return;
     }
-    if (index < 0 || index >= chat_show.value.length) return;
 
-    const msgToDeleteInShow = chat_show.value[index];
-    if (msgToDeleteInShow?.role === 'system') {
+    const target = messageStore.getVisibleMessageById(messageId);
+    if (!target) return;
+    if (String(target.role || '').toLowerCase() === 'system') {
       showDismissibleMessage.info('系统提示词不能被删除');
       return;
     }
 
-    const historyIdx = mapVisibleIndexToHistoryIndex(index);
-    if (historyIdx === -1) {
-      console.error('关键错误: 无法将 chat_show 索引映射到 history 索引。中止删除。');
+    const result = messageStore.deleteVisibleById(messageId);
+    if (!result?.ok) {
       showDismissibleMessage.error('删除失败：消息状态不一致。');
       return;
     }
 
-    let historyStartIdx = historyIdx;
-    let historyEndIdx = historyIdx;
-    const messageToDeleteInHistory = history.value[historyIdx];
-
-    if (
-      messageToDeleteInHistory.role === 'assistant' &&
-      messageToDeleteInHistory.tool_calls &&
-      messageToDeleteInHistory.tool_calls.length > 0
-    ) {
-      while (history.value[historyEndIdx + 1]?.role === 'tool') {
-        historyEndIdx++;
+    const removedIndex = Number(result.removedVisibleIndex);
+    if (Number.isFinite(removedIndex) && removedIndex >= 0) {
+      const reindexed = new Set();
+      for (const collapsedIdx of collapsedMessages.value) {
+        if (collapsedIdx < removedIndex) {
+          reindexed.add(collapsedIdx);
+        } else if (collapsedIdx > removedIndex) {
+          reindexed.add(collapsedIdx - 1);
+        }
       }
+      collapsedMessages.value = reindexed;
     }
-
-    const historyDeleteCount = historyEndIdx - historyStartIdx + 1;
-    if (historyDeleteCount > 0) {
-      history.value.splice(historyStartIdx, historyDeleteCount);
-    }
-    chat_show.value.splice(index, 1);
-
-    const newCollapsedMessages = new Set();
-    for (const collapsedIdx of collapsedMessages.value) {
-      if (collapsedIdx < index) {
-        newCollapsedMessages.add(collapsedIdx);
-      } else if (collapsedIdx > index) {
-        newCollapsedMessages.add(collapsedIdx - 1);
-      }
-    }
-    collapsedMessages.value = newCollapsedMessages;
     focusedMessageIndex.value = null;
+
+    markSessionDirty();
+    if (typeof scheduleAutoSave === 'function') {
+      scheduleAutoSave({ immediate: true, force: true });
+    }
   };
 
   const clearHistory = () => {
     if (loading.value) return;
 
-    const systemPromptFromConfig = currentConfig.value.prompts[CODE.value]?.prompt;
-    const firstMessageInHistory = history.value.length > 0 ? history.value[0] : null;
-    const systemPromptFromHistory =
-      firstMessageInHistory && firstMessageInHistory.role === 'system'
-        ? firstMessageInHistory
-        : null;
-    const systemPromptToKeep = systemPromptFromConfig
-      ? { role: 'system', content: systemPromptFromConfig }
-      : systemPromptFromHistory;
+    const promptFromConfig = currentConfig.value?.prompts?.[CODE.value]?.prompt;
+    const currentSystemMessage = (messageStore.visibleMessages.value || []).find(
+      (message: any) => String(message?.role || '').toLowerCase() === 'system',
+    );
+    const systemPrompt = promptFromConfig || String(currentSystemMessage?.content || '');
 
-    if (systemPromptToKeep) {
-      history.value = [systemPromptToKeep];
-      chat_show.value = [{ ...systemPromptToKeep, id: messageIdCounter.value++ }];
-    } else {
-      history.value = [];
-      chat_show.value = [];
-    }
+    messageStore.clearToSystem({ systemPrompt });
 
     collapsedMessages.value.clear();
     messageRefs.clear();
     focusedMessageIndex.value = null;
     defaultConversationName.value = '';
+    if (currentConversationId) {
+      currentConversationId.value = '';
+    }
     isSessionDirty.value = false;
     chatInputRef.value?.focus({ cursor: 'end' });
     showDismissibleMessage.success('历史记录已清除');

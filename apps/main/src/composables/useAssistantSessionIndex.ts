@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 
 const toMillis = (rawValue: string) => {
   const ms = new Date(rawValue || 0).getTime();
@@ -11,6 +11,8 @@ export function useAssistantSessionIndex(configRef: any) {
   const errorMessage = ref('');
   const sessionMap = ref({});
   const isRefreshing = ref(false);
+  let refreshDebounceTimer: number | null = null;
+  let detachConversationsChangedListener: null | (() => void) = null;
 
   const enabledAssistants = computed(() => {
     const prompts = configRef.value?.prompts || {};
@@ -95,6 +97,22 @@ export function useAssistantSessionIndex(configRef: any) {
     }
   };
 
+  const scheduleRefreshIndex = (force = false) => {
+    if (refreshDebounceTimer) {
+      window.clearTimeout(refreshDebounceTimer);
+      refreshDebounceTimer = null;
+    }
+    refreshDebounceTimer = window.setTimeout(
+      () => {
+        refreshDebounceTimer = null;
+        refreshIndex({ force }).catch((error) => {
+          console.error('[SessionIndex] debounced refresh failed:', error);
+        });
+      },
+      force ? 80 : 180,
+    );
+  };
+
   const loadSessionPayload = async (sessionItem: any) => {
     const conversationId = String(sessionItem?.conversationId || sessionItem?.id || '').trim();
     if (!conversationId) {
@@ -106,13 +124,26 @@ export function useAssistantSessionIndex(configRef: any) {
       throw new Error('Session payload is invalid');
     }
 
+    const assistantCode = String(
+      detail.assistantCode || detail.sessionData?.CODE || sessionItem?.assistantCode || '',
+    ).trim();
+    const conversationName = String(
+      detail.conversationName || sessionItem?.conversationName || '',
+    ).trim();
+    const sessionData = JSON.parse(JSON.stringify(detail.sessionData || {}));
+    sessionData.conversationId = conversationId;
+    if (conversationName) {
+      sessionData.conversationName = conversationName;
+    }
+    if (assistantCode) {
+      sessionData.CODE = assistantCode;
+    }
+
     return {
       conversationId,
-      sessionData: detail.sessionData,
-      conversationName: String(detail.conversationName || sessionItem?.conversationName || ''),
-      assistantCode: String(
-        detail.assistantCode || detail.sessionData?.CODE || sessionItem?.assistantCode || '',
-      ),
+      sessionData,
+      conversationName,
+      assistantCode,
     };
   };
 
@@ -137,6 +168,23 @@ export function useAssistantSessionIndex(configRef: any) {
     },
     { immediate: true },
   );
+
+  if (typeof window.api?.onConversationsChanged === 'function') {
+    detachConversationsChangedListener = window.api.onConversationsChanged(() => {
+      scheduleRefreshIndex(true);
+    });
+  }
+
+  onBeforeUnmount(() => {
+    if (refreshDebounceTimer) {
+      window.clearTimeout(refreshDebounceTimer);
+      refreshDebounceTimer = null;
+    }
+    if (typeof detachConversationsChangedListener === 'function') {
+      detachConversationsChangedListener();
+      detachConversationsChangedListener = null;
+    }
+  });
 
   return {
     loading,

@@ -44,9 +44,24 @@ export function useChatViewport(options: any) {
     return messageRefs.get(msg.id);
   };
 
+  const getMessageComponentById = (messageId: any) => {
+    if (messageId === undefined || messageId === null) return undefined;
+    if (messageRefs.has(messageId)) return messageRefs.get(messageId);
+    for (const [key, component] of messageRefs.entries()) {
+      if (String(key) === String(messageId)) return component;
+    }
+    return undefined;
+  };
+
   const isViewingLastMessage = computed(() => {
     if (focusedMessageIndex.value === null) return false;
     return focusedMessageIndex.value === chatShow.value.length - 1;
+  });
+
+  const focusedMessageId = computed(() => {
+    if (focusedMessageIndex.value === null) return null;
+    const msg = chatShow.value[focusedMessageIndex.value];
+    return msg ? msg.id : null;
   });
 
   const nextButtonTooltip = computed(() => {
@@ -306,16 +321,25 @@ export function useChatViewport(options: any) {
 
   const navMessages = computed(() => {
     return chatShow.value
-      .map((msg: any, index: number) => ({ ...msg, originalIndex: index }))
+      .map((msg: any) => ({ ...msg, messageId: msg.id }))
       .filter((msg: any) => msg.role !== 'system');
   });
 
-  const scrollToMessageByIndex = (index: number) => {
-    const component = getMessageComponentByIndex(index);
+  const scrollToMessageById = (messageId: any) => {
+    const component = getMessageComponentById(messageId);
     if (component && component.$el && component.$el.nodeType === 1) {
       component.$el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      focusedMessageIndex.value = index;
+      const index = chatShow.value.findIndex((msg: any) => String(msg?.id) === String(messageId));
+      if (index !== -1) {
+        focusedMessageIndex.value = index;
+      }
     }
+  };
+
+  const scrollToMessageByIndex = (index: number) => {
+    const message = chatShow.value[index];
+    if (!message) return;
+    scrollToMessageById(message.id);
   };
 
   return {
@@ -327,7 +351,9 @@ export function useChatViewport(options: any) {
     messageRefs,
     setMessageRef,
     getMessageComponentByIndex,
+    getMessageComponentById,
     isViewingLastMessage,
+    focusedMessageId,
     nextButtonTooltip,
     scrollToBottom,
     scrollToTop,
@@ -341,6 +367,7 @@ export function useChatViewport(options: any) {
     attachChatDomObserver,
     detachChatDomObserver,
     navMessages,
+    scrollToMessageById,
     scrollToMessageByIndex,
   };
 }

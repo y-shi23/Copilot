@@ -23,6 +23,7 @@ export const IPC_CHANNELS = {
   STORAGE_CONVERSATION_RENAME: 'storage:conversation-rename',
   STORAGE_CONVERSATION_DELETE: 'storage:conversation-delete',
   STORAGE_CONVERSATION_CLEAN: 'storage:conversation-clean',
+  STORAGE_CONVERSATIONS_CHANGED: 'storage:conversations-changed',
   STORAGE_HEALTH_GET: 'storage:health-get',
   STORAGE_POSTGRES_TEST: 'storage:postgres-test',
   STORAGE_SYNC_NOW: 'storage:sync-now',

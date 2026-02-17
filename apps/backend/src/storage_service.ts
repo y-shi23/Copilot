@@ -9,6 +9,7 @@ const { Client, Pool } = require('pg');
 const DEFAULT_SQLITE_FILENAME = 'cache.sqlite';
 const DEFAULT_FLUSH_DEBOUNCE_MS = 800;
 const DEFAULT_SYNC_BATCH_SIZE = 50;
+const DEFAULT_SYNC_PULL_INTERVAL_MS = 15000;
 const DEFAULT_SYNC_BACKOFF_BASE_MS = 1000;
 const DEFAULT_SYNC_BACKOFF_MAX_MS = 60000;
 
@@ -192,6 +193,10 @@ class StorageService {
       Number.isFinite(options.syncBatchSize) && options.syncBatchSize > 0
         ? Number(options.syncBatchSize)
         : DEFAULT_SYNC_BATCH_SIZE;
+    this.syncPullIntervalMs =
+      Number.isFinite(options.syncPullIntervalMs) && options.syncPullIntervalMs > 0
+        ? Number(options.syncPullIntervalMs)
+        : DEFAULT_SYNC_PULL_INTERVAL_MS;
 
     this.sqlitePath = path.join(this.dataRoot, this.sqliteFilename);
 
@@ -208,6 +213,7 @@ class StorageService {
     this.pgPool = null;
     this.pgDsn = '';
     this.pgConnected = false;
+    this.onSyncSummary = typeof options.onSyncSummary === 'function' ? options.onSyncSummary : null;
 
     this.lastError = '';
     this.lastSyncAt = 0;
@@ -526,6 +532,9 @@ class StorageService {
         await client.query(
           'CREATE INDEX IF NOT EXISTS idx_app_conversations_assistant_updated ON app_conversations (assistant_code, updated_at DESC);',
         );
+        await client.query(
+          'CREATE INDEX IF NOT EXISTS idx_app_conversations_updated_id ON app_conversations (updated_at ASC, id ASC);',
+        );
       } finally {
         client.release();
       }
@@ -576,17 +585,28 @@ class StorageService {
     );
 
     conversations.forEach((row) => {
-      this.enqueueOutbox('conversation', row.id, 'upsert', {
+      const normalized = this.normalizeConversationForSync({
         id: row.id,
         assistantCode: row.assistant_code,
         conversationName: row.conversation_name,
-        preview: row.preview || '',
+        preview: row.preview,
         sessionJson: row.session_json,
         sizeBytes: Number(row.size_bytes || 0),
         createdAt: Number(row.created_at || nowMs()),
         updatedAt: Number(row.updated_at || nowMs()),
         deletedAt:
           row.deleted_at === null || row.deleted_at === undefined ? null : Number(row.deleted_at),
+      });
+      this.enqueueOutbox('conversation', row.id, 'upsert', {
+        id: normalized.id,
+        assistantCode: normalized.assistantCode,
+        conversationName: normalized.conversationName,
+        preview: normalized.preview,
+        sessionJson: normalized.sessionJson,
+        sizeBytes: normalized.sizeBytes,
+        createdAt: normalized.createdAt,
+        updatedAt: normalized.updatedAt,
+        deletedAt: normalized.deletedAt,
       });
     });
 
@@ -626,6 +646,384 @@ class StorageService {
     };
   }
 
+  emitSyncSummary(summary = {}) {
+    if (typeof this.onSyncSummary !== 'function') return;
+    try {
+      this.onSyncSummary(summary);
+    } catch (_error) {
+      // ignore callback errors
+    }
+  }
+
+  getPostgresFingerprint(dsn = '') {
+    const source = normalizePostgresUrl(dsn);
+    if (!source) return '';
+    return stableHash(source).slice(0, 12);
+  }
+
+  getConversationPullCursorMetaKey(dsn = '') {
+    const fingerprint = this.getPostgresFingerprint(dsn);
+    if (!fingerprint) return '';
+    return `pg_conversation_cursor_${fingerprint}`;
+  }
+
+  getConversationPullCursor(dsn = '') {
+    const metaKey = this.getConversationPullCursorMetaKey(dsn);
+    if (!metaKey) {
+      return { updatedAt: 0, id: '' };
+    }
+    const parsed = safeJsonParse(this.getMeta(metaKey), null);
+    const updatedAt = Number(parsed?.updatedAt || 0);
+    return {
+      updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? Math.floor(updatedAt) : 0,
+      id: String(parsed?.id || ''),
+    };
+  }
+
+  setConversationPullCursor(dsn = '', cursor = {}) {
+    const metaKey = this.getConversationPullCursorMetaKey(dsn);
+    if (!metaKey) return;
+    const updatedAt = Number(cursor?.updatedAt || 0);
+    this.setMeta(
+      metaKey,
+      JSON.stringify({
+        updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? Math.floor(updatedAt) : 0,
+        id: String(cursor?.id || ''),
+      }),
+    );
+  }
+
+  normalizeConversationForSync(raw = {}) {
+    const conversationId = String(raw.conversationId || raw.id || '').trim();
+
+    let sessionObject = raw.sessionData;
+    if (!sessionObject && raw.session_json) {
+      sessionObject =
+        typeof raw.session_json === 'string'
+          ? safeJsonParse(raw.session_json, null)
+          : raw.session_json;
+    }
+    if (!sessionObject && raw.sessionJson) {
+      sessionObject =
+        typeof raw.sessionJson === 'string'
+          ? safeJsonParse(raw.sessionJson, null)
+          : raw.sessionJson;
+    }
+    if (!sessionObject || typeof sessionObject !== 'object') {
+      sessionObject = {};
+    }
+
+    const assistantCode =
+      String(raw.assistantCode || raw.CODE || sessionObject.CODE || 'AI').trim() || 'AI';
+    const conversationName = String(
+      raw.conversationName ||
+        raw.name ||
+        sessionObject.conversationName ||
+        `Session-${assistantCode}-${new Date().toISOString().slice(0, 10)}`,
+    ).trim();
+
+    const canonicalSession = deepClone(sessionObject) || {};
+    canonicalSession.CODE = assistantCode;
+    canonicalSession.conversationName = conversationName;
+    if (conversationId) {
+      canonicalSession.conversationId = conversationId;
+    }
+
+    const sessionJson = JSON.stringify(canonicalSession);
+    const createdAtRaw = Number(raw.createdAt || raw.created_at || 0);
+    const updatedAtRaw = Number(raw.updatedAt || raw.updated_at || createdAtRaw || nowMs());
+    const deletedAtRaw =
+      raw.deletedAt === null ||
+      raw.deleted_at === null ||
+      raw.deletedAt === undefined ||
+      raw.deleted_at === undefined
+        ? null
+        : Number(raw.deletedAt ?? raw.deleted_at);
+
+    return {
+      id: conversationId,
+      assistantCode,
+      conversationName,
+      preview: String(raw.preview || extractConversationPreview(canonicalSession) || '').trim(),
+      sessionObject: canonicalSession,
+      sessionJson,
+      sizeBytes: Number(raw.sizeBytes || raw.size_bytes || Buffer.byteLength(sessionJson, 'utf8')),
+      createdAt:
+        Number.isFinite(createdAtRaw) && createdAtRaw > 0
+          ? Math.floor(createdAtRaw)
+          : Math.floor(nowMs()),
+      updatedAt:
+        Number.isFinite(updatedAtRaw) && updatedAtRaw > 0
+          ? Math.floor(updatedAtRaw)
+          : Math.floor(nowMs()),
+      deletedAt:
+        deletedAtRaw === null || !Number.isFinite(deletedAtRaw) || deletedAtRaw <= 0
+          ? null
+          : Math.floor(deletedAtRaw),
+    };
+  }
+
+  buildConversationVersionSignature(record = {}) {
+    return stableHash(
+      JSON.stringify({
+        assistantCode: String(record.assistantCode || ''),
+        conversationName: String(record.conversationName || ''),
+        preview: String(record.preview || ''),
+        sessionJson: String(record.sessionJson || ''),
+        sizeBytes: Number(record.sizeBytes || 0),
+        deletedAt:
+          record.deletedAt === null || record.deletedAt === undefined
+            ? null
+            : Number(record.deletedAt || 0),
+      }),
+    );
+  }
+
+  compareConversationVersions(left, right) {
+    const leftUpdatedAt = Number(left?.updatedAt || 0);
+    const rightUpdatedAt = Number(right?.updatedAt || 0);
+    if (leftUpdatedAt !== rightUpdatedAt) {
+      return leftUpdatedAt > rightUpdatedAt ? 1 : -1;
+    }
+
+    const leftSig = this.buildConversationVersionSignature(left);
+    const rightSig = this.buildConversationVersionSignature(right);
+    if (leftSig === rightSig) return 0;
+    return leftSig > rightSig ? 1 : -1;
+  }
+
+  async getRemoteConversationSnapshotById(client, conversationId) {
+    const rows = await client.query(
+      `
+      SELECT id, assistant_code, conversation_name, preview, session_json::text AS session_json_text,
+             size_bytes,
+             EXTRACT(EPOCH FROM created_at) * 1000 AS created_at_ms,
+             EXTRACT(EPOCH FROM updated_at) * 1000 AS updated_at_ms,
+             CASE
+               WHEN deleted_at IS NULL THEN NULL
+               ELSE EXTRACT(EPOCH FROM deleted_at) * 1000
+             END AS deleted_at_ms
+      FROM app_conversations
+      WHERE id = $1
+      LIMIT 1;
+      `,
+      [String(conversationId || '').trim()],
+    );
+    if (!rows?.rows?.length) return null;
+
+    const row = rows.rows[0];
+    const remote = this.normalizeConversationForSync({
+      id: row.id,
+      assistantCode: row.assistant_code,
+      conversationName: row.conversation_name,
+      preview: row.preview,
+      sessionJson:
+        typeof row.session_json_text === 'string' && row.session_json_text
+          ? row.session_json_text
+          : row.session_json,
+      sizeBytes: Number(row.size_bytes || 0),
+      createdAt: Number(row.created_at_ms || 0),
+      updatedAt: Number(row.updated_at_ms || 0),
+      deletedAt:
+        row.deleted_at_ms === null || row.deleted_at_ms === undefined
+          ? null
+          : Number(row.deleted_at_ms),
+    });
+    if (!remote.id) return null;
+    return remote;
+  }
+
+  applyRemoteConversation(remoteRecord) {
+    if (!remoteRecord?.id) {
+      return { applied: false, stale: false };
+    }
+
+    const localRows = this.runStatement(
+      `
+      SELECT id, assistant_code, conversation_name, preview, session_json,
+             size_bytes, created_at, updated_at, deleted_at
+      FROM conversations
+      WHERE id = ?
+      LIMIT 1;
+      `,
+      [remoteRecord.id],
+    );
+
+    if (!localRows.length) {
+      this.runMutation(
+        `
+        INSERT INTO conversations (
+          id, assistant_code, conversation_name, preview,
+          session_json, size_bytes, created_at, updated_at, deleted_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          assistant_code = excluded.assistant_code,
+          conversation_name = excluded.conversation_name,
+          preview = excluded.preview,
+          session_json = excluded.session_json,
+          size_bytes = excluded.size_bytes,
+          created_at = excluded.created_at,
+          updated_at = excluded.updated_at,
+          deleted_at = excluded.deleted_at;
+        `,
+        [
+          remoteRecord.id,
+          remoteRecord.assistantCode,
+          remoteRecord.conversationName,
+          remoteRecord.preview,
+          remoteRecord.sessionJson,
+          remoteRecord.sizeBytes,
+          remoteRecord.createdAt,
+          remoteRecord.updatedAt,
+          remoteRecord.deletedAt,
+        ],
+      );
+      return { applied: true, stale: false };
+    }
+
+    const local = this.normalizeConversationForSync({
+      id: localRows[0].id,
+      assistantCode: localRows[0].assistant_code,
+      conversationName: localRows[0].conversation_name,
+      preview: localRows[0].preview,
+      sessionJson: localRows[0].session_json,
+      sizeBytes: Number(localRows[0].size_bytes || 0),
+      createdAt: Number(localRows[0].created_at || 0),
+      updatedAt: Number(localRows[0].updated_at || 0),
+      deletedAt:
+        localRows[0].deleted_at === null || localRows[0].deleted_at === undefined
+          ? null
+          : Number(localRows[0].deleted_at),
+    });
+
+    const compareResult = this.compareConversationVersions(local, remoteRecord);
+    if (compareResult > 0) {
+      return { applied: false, stale: true };
+    }
+    if (compareResult === 0) {
+      return { applied: false, stale: false };
+    }
+
+    const createdAt =
+      Number.isFinite(local.createdAt) && local.createdAt > 0
+        ? Math.min(local.createdAt, remoteRecord.createdAt || local.createdAt)
+        : remoteRecord.createdAt;
+
+    this.runMutation(
+      `
+      UPDATE conversations
+      SET assistant_code = ?,
+          conversation_name = ?,
+          preview = ?,
+          session_json = ?,
+          size_bytes = ?,
+          created_at = ?,
+          updated_at = ?,
+          deleted_at = ?
+      WHERE id = ?;
+      `,
+      [
+        remoteRecord.assistantCode,
+        remoteRecord.conversationName,
+        remoteRecord.preview,
+        remoteRecord.sessionJson,
+        remoteRecord.sizeBytes,
+        createdAt,
+        remoteRecord.updatedAt,
+        remoteRecord.deletedAt,
+        remoteRecord.id,
+      ],
+    );
+    return { applied: true, stale: false };
+  }
+
+  async pullRemoteConversations() {
+    const dsn = this.getConfiguredPostgresUrl();
+    if (!dsn || !this.pgPool) {
+      return { pulled: 0, applied: 0, staleSkipped: 0 };
+    }
+
+    const client = await this.pgPool.connect();
+    const cursor = this.getConversationPullCursor(dsn);
+    const nextCursor = {
+      updatedAt: Number(cursor.updatedAt || 0),
+      id: String(cursor.id || ''),
+    };
+
+    let pulled = 0;
+    let applied = 0;
+    let staleSkipped = 0;
+
+    try {
+      while (true) {
+        const result = await client.query(
+          `
+          SELECT id, assistant_code, conversation_name, preview, session_json::text AS session_json_text,
+                 size_bytes,
+                 EXTRACT(EPOCH FROM created_at) * 1000 AS created_at_ms,
+                 EXTRACT(EPOCH FROM updated_at) * 1000 AS updated_at_ms,
+                 CASE
+                   WHEN deleted_at IS NULL THEN NULL
+                   ELSE EXTRACT(EPOCH FROM deleted_at) * 1000
+                 END AS deleted_at_ms
+          FROM app_conversations
+          WHERE (
+              updated_at > to_timestamp($1::double precision / 1000.0)
+              OR (
+                updated_at = to_timestamp($1::double precision / 1000.0)
+                AND id > $2
+              )
+            )
+          ORDER BY updated_at ASC, id ASC
+          LIMIT $3;
+          `,
+          [nextCursor.updatedAt, nextCursor.id, this.syncBatchSize],
+        );
+
+        const rows = result?.rows || [];
+        if (!rows.length) break;
+
+        for (const row of rows) {
+          const remoteRecord = this.normalizeConversationForSync({
+            id: row.id,
+            assistantCode: row.assistant_code,
+            conversationName: row.conversation_name,
+            preview: row.preview,
+            sessionJson:
+              typeof row.session_json_text === 'string' && row.session_json_text
+                ? row.session_json_text
+                : row.session_json,
+            sizeBytes: Number(row.size_bytes || 0),
+            createdAt: Number(row.created_at_ms || 0),
+            updatedAt: Number(row.updated_at_ms || 0),
+            deletedAt:
+              row.deleted_at_ms === null || row.deleted_at_ms === undefined
+                ? null
+                : Number(row.deleted_at_ms),
+          });
+          if (!remoteRecord.id) continue;
+
+          pulled += 1;
+          const merged = this.applyRemoteConversation(remoteRecord);
+          if (merged.applied) {
+            applied += 1;
+          } else if (merged.stale) {
+            staleSkipped += 1;
+          }
+
+          nextCursor.updatedAt = remoteRecord.updatedAt;
+          nextCursor.id = remoteRecord.id;
+        }
+      }
+    } finally {
+      client.release();
+      this.setConversationPullCursor(dsn, nextCursor);
+    }
+
+    return { pulled, applied, staleSkipped };
+  }
+
   scheduleSync(delayMs = 0) {
     if (this.syncTimer) {
       clearTimeout(this.syncTimer);
@@ -658,13 +1056,28 @@ class StorageService {
     }
 
     this.syncInFlight = true;
-    let processed = 0;
+    let pushed = 0;
+    let pulled = 0;
+    let applied = 0;
+    let staleSkipped = 0;
     let failed = 0;
 
     try {
       const ready = await this.ensurePostgresReady();
       if (!ready || !this.pgPool) {
-        return { ok: false, processed, failed, error: this.lastError || 'Postgres unavailable' };
+        this.scheduleSync(calcBackoffMs(1));
+        const summary = {
+          ok: false,
+          pushed,
+          pulled,
+          applied,
+          staleSkipped,
+          processed: pushed,
+          failed,
+          error: this.lastError || 'Postgres unavailable',
+        };
+        this.emitSyncSummary(summary);
+        return summary;
       }
 
       while (true) {
@@ -683,9 +1096,14 @@ class StorageService {
 
         for (const row of rows) {
           try {
-            await this.applyOutboxRow(row);
+            const result = await this.applyOutboxRow(row);
             this.runMutation('DELETE FROM outbox WHERE seq = ?;', [row.seq]);
-            processed += 1;
+
+            if (result?.stale) {
+              staleSkipped += 1;
+            } else if (result?.applied !== false) {
+              pushed += 1;
+            }
           } catch (error) {
             const attempts = Number(row.attempts || 0) + 1;
             const delay = calcBackoffMs(attempts);
@@ -698,7 +1116,6 @@ class StorageService {
             this.pgConnected = false;
             this.lastError = String(error?.message || error);
 
-            // 连接类错误时立即停止本轮，避免无意义重试
             if (
               /(ECONN|timeout|connect|closed|terminat|refused|network|socket)/i.test(this.lastError)
             ) {
@@ -712,18 +1129,48 @@ class StorageService {
         }
       }
 
+      if (failed === 0) {
+        const pullResult = await this.pullRemoteConversations();
+        pulled = Number(pullResult?.pulled || 0);
+        applied = Number(pullResult?.applied || 0);
+        staleSkipped += Number(pullResult?.staleSkipped || 0);
+      }
+
       this.pgConnected = true;
       if (failed === 0) {
         this.lastError = '';
       }
       this.lastSyncAt = nowMs();
+      this.scheduleSync(this.syncPullIntervalMs);
 
-      return { ok: failed === 0, processed, failed, error: failed === 0 ? '' : this.lastError };
+      const summary = {
+        ok: failed === 0,
+        pushed,
+        pulled,
+        applied,
+        staleSkipped,
+        processed: pushed,
+        failed,
+        error: failed === 0 ? '' : this.lastError,
+      };
+      this.emitSyncSummary(summary);
+      return summary;
     } catch (error) {
       this.pgConnected = false;
       this.lastError = String(error?.message || error);
       this.scheduleSync(calcBackoffMs(1));
-      return { ok: false, processed, failed, error: this.lastError };
+      const summary = {
+        ok: false,
+        pushed,
+        pulled,
+        applied,
+        staleSkipped,
+        processed: pushed,
+        failed,
+        error: this.lastError,
+      };
+      this.emitSyncSummary(summary);
+      return summary;
     } finally {
       this.syncInFlight = false;
     }
@@ -739,7 +1186,7 @@ class StorageService {
           await client.query('DELETE FROM app_docs WHERE id = $1;', [
             String(payload.id || row.entity_id),
           ]);
-          return;
+          return { applied: true, stale: false };
         }
 
         const updatedAt = Number(payload.updatedAt || nowMs());
@@ -753,12 +1200,45 @@ class StorageService {
           `,
           [String(payload.id || row.entity_id), JSON.stringify(payload.data ?? {}), updatedAt],
         );
-        return;
+        return { applied: true, stale: false };
       }
 
       if (row.entity_type === 'conversation') {
+        const conversationId = String(payload.id || row.entity_id || '').trim();
+        if (!conversationId) return { applied: false, stale: false };
+
         if (row.op === 'delete') {
           const deletedAt = Number(payload.deletedAt || nowMs());
+          const remoteCurrent = await this.getRemoteConversationSnapshotById(
+            client,
+            conversationId,
+          );
+          if (!remoteCurrent) {
+            return { applied: false, stale: false };
+          }
+
+          const localDeleteRecord = {
+            id: conversationId,
+            assistantCode: remoteCurrent.assistantCode,
+            conversationName: remoteCurrent.conversationName,
+            preview: remoteCurrent.preview,
+            sessionJson: remoteCurrent.sessionJson,
+            sizeBytes: remoteCurrent.sizeBytes,
+            updatedAt: deletedAt,
+            deletedAt,
+          };
+          const compareResult = this.compareConversationVersions(localDeleteRecord, remoteCurrent);
+          if (compareResult < 0) {
+            return { applied: false, stale: true };
+          }
+          if (
+            compareResult === 0 &&
+            Number(remoteCurrent.deletedAt || 0) ===
+              (Number.isFinite(deletedAt) && deletedAt > 0 ? Math.floor(deletedAt) : 0)
+          ) {
+            return { applied: false, stale: false };
+          }
+
           await client.query(
             `
             UPDATE app_conversations
@@ -766,22 +1246,34 @@ class StorageService {
                 updated_at = to_timestamp($2::double precision / 1000.0)
             WHERE id = $1;
             `,
-            [String(payload.id || row.entity_id), deletedAt],
+            [conversationId, deletedAt],
           );
-          return;
+          return { applied: true, stale: false };
         }
 
-        const createdAt = Number(payload.createdAt || nowMs());
-        const updatedAt = Number(payload.updatedAt || nowMs());
-        const deletedAt =
-          payload.deletedAt === null || payload.deletedAt === undefined
-            ? null
-            : Number(payload.deletedAt);
+        const localRecord = this.normalizeConversationForSync({
+          id: conversationId,
+          assistantCode: payload.assistantCode,
+          conversationName: payload.conversationName,
+          preview: payload.preview,
+          sessionJson: payload.sessionJson,
+          sessionData: payload.sessionData,
+          sizeBytes: payload.sizeBytes,
+          createdAt: payload.createdAt,
+          updatedAt: payload.updatedAt,
+          deletedAt: payload.deletedAt,
+        });
 
-        const sessionObject =
-          typeof payload.sessionJson === 'string'
-            ? safeJsonParse(payload.sessionJson, {})
-            : payload.sessionData || payload.sessionJson || {};
+        const remoteCurrent = await this.getRemoteConversationSnapshotById(client, conversationId);
+        if (remoteCurrent) {
+          const compareResult = this.compareConversationVersions(localRecord, remoteCurrent);
+          if (compareResult < 0) {
+            return { applied: false, stale: true };
+          }
+          if (compareResult === 0) {
+            return { applied: false, stale: false };
+          }
+        }
 
         await client.query(
           `
@@ -818,18 +1310,21 @@ class StorageService {
               deleted_at = excluded.deleted_at;
           `,
           [
-            String(payload.id || row.entity_id),
-            String(payload.assistantCode || 'AI'),
-            String(payload.conversationName || ''),
-            String(payload.preview || ''),
-            JSON.stringify(sessionObject || {}),
-            Number(payload.sizeBytes || 0),
-            createdAt,
-            updatedAt,
-            deletedAt,
+            localRecord.id,
+            localRecord.assistantCode,
+            localRecord.conversationName,
+            localRecord.preview,
+            localRecord.sessionJson,
+            localRecord.sizeBytes,
+            localRecord.createdAt,
+            localRecord.updatedAt,
+            localRecord.deletedAt,
           ],
         );
+        return { applied: true, stale: false };
       }
+
+      return { applied: false, stale: false };
     } finally {
       client.release();
     }
@@ -945,8 +1440,6 @@ class StorageService {
   }
 
   normalizeConversationPayload(payload = {}) {
-    const conversationId = String(payload.conversationId || payload.id || '').trim();
-
     let sessionObject = payload.sessionData;
     if (!sessionObject && payload.session_json) {
       sessionObject = safeJsonParse(payload.session_json, null);
@@ -962,32 +1455,23 @@ class StorageService {
       throw new Error('Session payload is required and must be an object.');
     }
 
-    const sessionJson = JSON.stringify(sessionObject);
-    const assistantCode = String(
-      payload.assistantCode || payload.CODE || sessionObject.CODE || 'AI',
-    );
-    const conversationName = String(
-      payload.conversationName ||
-        payload.name ||
-        sessionObject.conversationName ||
-        `Session-${assistantCode}-${new Date().toISOString().slice(0, 10)}`,
+    const conversationId = String(
+      payload.conversationId || payload.id || sessionObject.conversationId || '',
     ).trim();
-
-    if (!conversationName) {
-      throw new Error('conversationName is required.');
-    }
-
-    const preview = String(
-      payload.preview || extractConversationPreview(sessionObject) || '',
-    ).trim();
+    const normalized = this.normalizeConversationForSync({
+      ...payload,
+      id: conversationId || crypto.randomUUID(),
+      sessionData: sessionObject,
+      sessionJson: JSON.stringify(sessionObject),
+    });
 
     return {
-      conversationId: conversationId || crypto.randomUUID(),
-      assistantCode,
-      conversationName,
-      preview,
-      sessionObject,
-      sessionJson,
+      conversationId: normalized.id,
+      assistantCode: normalized.assistantCode,
+      conversationName: normalized.conversationName,
+      preview: normalized.preview,
+      sessionObject: normalized.sessionObject,
+      sessionJson: normalized.sessionJson,
     };
   }
 
@@ -1158,13 +1642,25 @@ class StorageService {
 
     if (!rows.length) return null;
     const row = rows[0];
-
-    return {
-      conversationId: row.id,
+    const normalized = this.normalizeConversationForSync({
+      id: row.id,
       assistantCode: row.assistant_code,
       conversationName: row.conversation_name,
-      preview: row.preview || '',
-      size: Number(row.size_bytes || 0),
+      preview: row.preview,
+      sessionJson: row.session_json,
+      sizeBytes: Number(row.size_bytes || 0),
+      createdAt: Number(row.created_at || 0),
+      updatedAt: Number(row.updated_at || 0),
+      deletedAt:
+        row.deleted_at === null || row.deleted_at === undefined ? null : Number(row.deleted_at),
+    });
+
+    return {
+      conversationId: normalized.id,
+      assistantCode: normalized.assistantCode,
+      conversationName: normalized.conversationName,
+      preview: normalized.preview,
+      size: normalized.sizeBytes,
       createdAt: toIso(Number(row.created_at || 0)),
       updatedAt: toIso(Number(row.updated_at || 0)),
       lastmod: toIso(Number(row.updated_at || 0)),
@@ -1172,7 +1668,7 @@ class StorageService {
         row.deleted_at === null || row.deleted_at === undefined
           ? null
           : toIso(Number(row.deleted_at || 0)),
-      sessionData: safeJsonParse(row.session_json, null),
+      sessionData: normalized.sessionObject,
     };
   }
 
@@ -1187,26 +1683,58 @@ class StorageService {
       throw new Error('conversationName is required');
     }
 
-    const current = this.getConversation(id);
-    if (!current) {
+    const currentRows = this.runStatement(
+      `
+      SELECT id, assistant_code, conversation_name, preview, session_json,
+             size_bytes, created_at, updated_at, deleted_at
+      FROM conversations
+      WHERE id = ?
+      LIMIT 1;
+      `,
+      [id],
+    );
+    if (!currentRows.length) {
       throw new Error('Conversation not found.');
     }
+    const current = this.normalizeConversationForSync({
+      id: currentRows[0].id,
+      assistantCode: currentRows[0].assistant_code,
+      conversationName: name,
+      preview: currentRows[0].preview,
+      sessionJson: currentRows[0].session_json,
+      sizeBytes: Number(currentRows[0].size_bytes || 0),
+      createdAt: Number(currentRows[0].created_at || 0),
+      updatedAt: Number(currentRows[0].updated_at || 0),
+      deletedAt:
+        currentRows[0].deleted_at === null || currentRows[0].deleted_at === undefined
+          ? null
+          : Number(currentRows[0].deleted_at),
+    });
 
     const updatedAt = nowMs();
+    const sizeBytes = Buffer.byteLength(current.sessionJson, 'utf8');
     this.runMutation(
-      'UPDATE conversations SET conversation_name = ?, updated_at = ?, deleted_at = NULL WHERE id = ?;',
-      [name, updatedAt, id],
+      `
+      UPDATE conversations
+      SET conversation_name = ?,
+          preview = ?,
+          session_json = ?,
+          size_bytes = ?,
+          updated_at = ?,
+          deleted_at = NULL
+      WHERE id = ?;
+      `,
+      [current.conversationName, current.preview, current.sessionJson, sizeBytes, updatedAt, id],
     );
 
-    const refreshed = this.getConversation(id);
     this.enqueueOutbox('conversation', id, 'upsert', {
       id,
-      assistantCode: refreshed.assistantCode,
-      conversationName: refreshed.conversationName,
-      preview: refreshed.preview,
-      sessionJson: JSON.stringify(refreshed.sessionData || {}),
-      sizeBytes: refreshed.size,
-      createdAt: new Date(refreshed.createdAt).getTime(),
+      assistantCode: current.assistantCode,
+      conversationName: current.conversationName,
+      preview: current.preview,
+      sessionJson: current.sessionJson,
+      sizeBytes,
+      createdAt: current.createdAt,
       updatedAt,
       deletedAt: null,
     });

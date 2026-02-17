@@ -1,7 +1,7 @@
 // @ts-nocheck
 
 export function usePromptModelSettings(options: any) {
-  const { refs, defaultConfig, showDismissibleMessage } = options;
+  const { refs, messageStore, defaultConfig, showDismissibleMessage } = options;
   const {
     currentConfig,
     modelList,
@@ -14,9 +14,6 @@ export function usePromptModelSettings(options: any) {
     currentSystemPrompt,
     systemPromptContent,
     systemPromptDialogVisible,
-    history,
-    chat_show,
-    messageIdCounter,
     CODE,
     sourcePromptConfig,
     AIAvart,
@@ -74,18 +71,7 @@ export function usePromptModelSettings(options: any) {
   const saveSystemPrompt = async () => {
     const newPromptContent = systemPromptContent.value;
     currentSystemPrompt.value = newPromptContent;
-
-    const systemMessageIndex = history.value.findIndex((m: any) => m.role === 'system');
-    if (systemMessageIndex !== -1) {
-      history.value[systemMessageIndex].content = newPromptContent;
-      if (chat_show.value[systemMessageIndex]) {
-        chat_show.value[systemMessageIndex].content = newPromptContent;
-      }
-    } else {
-      const newMsg = { role: 'system', content: newPromptContent };
-      history.value.unshift(newMsg);
-      chat_show.value.unshift({ ...newMsg, id: messageIdCounter.value++ });
-    }
+    messageStore.upsertSystemMessage(newPromptContent);
 
     try {
       const promptExists = !!currentConfig.value.prompts[CODE.value];

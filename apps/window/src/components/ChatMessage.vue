@@ -595,7 +595,7 @@ const shouldShowCollapseButton = computed(() => {
 
 const onCopy = () => {
   if (props.isLoading && props.isLastMessage) return;
-  emit('copy-text', formatMessageText(props.message.content), props.index);
+  emit('copy-text', formatMessageText(props.message.content), props.message.id);
 
   isCopied.value = true;
   if (copyFeedbackTimer !== null) {
@@ -606,9 +606,9 @@ const onCopy = () => {
     copyFeedbackTimer = null;
   }, 1300);
 };
-const onReAsk = () => emit('re-ask');
-const onDelete = () => emit('delete-message', props.index);
-const onToggleCollapse = (event) => emit('toggle-collapse', props.index, event);
+const onReAsk = () => emit('re-ask', props.message.id);
+const onDelete = () => emit('delete-message', props.message.id);
+const onToggleCollapse = (event) => emit('toggle-collapse', props.message.id, event);
 const onAvatarClick = (role, event) => emit('avatar-click', role, event);
 const truncateFilename = (filename, maxLength = 30) => {
   if (typeof filename !== 'string' || filename.length <= maxLength) return filename;
@@ -703,7 +703,7 @@ onBeforeUnmount(() => {
                   type="button"
                   title="编辑"
                   aria-label="编辑"
-                  @click="emit('edit-message-requested', index)"
+                  @click="emit('edit-message-requested', message.id)"
                 >
                   <Pencil class="footer-action-icon" />
                 </button>
@@ -721,7 +721,7 @@ onBeforeUnmount(() => {
                   />
                 </button>
                 <button
-                  v-if="isLastMessage"
+                  v-if="isLastMessage && message.role === 'assistant'"
                   class="footer-action-btn"
                   type="button"
                   title="重新生成"
@@ -1000,7 +1000,7 @@ onBeforeUnmount(() => {
                 type="button"
                 title="编辑"
                 aria-label="编辑"
-                @click="emit('edit-message-requested', index)"
+                @click="emit('edit-message-requested', message.id)"
               >
                 <Pencil class="footer-action-icon" />
               </button>
@@ -1015,7 +1015,7 @@ onBeforeUnmount(() => {
                 <component :is="isCollapsed ? ChevronDown : ChevronUp" class="footer-action-icon" />
               </button>
               <button
-                v-if="isLastMessage"
+                v-if="isLastMessage && message.role === 'assistant'"
                 class="footer-action-btn"
                 type="button"
                 title="重新生成"

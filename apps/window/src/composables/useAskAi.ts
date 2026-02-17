@@ -88,6 +88,7 @@ async function fetchWithoutStainlessHeaders(input: any, init?: any) {
 export function useAskAi(options: any) {
   const {
     refs,
+    messageStore,
     showDismissibleMessage,
     sendFile,
     scrollToBottom,
@@ -99,9 +100,6 @@ export function useAskAi(options: any) {
     loading,
     isMcpLoading,
     prompt,
-    history,
-    chat_show,
-    messageIdCounter,
     isSticky,
     currentConfig,
     CODE,
@@ -123,14 +121,15 @@ export function useAskAi(options: any) {
   } = refs;
 
   const updateAssistantBubbleMetrics = (
-    assistantIndex: number,
+    assistantId: string | number,
     content: any,
     usage: any,
     timingMetrics: any = null,
     fallbackPromptTokens = 0,
   ) => {
-    if (assistantIndex < 0 || assistantIndex >= chat_show.value.length) return;
-    chat_show.value[assistantIndex].metrics = buildAssistantResponseMetrics(
+    const assistantMessage = messageStore.getVisibleMessageById(assistantId);
+    if (!assistantMessage) return;
+    assistantMessage.metrics = buildAssistantResponseMetrics(
       content,
       usage,
       timingMetrics,
@@ -158,11 +157,8 @@ export function useAskAi(options: any) {
             userContentList.length === 1 && userContentList[0].type === 'text'
               ? userContentList[0].text
               : userContentList;
-          history.value.push({ role: 'user', content: contentForHistory });
-          chat_show.value.push({
-            id: messageIdCounter.value++,
-            role: 'user',
-            content: userContentList,
+          messageStore.appendUser(contentForHistory, {
+            visibleContent: userContentList,
             timestamp: userTimestamp,
           });
           markSessionDirty();
@@ -185,7 +181,7 @@ export function useAskAi(options: any) {
     const currentPromptConfig = currentConfig.value.prompts[CODE.value];
     const isVoiceReply = !!selectedVoice.value;
     let useStream = currentPromptConfig?.stream && !isVoiceReply;
-    let currentAssistantChatShowIndex = -1;
+    let currentAssistantMessageId: string | number | null = null;
     const nowIsoString = () => new Date().toISOString();
     const ensureReasoningStartedAt = (bubble: any, fallback?: string) => {
       if (!bubble) return;
@@ -257,7 +253,7 @@ export function useAskAi(options: any) {
       while (!signalController.value.signal.aborted) {
         chatInputRef.value?.focus({ cursor: 'end' });
 
-        let messagesForThisRequest = JSON.parse(JSON.stringify(history.value));
+        let messagesForThisRequest = JSON.parse(JSON.stringify(messageStore.apiHistory.value));
 
         messagesForThisRequest = messagesForThisRequest.filter((msg: any) => {
           if (msg.role === 'system' && (!msg.content || msg.content.trim() === '')) {
@@ -366,25 +362,25 @@ export function useAskAi(options: any) {
           payload.audio = { voice: selectedVoice.value.split('-')[0].trim(), format: 'wav' };
         }
 
-        const assistantMessageId = messageIdCounter.value++;
-        const currentModelKey = model.value;
-        const currentModelLabel = modelMap.value[model.value] || model.value;
-        chat_show.value.push({
-          id: assistantMessageId,
-          role: 'assistant',
-          content: [],
-          metrics: null,
-          reasoning_content: '',
-          reasoningStartedAt: null,
-          reasoningFinishedAt: null,
-          status: '',
-          aiName: currentModelLabel,
-          modelKey: currentModelKey,
-          modelLabel: currentModelLabel,
-          voiceName: selectedVoice.value,
-          tool_calls: [],
-        });
-        currentAssistantChatShowIndex = chat_show.value.length - 1;
+        if (!currentAssistantMessageId) {
+          const currentModelKey = model.value;
+          const currentModelLabel = modelMap.value[model.value] || model.value;
+          const assistantMessage = messageStore.startAssistantTurn({
+            content: [],
+            metrics: null,
+            reasoning_content: '',
+            reasoningStartedAt: null,
+            reasoningFinishedAt: null,
+            status: '',
+            aiName: currentModelLabel,
+            modelKey: currentModelKey,
+            modelLabel: currentModelLabel,
+            voiceName: selectedVoice.value,
+            tool_calls: [],
+            pending: true,
+          });
+          currentAssistantMessageId = assistantMessage.id;
+        }
 
         if (isAtBottom.value) scrollToBottom('auto');
 
@@ -447,13 +443,15 @@ export function useAskAi(options: any) {
             if (delta.reasoning_content) {
               markFirstTokenTimestamp();
               aggregatedReasoningContent += delta.reasoning_content;
-              const currentBubble = chat_show.value[currentAssistantChatShowIndex];
-              ensureReasoningStartedAt(currentBubble);
-              if (currentBubble.status !== 'thinking') {
-                currentBubble.status = 'thinking';
+              const currentBubble = messageStore.getVisibleMessageById(currentAssistantMessageId);
+              if (currentBubble) {
+                ensureReasoningStartedAt(currentBubble);
+                if (currentBubble.status !== 'thinking') {
+                  currentBubble.status = 'thinking';
+                }
               }
 
-              if (Date.now() - lastUpdateTime > 100) {
+              if (currentBubble && Date.now() - lastUpdateTime > 100) {
                 currentBubble.reasoning_content = aggregatedReasoningContent;
                 lastUpdateTime = Date.now();
               }
@@ -473,15 +471,15 @@ export function useAskAi(options: any) {
                 });
               }
 
-              const currentBubble = chat_show.value[currentAssistantChatShowIndex];
-              if (currentBubble.status == 'thinking') {
+              const currentBubble = messageStore.getVisibleMessageById(currentAssistantMessageId);
+              if (currentBubble?.status == 'thinking') {
                 currentBubble.status = 'end';
                 if (aggregatedReasoningContent) {
                   ensureReasoningFinishedAt(currentBubble, { startFallback: requestStartDateIso });
                 }
               }
 
-              if (Date.now() - lastUpdateTime > 100) {
+              if (currentBubble && Date.now() - lastUpdateTime > 100) {
                 const currentDisplayContent = [];
                 if (aggregatedContent) {
                   currentDisplayContent.push({ type: 'text', text: aggregatedContent });
@@ -490,9 +488,9 @@ export function useAskAi(options: any) {
                   currentDisplayContent.push(...aggregatedMedia);
                 }
 
-                chat_show.value[currentAssistantChatShowIndex].content = currentDisplayContent;
+                currentBubble.content = currentDisplayContent;
                 updateAssistantBubbleMetrics(
-                  currentAssistantChatShowIndex,
+                  currentAssistantMessageId,
                   currentDisplayContent,
                   finalUsageMetrics,
                   buildTimingMetricsSnapshot(),
@@ -554,7 +552,7 @@ export function useAskAi(options: any) {
           }
 
           updateAssistantBubbleMetrics(
-            currentAssistantChatShowIndex,
+            currentAssistantMessageId,
             finalContentForHistory,
             finalUsageMetrics,
             buildTimingMetricsSnapshot(),
@@ -592,19 +590,15 @@ export function useAskAi(options: any) {
           });
         }
 
-        history.value.push(responseMessage);
+        messageStore.finalizeAssistant(currentAssistantMessageId, {
+          responseMessage,
+        });
 
-        const currentBubble = chat_show.value[currentAssistantChatShowIndex];
-        if (responseMessage.content) {
-          if (typeof responseMessage.content === 'string') {
-            currentBubble.content = [{ type: 'text', text: responseMessage.content }];
-          } else if (Array.isArray(responseMessage.content)) {
-            currentBubble.content = responseMessage.content;
-          }
+        const currentBubble = messageStore.getVisibleMessageById(currentAssistantMessageId);
+        if (!currentBubble) {
+          throw new Error('Assistant message missing in conversation timeline.');
         }
-
         if (responseMessage.reasoning_content) {
-          currentBubble.reasoning_content = responseMessage.reasoning_content;
           ensureReasoningStartedAt(currentBubble, requestStartDateIso);
           ensureReasoningFinishedAt(currentBubble, {
             startFallback: requestStartDateIso,
@@ -613,7 +607,7 @@ export function useAskAi(options: any) {
           currentBubble.status = 'end';
         }
         updateAssistantBubbleMetrics(
-          currentAssistantChatShowIndex,
+          currentAssistantMessageId,
           currentBubble.content,
           finalUsageMetrics,
           buildTimingMetricsSnapshot(),
@@ -621,19 +615,18 @@ export function useAskAi(options: any) {
         );
 
         if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
-          currentBubble.tool_calls = responseMessage.tool_calls.map((tc: any) => ({
-            id: tc.id,
-            name: tc.function.name,
-            args: tc.function.arguments,
-            result: '等待批准...',
-            approvalStatus: isAutoApproveTools.value ? 'approved' : 'waiting',
-          }));
+          messageStore.attachToolCalls(currentAssistantMessageId, responseMessage.tool_calls, {
+            autoApprove: isAutoApproveTools.value,
+          });
 
           await nextTick();
 
           const toolMessages = await Promise.all(
             responseMessage.tool_calls.map(async (toolCall: any) => {
-              const uiToolCall = currentBubble.tool_calls.find((t: any) => t.id === toolCall.id);
+              const getUiToolCall = () => {
+                const assistant = messageStore.getVisibleMessageById(currentAssistantMessageId);
+                return assistant?.tool_calls?.find((t: any) => t.id === toolCall.id) || null;
+              };
               let toolContent;
 
               if (!isAutoApproveTools.value) {
@@ -643,10 +636,10 @@ export function useAskAi(options: any) {
                   });
 
                   if (!isApproved) {
-                    if (uiToolCall) {
-                      uiToolCall.approvalStatus = 'rejected';
-                      uiToolCall.result = '用户已取消执行';
-                    }
+                    messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                      approvalStatus: 'rejected',
+                      result: '用户已取消执行',
+                    });
                     return {
                       tool_call_id: toolCall.id,
                       role: 'tool',
@@ -657,10 +650,10 @@ export function useAskAi(options: any) {
                 } catch (e) {}
               }
 
-              if (uiToolCall) {
-                uiToolCall.approvalStatus = 'executing';
-                uiToolCall.result = '执行中...';
-              }
+              messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                approvalStatus: 'executing',
+                result: '执行中...',
+              });
               const controller = new AbortController();
               toolCallControllers.value.set(toolCall.id, controller);
 
@@ -668,16 +661,18 @@ export function useAskAi(options: any) {
                 const toolArgs = JSON.parse(toolCall.function.arguments);
 
                 if (toolCall.function.name === 'Skill') {
-                  if (uiToolCall) uiToolCall.result = `Activating skill: ${toolArgs.skill}...`;
+                  messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                    result: `Activating skill: ${toolArgs.skill}...`,
+                  });
 
                   const currentApiKey = effectiveApiKey;
                   const currentBaseUrl = effectiveBaseUrl;
                   const currentModelName = model.value.split('|')[1] || model.value;
 
                   const onUpdateCallback = (logContent: string) => {
-                    if (uiToolCall) {
-                      uiToolCall.result = `${logContent}\n\n[Skill (Sub-Agent) Running...]`;
-                    }
+                    messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                      result: `${logContent}\n\n[Skill (Sub-Agent) Running...]`,
+                    });
                   };
 
                   const executionContext = {
@@ -698,18 +693,25 @@ export function useAskAi(options: any) {
                       signalController.value.signal,
                   );
 
+                  const uiToolCall = getUiToolCall();
                   if (uiToolCall) {
                     if (toolContent.includes('[Sub-Agent]')) {
                       const currentLog = uiToolCall.result
                         ? uiToolCall.result.replace('\n\n[Skill (Sub-Agent) Running...]', '')
                         : '';
                       if (!currentLog.includes(toolContent)) {
-                        uiToolCall.result = `${currentLog}\n\n=== Skill Execution Result ===\n${toolContent}`;
+                        messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                          result: `${currentLog}\n\n=== Skill Execution Result ===\n${toolContent}`,
+                        });
                       } else {
-                        uiToolCall.result = currentLog;
+                        messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                          result: currentLog,
+                        });
                       }
                     } else {
-                      uiToolCall.result = `[Skill Instructions Loaded]\n${toolContent}`;
+                      messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                        result: `[Skill Instructions Loaded]\n${toolContent}`,
+                      });
                     }
                   }
                 } else {
@@ -725,9 +727,9 @@ export function useAskAi(options: any) {
                     );
 
                     const onUpdateCallback = (logContent: string) => {
-                      if (uiToolCall) {
-                        uiToolCall.result = `${logContent}\n\n[Sub-Agent 执行中...]`;
-                      }
+                      messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                        result: `${logContent}\n\n[Sub-Agent 执行中...]`,
+                      });
                     };
 
                     executionContext = {
@@ -757,32 +759,47 @@ export function useAskAi(options: any) {
                         .join('\n\n')
                     : String(result);
 
+                  const uiToolCall = getUiToolCall();
                   if (uiToolCall) {
                     if (toolCall.function.name === 'sub_agent') {
                       const currentLog = uiToolCall.result
                         ? uiToolCall.result.replace('\n\n[Sub-Agent 执行中...]', '')
                         : '';
                       if (!currentLog.includes(toolContent)) {
-                        uiToolCall.result = `${currentLog}\n\n=== 最终结果 ===\n${toolContent}`;
+                        messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                          result: `${currentLog}\n\n=== 最终结果 ===\n${toolContent}`,
+                        });
                       } else {
-                        uiToolCall.result = currentLog;
+                        messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                          result: currentLog,
+                        });
                       }
                     } else {
-                      uiToolCall.result = toolContent;
+                      messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                        result: toolContent,
+                      });
                     }
                   }
                 }
 
-                if (uiToolCall) uiToolCall.approvalStatus = 'finished';
+                messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                  approvalStatus: 'finished',
+                });
               } catch (e: any) {
                 if (e.name === 'AbortError') {
                   toolContent = 'Error: Tool call was canceled by the user.';
-                  if (uiToolCall) uiToolCall.approvalStatus = 'rejected';
+                  messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                    approvalStatus: 'rejected',
+                  });
                 } else {
                   toolContent = `{'result':'工具执行或参数解析错误: ${e.message}'}`;
-                  if (uiToolCall) uiToolCall.approvalStatus = 'finished';
+                  messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                    approvalStatus: 'finished',
+                  });
                 }
-                if (uiToolCall) uiToolCall.result = toolContent;
+                messageStore.updateToolCallState(currentAssistantMessageId, toolCall.id, {
+                  result: toolContent,
+                });
               } finally {
                 toolCallControllers.value.delete(toolCall.id);
               }
@@ -795,7 +812,9 @@ export function useAskAi(options: any) {
             }),
           );
 
-          history.value.push(...toolMessages);
+          toolMessages.forEach((toolMessage: any) => {
+            messageStore.appendToolResult(currentAssistantMessageId, toolMessage);
+          });
         } else {
           if (isVoiceReply && responseMessage.audio) {
             currentBubble.content = currentBubble.content || [];
@@ -817,7 +836,7 @@ export function useAskAi(options: any) {
               },
             });
             updateAssistantBubbleMetrics(
-              currentAssistantChatShowIndex,
+              currentAssistantMessageId,
               currentBubble.content,
               finalUsageMetrics,
               buildTimingMetricsSnapshot(),
@@ -831,14 +850,10 @@ export function useAskAi(options: any) {
       let errorDisplay = `发生错误: ${error.message || '未知错误'}`;
       if (error.name === 'AbortError') errorDisplay = '请求已取消';
 
-      const errorBubbleIndex =
-        currentAssistantChatShowIndex > -1 ? currentAssistantChatShowIndex : chat_show.value.length;
-      if (currentAssistantChatShowIndex === -1) {
+      if (!currentAssistantMessageId) {
         const currentModelKey = model.value;
         const currentModelLabel = modelMap.value[model.value] || model.value;
-        chat_show.value.push({
-          id: messageIdCounter.value++,
-          role: 'assistant',
+        const assistantMessage = messageStore.startAssistantTurn({
           content: [],
           reasoningStartedAt: null,
           reasoningFinishedAt: null,
@@ -846,15 +861,18 @@ export function useAskAi(options: any) {
           modelKey: currentModelKey,
           modelLabel: currentModelLabel,
           voiceName: selectedVoice.value,
+          pending: false,
         });
+        currentAssistantMessageId = assistantMessage.id;
       }
-      const currentBubble = chat_show.value[errorBubbleIndex];
-      if (
-        chat_show.value[errorBubbleIndex].reasoning_content &&
-        currentBubble.status === 'thinking'
-      ) {
-        chat_show.value[errorBubbleIndex].status = 'error';
-        ensureReasoningFinishedAt(chat_show.value[errorBubbleIndex]);
+      const currentBubble = messageStore.getVisibleMessageById(currentAssistantMessageId);
+      if (!currentBubble) {
+        showDismissibleMessage.error(errorDisplay);
+        return;
+      }
+      if (currentBubble.reasoning_content && currentBubble.status === 'thinking') {
+        currentBubble.status = 'error';
+        ensureReasoningFinishedAt(currentBubble);
       }
 
       let existingText = '';
@@ -870,14 +888,14 @@ export function useAskAi(options: any) {
       if (existingText && existingText.trim().length > 0) {
         const combinedText = `${existingText}\n\n> **Error**: ${errorDisplay}`;
         currentBubble.content = [{ type: 'text', text: combinedText }];
-        history.value.push({
+        messageStore.appendAssistantApiSegment(currentAssistantMessageId, {
           role: 'assistant',
           content: combinedText,
           reasoning_content: currentBubble.reasoning_content || null,
         });
       } else {
         currentBubble.content = [{ type: 'text', text: `${errorDisplay}` }];
-        history.value.push({
+        messageStore.appendAssistantApiSegment(currentAssistantMessageId, {
           role: 'assistant',
           content: `${errorDisplay}`,
           reasoning_content: currentBubble.reasoning_content || null,
@@ -886,9 +904,10 @@ export function useAskAi(options: any) {
     } finally {
       loading.value = false;
       signalController.value = null;
-      if (currentAssistantChatShowIndex > -1) {
-        chat_show.value[currentAssistantChatShowIndex].completedTimestamp =
-          new Date().toLocaleString('sv-SE');
+      if (currentAssistantMessageId !== null && currentAssistantMessageId !== undefined) {
+        messageStore.mergeAssistantDelta(currentAssistantMessageId, {
+          completedTimestamp: new Date().toLocaleString('sv-SE'),
+        });
       }
       await nextTick();
       chatInputRef.value?.focus({ cursor: 'end' });

@@ -75,10 +75,16 @@ describe('storage conversations', () => {
     const detail = service.getConversation(conversationId);
     expect(detail?.assistantCode).toBe('AI');
     expect(detail?.sessionData?.anywhere_history).toBe(true);
+    expect(detail?.sessionData?.conversationId).toBe(conversationId);
+    expect(detail?.sessionData?.conversationName).toBe('Session A');
+    expect(detail?.sessionData?.CODE).toBe('AI');
 
     const renameResult = service.renameConversation(conversationId, 'Session B');
     expect(renameResult.ok).toBe(true);
-    expect(service.getConversation(conversationId)?.conversationName).toBe('Session B');
+    const renamed = service.getConversation(conversationId);
+    expect(renamed?.conversationName).toBe('Session B');
+    expect(renamed?.sessionData?.conversationName).toBe('Session B');
+    expect(renamed?.sessionData?.conversationId).toBe(conversationId);
 
     const deleteResult = service.deleteConversations([conversationId]);
     expect(deleteResult.ok).toBe(true);
@@ -112,5 +118,31 @@ describe('storage conversations', () => {
     const visibleRows = service.listConversations();
     expect(visibleRows.length).toBe(1);
     expect(visibleRows[0].conversationId).toBe(recent.conversationId);
+  });
+
+  it('normalizes legacy session_json metadata when reading conversation detail', async () => {
+    const service = await createService();
+    const created = service.upsertConversation({
+      assistantCode: 'AI',
+      conversationName: 'Legacy Meta',
+      sessionData: { anywhere_history: true, history: [], chat_show: [] },
+    });
+    expect(created.ok).toBe(true);
+
+    service.runMutation('UPDATE conversations SET session_json = ? WHERE id = ?;', [
+      JSON.stringify({
+        anywhere_history: true,
+        history: [],
+        chat_show: [],
+      }),
+      created.conversationId,
+    ]);
+
+    const detail = service.getConversation(created.conversationId);
+    expect(detail?.conversationName).toBe('Legacy Meta');
+    expect(detail?.assistantCode).toBe('AI');
+    expect(detail?.sessionData?.conversationId).toBe(created.conversationId);
+    expect(detail?.sessionData?.conversationName).toBe('Legacy Meta');
+    expect(detail?.sessionData?.CODE).toBe('AI');
   });
 });

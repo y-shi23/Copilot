@@ -97,4 +97,75 @@ describe('storage sync', () => {
     expect(health.postgresConnected).toBe(false);
     expect(service.getOutboxQueueSize()).toBeGreaterThan(0);
   });
+
+  it('applies remote conversation rows with last-write-wins and skips stale rows', async () => {
+    const service = (await createService()) as any;
+
+    const created = service.upsertConversation({
+      conversationId: 'conv-sync-1',
+      assistantCode: 'AI',
+      conversationName: 'Local Name',
+      sessionData: { anywhere_history: true, CODE: 'AI', history: [], chat_show: [] },
+    });
+    expect(created.ok).toBe(true);
+
+    const initial = service.getConversation('conv-sync-1');
+    const localUpdatedAt = new Date(initial.updatedAt).getTime();
+
+    const staleRemote = service.normalizeConversationForSync({
+      id: 'conv-sync-1',
+      assistantCode: 'AI',
+      conversationName: 'Remote Stale',
+      sessionData: { anywhere_history: true, CODE: 'AI', history: [], chat_show: [] },
+      updatedAt: localUpdatedAt - 5000,
+      createdAt: new Date(initial.createdAt).getTime(),
+      deletedAt: null,
+    });
+    const staleResult = service.applyRemoteConversation(staleRemote);
+    expect(staleResult.applied).toBe(false);
+    expect(staleResult.stale).toBe(true);
+    expect(service.getConversation('conv-sync-1')?.conversationName).toBe('Local Name');
+
+    const newerRemote = service.normalizeConversationForSync({
+      id: 'conv-sync-1',
+      assistantCode: 'AI',
+      conversationName: 'Remote Newer',
+      sessionData: { anywhere_history: true, CODE: 'AI', history: [], chat_show: [] },
+      updatedAt: localUpdatedAt + 5000,
+      createdAt: new Date(initial.createdAt).getTime(),
+      deletedAt: null,
+    });
+    const newerResult = service.applyRemoteConversation(newerRemote);
+    expect(newerResult.applied).toBe(true);
+    expect(newerResult.stale).toBe(false);
+    expect(service.getConversation('conv-sync-1')?.conversationName).toBe('Remote Newer');
+  });
+
+  it('uses stable hash tie-breaker for same-timestamp conflict comparisons', async () => {
+    const service = (await createService()) as any;
+
+    const left = service.normalizeConversationForSync({
+      id: 'conv-sync-2',
+      assistantCode: 'AI',
+      conversationName: 'Alpha',
+      sessionData: { anywhere_history: true, CODE: 'AI', history: [], chat_show: [] },
+      updatedAt: 1735689600000,
+      createdAt: 1735689590000,
+      deletedAt: null,
+    });
+    const right = service.normalizeConversationForSync({
+      id: 'conv-sync-2',
+      assistantCode: 'AI',
+      conversationName: 'Beta',
+      sessionData: { anywhere_history: true, CODE: 'AI', history: [], chat_show: [] },
+      updatedAt: 1735689600000,
+      createdAt: 1735689590000,
+      deletedAt: null,
+    });
+
+    const compareForward = service.compareConversationVersions(left, right);
+    const compareBackward = service.compareConversationVersions(right, left);
+    expect(compareForward).not.toBe(0);
+    expect(compareBackward).toBe(compareForward * -1);
+  });
 });

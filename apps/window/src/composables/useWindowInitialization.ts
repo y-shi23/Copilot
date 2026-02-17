@@ -3,6 +3,7 @@
 export function useWindowInitialization(options: any) {
   const {
     refs,
+    messageStore,
     defaultConfig,
     showDismissibleMessage,
     loadBackground,
@@ -37,9 +38,6 @@ export function useWindowInitialization(options: any) {
     base_url,
     api_key,
     currentSystemPrompt,
-    history,
-    chat_show,
-    messageIdCounter,
     sessionSkillIds,
     tempSessionSkillIds,
     basic_msg,
@@ -74,6 +72,7 @@ export function useWindowInitialization(options: any) {
     isSessionDirty.value = false;
     defaultConversationName.value = '';
     currentConversationId.value = '';
+    messageStore.clearAll();
 
     try {
       const configData = await window.api.getConfig();
@@ -137,18 +136,10 @@ export function useWindowInitialization(options: any) {
 
     if (currentPromptConfig.prompt) {
       currentSystemPrompt.value = currentPromptConfig.prompt;
-      history.value = [{ role: 'system', content: currentPromptConfig.prompt }];
-      chat_show.value = [
-        {
-          role: 'system',
-          content: currentPromptConfig.prompt,
-          id: messageIdCounter.value++,
-        },
-      ];
+      messageStore.upsertSystemMessage(currentPromptConfig.prompt);
     } else {
       currentSystemPrompt.value = '';
-      history.value = [];
-      chat_show.value = [];
+      messageStore.clearToSystem({ systemPrompt: '' });
     }
 
     if (currentPromptConfig.defaultSkills && Array.isArray(currentPromptConfig.defaultSkills)) {
@@ -183,11 +174,8 @@ export function useWindowInitialization(options: any) {
           if (CODE.value.trim().toLowerCase().includes(data.payload.trim().toLowerCase())) {
             // no-op
           } else if (currentPromptConfig.isDirectSend_normal) {
-            history.value.push({ role: 'user', content: data.payload });
-            chat_show.value.push({
-              id: messageIdCounter.value++,
-              role: 'user',
-              content: [{ type: 'text', text: data.payload }],
+            messageStore.appendUser(data.payload, {
+              visibleContent: [{ type: 'text', text: data.payload }],
             });
             shouldDirectSend = true;
           } else {
@@ -196,14 +184,9 @@ export function useWindowInitialization(options: any) {
         }
       } else if (data.type === 'img' && data.payload) {
         if (currentPromptConfig.isDirectSend_normal) {
-          history.value.push({
-            role: 'user',
-            content: [{ type: 'image_url', image_url: { url: String(data.payload) } }],
-          });
-          chat_show.value.push({
-            id: messageIdCounter.value++,
-            role: 'user',
-            content: [{ type: 'image_url', image_url: { url: String(data.payload) } }],
+          const imageContent = [{ type: 'image_url', image_url: { url: String(data.payload) } }];
+          messageStore.appendUser(imageContent, {
+            visibleContent: imageContent,
           });
           shouldDirectSend = true;
         } else {

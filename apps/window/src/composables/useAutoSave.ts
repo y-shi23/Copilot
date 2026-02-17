@@ -3,6 +3,7 @@
 export function useAutoSave(options: any) {
   const {
     refs,
+    messageStore,
     getSessionDataAsObject,
     debounceMs = 1800,
     fallbackMs = 60000,
@@ -12,7 +13,6 @@ export function useAutoSave(options: any) {
     loading,
     currentConfig,
     CODE,
-    chat_show,
     defaultConversationName,
     currentConversationId,
     isSessionDirty,
@@ -32,11 +32,21 @@ export function useAutoSave(options: any) {
 
   const buildSerializableSessionData = () => {
     try {
-      return JSON.parse(JSON.stringify(getSessionDataAsObject()));
+      const source = getSessionDataAsObject();
+      return JSON.parse(JSON.stringify(source));
     } catch (error) {
       console.error('Failed to serialize session data for auto-save:', error);
       return null;
     }
+  };
+
+  const getVisibleMessages = () => {
+    if (messageStore?.visibleMessages?.value && Array.isArray(messageStore.visibleMessages.value)) {
+      return messageStore.visibleMessages.value;
+    }
+    const snapshot = buildSerializableSessionData();
+    if (Array.isArray(snapshot?.chat_show)) return snapshot.chat_show;
+    return [];
   };
 
   const hasMessageContent = (message: any) => {
@@ -48,7 +58,7 @@ export function useAutoSave(options: any) {
   };
 
   const hasAtLeastOneUserMessage = () => {
-    const list = Array.isArray(chat_show.value) ? chat_show.value : [];
+    const list = getVisibleMessages();
     if (!list.length) return false;
 
     return list.some((message) => {
@@ -59,7 +69,7 @@ export function useAutoSave(options: any) {
   };
 
   const hasAtLeastOneValidRound = () => {
-    const list = Array.isArray(chat_show.value) ? chat_show.value : [];
+    const list = getVisibleMessages();
     if (!list.length) return false;
 
     let seenUser = false;
