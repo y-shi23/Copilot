@@ -70,14 +70,13 @@ const autoApproveModel = computed({
 <template>
   <el-dialog
     v-model="visible"
-    width="80%"
-    custom-class="mcp-dialog no-header-dialog"
+    width="700px"
+    title="MCP 工具"
+    custom-class="mcp-dialog mcp-edit-dialog chat-tools-dialog"
+    :close-on-click-modal="false"
+    append-to-body
     @close="emit('dialog-close')"
-    :show-close="false"
   >
-    <template #header>
-      <div class="dialog-hidden-header"></div>
-    </template>
     <div class="mcp-dialog-content">
       <div class="mcp-dialog-toolbar">
         <el-button-group>

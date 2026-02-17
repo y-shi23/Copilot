@@ -328,3 +328,44 @@ html.dark .el-dialog__headerbtn:hover {
 .el-dialog__headerbtn:hover .el-dialog__close {
   color: var(--text-primary) !important;
 }
+
+.chat-tools-dialog.el-dialog {
+  max-width: calc(100vw - 32px) !important;
+}
+
+.chat-tools-dialog .mcp-server-item-wrapper {
+  border: 1px solid var(--border-secondary) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+  background-color: var(--bg-secondary) !important;
+}
+
+.chat-tools-dialog .mcp-server-item-wrapper:hover {
+  border-color: var(--border-primary) !important;
+  background-color: color-mix(in srgb, var(--bg-secondary) 72%, transparent) !important;
+}
+
+.chat-tools-dialog .mcp-server-item {
+  padding: 8px 16px 6px !important;
+}
+
+.chat-tools-dialog .mcp-server-icon {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-secondary) !important;
+}
+
+.chat-tools-dialog .mcp-server-name,
+.chat-tools-dialog .mcp-tool-name,
+.chat-tools-dialog .skill-name-fixed {
+  color: var(--text-primary) !important;
+}
+
+.chat-tools-dialog .mcp-server-description,
+.chat-tools-dialog .mcp-tool-desc,
+.chat-tools-dialog .skill-desc-inline {
+  color: var(--text-secondary) !important;
+}
+
+.chat-tools-dialog .mcp-dialog-footer-search {
+  border-top: 1px solid var(--border-primary) !important;
+}

@@ -41,14 +41,12 @@ const searchModel = computed({
 <template>
   <el-dialog
     v-model="visible"
-    width="80%"
-    custom-class="mcp-dialog no-header-dialog"
-    :show-close="false"
+    width="700px"
+    title="Skill 技能库"
+    custom-class="mcp-dialog mcp-edit-dialog chat-tools-dialog"
+    :close-on-click-modal="false"
+    append-to-body
   >
-    <template #header>
-      <div class="dialog-hidden-header"></div>
-    </template>
-
     <div class="mcp-dialog-content">
       <div class="mcp-dialog-toolbar">
         <el-button-group>
