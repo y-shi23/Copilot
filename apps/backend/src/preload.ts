@@ -23,7 +23,10 @@ const {
   cacheBackgroundImage,
 } = require('./data');
 
-const { getRandomItem } = require('./input');
+const {
+  getRandomItem,
+  generateConversationTitle: generateConversationTitleCore,
+} = require('./input');
 
 const loadRuntimeModule = (moduleFileName) => {
   return require(path.join(__dirname, 'runtime', moduleFileName));
@@ -268,6 +271,23 @@ window.api = {
   },
   triggerStorageSync: async () => {
     return ipcRenderer.invoke('storage:sync-now');
+  },
+  generateConversationTitle: async (payload = {}) => {
+    try {
+      const configResult = await getConfig();
+      const configData = configResult?.config || {};
+      return await generateConversationTitleCore({
+        ...payload,
+        config: configData,
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        title: '新对话',
+        reason: 'preload_error',
+        error: String(error?.message || error),
+      };
+    }
   },
   // 生成 Skill Tool 定义 (供前端构建请求参数时使用)
   getSkillToolDefinition: async (rootPath, enabledSkillNames = []) => {

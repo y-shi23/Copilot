@@ -654,6 +654,14 @@
       "saveFailedPrefix": "Failed to save setting: "
     }
   },
+  "defaultModel": {
+    "title": "Default Model",
+    "quickModel": {
+      "label": "Quick Model",
+      "description": "Model used to auto-generate conversation titles.",
+      "placeholder": "Select a model"
+    }
+  },
   "common": {
     "cancel": "Cancel",
     "confirm": "Confirm",
@@ -688,6 +696,7 @@
       "mcp": "MCP Servers",
       "skills": "Skills",
       "providers": "Providers",
+      "defaultModel": "Default Model",
       "system": "System Settings"
     }
   },
@@ -708,6 +717,13 @@
     "errors": {
       "loadSessionFailed": "Failed to load session",
       "indexFailed": "Failed to load history index"
+    },
+    "sessionMenu": {
+      "rename": "Rename",
+      "regenerate": "Regenerate Title",
+      "renameSuccess": "Session title updated",
+      "regenerateSuccess": "Session title regenerated",
+      "regenerateFailed": "Generation failed, fallback title set to \"新对话\""
     }
   }
 }

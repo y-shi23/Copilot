@@ -47,6 +47,21 @@ export interface StorageHealthInfo {
   lastError: string;
 }
 
+export interface ConversationTitlePayload {
+  sessionData: Record<string, any>;
+  language?: string;
+  modelKey?: string;
+  fallbackModelKey?: string;
+}
+
+export interface ConversationTitleResult {
+  ok: boolean;
+  title: string;
+  usedModelKey?: string;
+  reason?: string;
+  error?: string;
+}
+
 export interface MainWindowApi {
   getConfig: () => Promise<ConfigPayload> | ConfigPayload;
   updateConfig: AnyFn;
@@ -128,6 +143,9 @@ export interface MainWindowApi {
   getStorageHealth?: () => Promise<StorageHealthInfo>;
   testPostgresConnection?: (connectionString: string) => Promise<{ ok: boolean; error?: string }>;
   triggerStorageSync?: () => Promise<Record<string, any>>;
+  generateConversationTitle?: (
+    payload: ConversationTitlePayload,
+  ) => Promise<ConversationTitleResult>;
 }
 
 export interface WindowPreloadBridge {

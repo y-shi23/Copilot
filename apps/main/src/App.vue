@@ -16,14 +16,16 @@ import {
   WandSparkles as MagicStick,
   Library as Collection,
   Cloud as Cloudy,
+  Rocket,
   Settings as SettingIcon,
   FileText as Document,
   FolderMinus,
   FolderOpen,
   ArrowLeft,
+  Pencil as EditIcon,
   Hammer as Wrench,
 } from 'lucide-vue-next';
-import { ElBadge, ElMessage } from 'element-plus';
+import { ElBadge, ElMessage, ElMessageBox } from 'element-plus';
 import { useAssistantSessionIndex } from './composables/useAssistantSessionIndex';
 
 const MainChatWorkspace = defineAsyncComponent(
@@ -33,20 +35,24 @@ const Chats = defineAsyncComponent(() => import('./components/Chats.vue'));
 const Prompts = defineAsyncComponent(() => import('./components/Prompts.vue'));
 const Mcp = defineAsyncComponent(() => import('./components/Mcp.vue'));
 const Setting = defineAsyncComponent(() => import('./components/Setting.vue'));
+const DefaultModel = defineAsyncComponent(() => import('./components/DefaultModel.vue'));
 const Providers = defineAsyncComponent(() => import('./components/Providers.vue'));
 const Skills = defineAsyncComponent(() => import('./components/Skills.vue'));
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const config = ref(null);
 provide('config', config);
 
 const appMode = ref('chat'); // chat | settings
-const settingsTab = ref('history'); // history | prompts | mcp | skills | providers | system
+const settingsTab = ref('history'); // history | prompts | mcp | skills | providers | defaultModel | system
 const selectedAssistantCode = ref('');
 const expandedAssistantCode = ref('');
 const sessionLoadRequest = ref(null);
 const sessionRequestNonce = ref(0);
 const activeSessionId = ref('');
+const sessionContextMenuVisible = ref(false);
+const sessionContextMenuPosition = ref({ x: 0, y: 0 });
+const sessionContextMenuTarget = ref(null);
 const chatWorkspaceRef = ref(null);
 
 const {
@@ -65,6 +71,7 @@ const settingsNavItems = computed(() => [
   { id: 'mcp', label: t('mainSettings.tabs.mcp'), icon: Wrench },
   { id: 'skills', label: t('mainSettings.tabs.skills'), icon: Collection },
   { id: 'providers', label: t('mainSettings.tabs.providers'), icon: Cloudy },
+  { id: 'defaultModel', label: t('mainSettings.tabs.defaultModel'), icon: Rocket },
   { id: 'system', label: t('mainSettings.tabs.system'), icon: SettingIcon },
 ]);
 
@@ -349,6 +356,115 @@ const openHistorySession = async (sessionItem) => {
   }
 };
 
+const hideSessionContextMenu = () => {
+  sessionContextMenuVisible.value = false;
+  sessionContextMenuTarget.value = null;
+};
+
+const openSessionContextMenu = (event, sessionItem) => {
+  event.preventDefault();
+  event.stopPropagation();
+  sessionContextMenuTarget.value = sessionItem;
+  sessionContextMenuPosition.value = {
+    x: event.clientX,
+    y: event.clientY,
+  };
+  sessionContextMenuVisible.value = true;
+};
+
+const renameSessionFromSidebar = async () => {
+  const target = sessionContextMenuTarget.value;
+  hideSessionContextMenu();
+
+  if (!target?.conversationId) return;
+
+  try {
+    if (typeof window.api.renameConversation !== 'function') {
+      throw new Error('renameConversation API is unavailable');
+    }
+
+    const { value } = await ElMessageBox.prompt(
+      t('mainChat.sessionMenu.rename'),
+      t('mainChat.sessionMenu.rename'),
+      {
+        inputValue: target.conversationName || '',
+        inputValidator: (nextValue) => {
+          if (!nextValue || !String(nextValue).trim()) return '名称不能为空';
+          return true;
+        },
+        confirmButtonText: t('common.confirm'),
+        cancelButtonText: t('common.cancel'),
+      },
+    );
+
+    const nextName = String(value || '').trim();
+    if (!nextName || nextName === target.conversationName) return;
+
+    await window.api.renameConversation(target.conversationId, nextName);
+    await refreshIndex({ force: true });
+    ElMessage.success(t('mainChat.sessionMenu.renameSuccess'));
+  } catch (error: any) {
+    if (error === 'cancel' || error === 'close') return;
+    console.error('[Main] Failed to rename session from sidebar:', error);
+    ElMessage.error(String(error?.message || error));
+  }
+};
+
+const regenerateSessionNameFromSidebar = async () => {
+  const target = sessionContextMenuTarget.value;
+  hideSessionContextMenu();
+
+  if (!target?.conversationId) return;
+
+  const applyFallbackTitle = async () => {
+    if (typeof window.api.renameConversation !== 'function') {
+      throw new Error('renameConversation API is unavailable');
+    }
+    await window.api.renameConversation(target.conversationId, '新对话');
+    await refreshIndex({ force: true });
+  };
+
+  try {
+    if (
+      typeof window.api.getConversation !== 'function' ||
+      typeof window.api.generateConversationTitle !== 'function' ||
+      typeof window.api.renameConversation !== 'function'
+    ) {
+      throw new Error('Conversation title APIs are unavailable');
+    }
+
+    const conversation = await window.api.getConversation(target.conversationId);
+    if (!conversation || typeof conversation !== 'object' || !conversation.sessionData) {
+      throw new Error('Conversation session data is unavailable');
+    }
+
+    const result = await window.api.generateConversationTitle({
+      sessionData: conversation.sessionData,
+      language: locale.value,
+      fallbackModelKey: String(config.value?.quickModel || ''),
+    });
+
+    const title = String(result?.title || '').trim() || '新对话';
+    await window.api.renameConversation(target.conversationId, title);
+    await refreshIndex({ force: true });
+
+    if (result?.ok) {
+      ElMessage.success(t('mainChat.sessionMenu.regenerateSuccess'));
+    } else {
+      ElMessage.warning(t('mainChat.sessionMenu.regenerateFailed'));
+    }
+  } catch (error) {
+    console.error('[Main] Failed to regenerate session title:', error);
+    try {
+      await applyFallbackTitle();
+      ElMessage.warning(t('mainChat.sessionMenu.regenerateFailed'));
+    } catch (renameError) {
+      console.error('[Main] Failed to apply fallback session title:', renameError);
+      ElMessage.error(t('mainChat.sessionMenu.regenerateFailed'));
+    }
+  }
+};
+
 const formatSessionTime = (value) => {
   if (!value) return '';
   const date = new Date(value);
@@ -443,6 +559,14 @@ watch(
   },
   { immediate: true },
 );
+
+watch(sessionContextMenuVisible, (visible) => {
+  if (visible) {
+    document.addEventListener('click', hideSessionContextMenu);
+  } else {
+    document.removeEventListener('click', hideSessionContextMenu);
+  }
+});
 
 watch(appMode, (mode) => {
   if (isCompactMobile.value) {
@@ -735,6 +859,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleGlobalEsc, true);
   window.removeEventListener('focus', handleWindowFocusSync);
   document.removeEventListener('visibilitychange', handleVisibilitySync);
+  document.removeEventListener('click', hideSessionContextMenu);
   mediaQuery.removeEventListener('change', handleSystemThemeChange);
   document.documentElement.classList.remove('macos-vibrancy-main');
   document.body?.classList.remove('macos-vibrancy-main');
@@ -832,6 +957,7 @@ onBeforeUnmount(() => {
                           session.preview ? ` · ${session.preview}` : ''
                         }`"
                         @click="openHistorySession(session)"
+                        @contextmenu.prevent.stop="openSessionContextMenu($event, session)"
                       >
                         <span
                           class="assistant-name session-name"
@@ -924,10 +1050,31 @@ onBeforeUnmount(() => {
             <Mcp v-if="settingsTab === 'mcp'" key="mcp" />
             <Skills v-if="settingsTab === 'skills'" key="skills" />
             <Providers v-if="settingsTab === 'providers'" key="providers" />
+            <DefaultModel v-if="settingsTab === 'defaultModel'" key="defaultModel" />
             <Setting v-if="settingsTab === 'system'" key="system" />
           </div>
         </template>
       </el-main>
+
+      <teleport to="body">
+        <div
+          v-if="sessionContextMenuVisible"
+          class="session-context-menu"
+          :style="{
+            left: `${sessionContextMenuPosition.x}px`,
+            top: `${sessionContextMenuPosition.y}px`,
+          }"
+        >
+          <div class="session-context-item" @click="renameSessionFromSidebar">
+            <el-icon class="session-context-icon"><EditIcon /></el-icon>
+            <span>{{ t('mainChat.sessionMenu.rename') }}</span>
+          </div>
+          <div class="session-context-item" @click="regenerateSessionNameFromSidebar">
+            <el-icon class="session-context-icon"><MagicStick /></el-icon>
+            <span>{{ t('mainChat.sessionMenu.regenerate') }}</span>
+          </div>
+        </div>
+      </teleport>
 
       <el-dialog
         v-model="showDocDialog"
@@ -1226,6 +1373,46 @@ onBeforeUnmount(() => {
   white-space: nowrap;
   font-size: 12px;
   font-weight: 500;
+}
+
+.session-context-menu {
+  position: fixed;
+  z-index: 9999;
+  border-radius: var(--radius-lg) !important;
+  background: color-mix(in srgb, var(--bg-secondary) 92%, transparent) !important;
+  box-shadow:
+    var(--shadow-lg),
+    0 0 0 1px var(--border-primary) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden !important;
+  padding: 6px !important;
+  min-width: 170px;
+}
+
+.session-context-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  font-size: 14px;
+  color: var(--text-primary);
+  border-radius: var(--radius-md);
+}
+
+html.dark .session-context-item:hover {
+  background-color: #3d3d3d !important;
+}
+
+html:not(.dark) .session-context-item:hover {
+  background-color: var(--bg-tertiary);
+}
+
+.session-context-icon {
+  width: 16px;
+  height: 16px;
 }
 
 .assistant-empty-sessions,

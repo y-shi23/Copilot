@@ -134,6 +134,7 @@ const defaultConfig = {
     autoSaveChat_global: false,
     launcherEnabled: true,
     launcherHotkey: 'CommandOrControl+Shift+Space',
+    quickModel: '',
     zoom: 1,
     database: {
       postgresUrl: '',
@@ -501,6 +502,7 @@ function checkConfig(config) {
     themeMode: 'system',
     launcherEnabled: true,
     launcherHotkey: 'CommandOrControl+Shift+Space',
+    quickModel: '',
     fastWindowPosition: null,
     database: {
       postgresUrl: '',

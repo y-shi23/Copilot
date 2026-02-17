@@ -4,7 +4,10 @@ global.utools = require('./utools_shim');
 const { ipcRenderer } = require('electron');
 const path = require('path');
 
-const { getRandomItem } = require('./input');
+const {
+  getRandomItem,
+  generateConversationTitle: generateConversationTitleCore,
+} = require('./input');
 
 const {
   getConfig,
@@ -217,6 +220,23 @@ window.api = {
   },
   triggerStorageSync: async () => {
     return ipcRenderer.invoke('storage:sync-now');
+  },
+  generateConversationTitle: async (payload = {}) => {
+    try {
+      const configResult = await getConfig();
+      const configData = configResult?.config || {};
+      return await generateConversationTitleCore({
+        ...payload,
+        config: configData,
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        title: '新对话',
+        reason: 'preload_error',
+        error: String(error?.message || error),
+      };
+    }
   },
 
   // Skill 相关 API

@@ -18,42 +18,64 @@ export function useAutoSave(options: any) {
   let autoSaveInFlight = false;
   let autoSaveQueued = false;
   let autoSaveInFlightPromise: Promise<any> | null = null;
+  let titleGenerationInFlight: Promise<string> | null = null;
 
-  const buildConversationNameFromMessages = () => {
-    if (defaultConversationName.value) return defaultConversationName.value;
-    if (!Array.isArray(chat_show.value) || chat_show.value.length === 0) return '';
+  const hasAtLeastOneValidRound = () => {
+    const list = Array.isArray(chat_show.value) ? chat_show.value : [];
+    if (!list.length) return false;
 
-    const firstUserMsg = chat_show.value.find((msg: any) => msg.role === 'user');
-    if (!firstUserMsg) return '';
+    let seenUser = false;
+    for (const message of list) {
+      const role = String(message?.role || '').toLowerCase();
+      if (role !== 'user' && role !== 'assistant') continue;
 
-    let namePrefix = '';
-    const content = firstUserMsg.content;
-    if (Array.isArray(content)) {
-      const hasImage = content.some((part: any) => part?.type === 'image_url');
-      const hasFile = content.some((part: any) => part?.type === 'file');
-      const textPart = content.find((part: any) => part?.type === 'text');
-      if (hasImage) {
-        namePrefix = '图片';
-      } else if (hasFile) {
-        namePrefix = '文件';
-      } else if (textPart?.text) {
-        namePrefix = textPart.text
-          .slice(0, 20)
-          .replace(/[\\/:*?"<>|\n\r]/g, '')
-          .trim();
+      const content = message?.content;
+      const hasContent =
+        (typeof content === 'string' && content.trim().length > 0) ||
+        (Array.isArray(content) && content.length > 0);
+      if (!hasContent) continue;
+
+      if (role === 'user') {
+        seenUser = true;
+      } else if (role === 'assistant' && seenUser) {
+        return true;
       }
-    } else if (typeof content === 'string') {
-      namePrefix = content
-        .slice(0, 20)
-        .replace(/[\\/:*?"<>|\n\r]/g, '')
-        .trim();
     }
 
-    if (!namePrefix) return '';
-    const safeCodeName = String(CODE.value || 'AI').replace(/[\\/:*?"<>|]/g, '_');
-    const now = new Date();
-    const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-    return `${namePrefix}-${safeCodeName}-${timestamp}`;
+    return false;
+  };
+
+  const ensureGeneratedConversationName = async () => {
+    if (defaultConversationName.value) return defaultConversationName.value;
+    if (!hasAtLeastOneValidRound()) return '';
+
+    if (!titleGenerationInFlight) {
+      titleGenerationInFlight = (async () => {
+        try {
+          if (typeof window.api.generateConversationTitle !== 'function') {
+            return '新对话';
+          }
+          const result = await window.api.generateConversationTitle({
+            sessionData: getSessionDataAsObject(),
+            language: String(
+              currentConfig.value?.language || localStorage.getItem('language') || '',
+            ),
+            fallbackModelKey: String(currentConfig.value?.quickModel || ''),
+          });
+          const title = String(result?.title || '').trim() || '新对话';
+          defaultConversationName.value = title;
+          return title;
+        } catch (error) {
+          console.error('Generate conversation title failed:', error);
+          defaultConversationName.value = '新对话';
+          return '新对话';
+        } finally {
+          titleGenerationInFlight = null;
+        }
+      })();
+    }
+
+    return await titleGenerationInFlight;
   };
 
   const autoSaveSession = async ({ force = false } = {}) => {
@@ -66,15 +88,13 @@ export function useAutoSave(options: any) {
 
     const promptConfig = currentConfig.value?.prompts?.[CODE.value];
     const isAutoSaveConfigEnabled = promptConfig?.autoSaveChat ?? true;
-    if (!defaultConversationName.value && !isAutoSaveConfigEnabled) {
-      return;
+
+    if (!defaultConversationName.value && hasAtLeastOneValidRound()) {
+      await ensureGeneratedConversationName();
     }
 
-    if (!defaultConversationName.value) {
-      const generatedName = buildConversationNameFromMessages();
-      if (generatedName) {
-        defaultConversationName.value = generatedName;
-      }
+    if (!isAutoSaveConfigEnabled && !currentConversationId.value) {
+      return;
     }
 
     if (!defaultConversationName.value) {
@@ -172,6 +192,7 @@ export function useAutoSave(options: any) {
       clearTimeout(autoSaveDebounceTimer);
       autoSaveDebounceTimer = null;
     }
+    titleGenerationInFlight = null;
     autoSaveInFlightPromise = null;
   };
 

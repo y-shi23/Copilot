@@ -654,6 +654,14 @@
       "saveFailedPrefix": "設定の保存に失敗しました: "
     }
   },
+  "defaultModel": {
+    "title": "デフォルトモデル",
+    "quickModel": {
+      "label": "クイックモデル",
+      "description": "会話タイトルを自動生成する際に使用するモデルです。",
+      "placeholder": "モデルを選択"
+    }
+  },
   "common": {
     "cancel": "キャンセル",
     "confirm": "確認",
@@ -688,6 +696,7 @@
       "mcp": "MCPサーバー",
       "skills": "スキル",
       "providers": "サービスプロバイダー",
+      "defaultModel": "デフォルトモデル",
       "system": "システム設定"
     }
   },
@@ -708,6 +717,13 @@
     "errors": {
       "loadSessionFailed": "セッションの読み込みに失敗しました",
       "indexFailed": "履歴インデックスの読み込みに失敗しました"
+    },
+    "sessionMenu": {
+      "rename": "手動リネーム",
+      "regenerate": "タイトルを再生成",
+      "renameSuccess": "セッション名を更新しました",
+      "regenerateSuccess": "セッション名を再生成しました",
+      "regenerateFailed": "生成に失敗したため「新对话」を使用しました"
     }
   }
 }

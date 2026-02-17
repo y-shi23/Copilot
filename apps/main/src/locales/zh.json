@@ -654,6 +654,14 @@
       "saveFailedPrefix": "保存设置失败: "
     }
   },
+  "defaultModel": {
+    "title": "默认模型",
+    "quickModel": {
+      "label": "快速模型",
+      "description": "用于自动生成会话名称的模型",
+      "placeholder": "请选择模型"
+    }
+  },
   "common": {
     "cancel": "取消",
     "confirm": "确认",
@@ -688,6 +696,7 @@
       "mcp": "MCP 服务",
       "skills": "Skill 技能",
       "providers": "服务商",
+      "defaultModel": "默认模型",
       "system": "系统设置"
     }
   },
@@ -708,6 +717,13 @@
     "errors": {
       "loadSessionFailed": "加载会话失败",
       "indexFailed": "加载历史索引失败"
+    },
+    "sessionMenu": {
+      "rename": "手动命名",
+      "regenerate": "再次生成名称",
+      "renameSuccess": "会话名称已更新",
+      "regenerateSuccess": "会话名称已重新生成",
+      "regenerateFailed": "生成失败，已使用“新对话”"
     }
   }
 }

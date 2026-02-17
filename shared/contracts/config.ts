@@ -38,6 +38,7 @@ export interface AppConfig {
   providerOrder: string[];
   prompts: Record<string, PromptConfig>;
   mcpServers?: Record<string, JsonValue>;
+  quickModel?: string;
   skillPath?: string;
   language?: string;
   isDarkMode?: boolean;
