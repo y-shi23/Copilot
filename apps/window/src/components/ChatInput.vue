@@ -40,6 +40,7 @@ const props = defineProps({
   ctrlEnterToSend: Boolean,
   voiceList: { type: Array, default: () => [] },
   layout: { type: String, default: 'horizontal' },
+  compactNewChatMode: { type: Boolean, default: false },
   isMcpActive: Boolean,
   allMcpServers: { type: Array, default: () => [] },
   activeMcpIds: { type: Array, default: () => [] },
@@ -73,6 +74,7 @@ const getDefaultInputTextHeight = () =>
   typeof window !== 'undefined' && window.innerWidth <= 760 ? 32 : 36;
 const DEFAULT_INPUT_TEXT_HEIGHT = getDefaultInputTextHeight();
 const MIN_INPUT_TEXT_HEIGHT = 28;
+const COMPACT_INPUT_TEXT_HEIGHT = 34;
 const inputTextHeight = ref(DEFAULT_INPUT_TEXT_HEIGHT);
 const isInputResizing = ref(false);
 let resizeStartY = 0;
@@ -120,6 +122,19 @@ watch(
 const reasoningTooltipContent = computed(() => {
   const map = { default: '默认', low: '低', medium: '中', high: '高' };
   return `思考预算: ${map[tempReasoningEffort.value] || '默认'}`;
+});
+const isCompactNewChatModeActive = computed(() => props.compactNewChatMode);
+const hasPromptContent = computed(() => String(prompt.value || '').trim().length > 0);
+const showCompactExpandedActions = computed(
+  () => isCompactNewChatModeActive.value && !isRecording.value && hasPromptContent.value,
+);
+const effectiveInputTextHeight = computed(() =>
+  isCompactNewChatModeActive.value ? COMPACT_INPUT_TEXT_HEIGHT : inputTextHeight.value,
+);
+const inputPlaceholder = computed(() => {
+  if (isRecording.value) return '录音中... 结束后将连同文本一起发送';
+  if (isCompactNewChatModeActive.value) return '';
+  return '输入、粘贴、拖拽以发送内容，“ @”选择MCP，“ /”选择skill';
 });
 
 // 过滤后的 MCP 列表逻辑
@@ -884,10 +899,18 @@ defineExpose({ focus, senderRef });
       <el-col :span="24">
         <div
           class="chat-input-area-vertical"
-          :class="{ 'is-resizing': isInputResizing }"
-          :style="{ '--input-text-height': `${inputTextHeight}px` }"
+          :class="{
+            'is-resizing': isInputResizing,
+            'is-compact-new-chat': isCompactNewChatModeActive,
+            'has-compact-extra-actions': showCompactExpandedActions,
+          }"
+          :style="{ '--input-text-height': `${effectiveInputTextHeight}px` }"
         >
-          <div class="input-top-resizer" @pointerdown="startInputResize">
+          <div
+            v-if="!isCompactNewChatModeActive"
+            class="input-top-resizer"
+            @pointerdown="startInputResize"
+          >
             <span class="input-top-resizer-grip"></span>
           </div>
           <div v-if="showMcpQuickSelect && filteredMcpList.length > 0" class="mcp-quick-select">
@@ -985,24 +1008,182 @@ defineExpose({ focus, senderRef });
             </div>
           </div>
 
-          <div class="input-wrapper">
+          <div v-if="isCompactNewChatModeActive" class="compact-inline-row">
+            <div class="input-wrapper input-wrapper-compact">
+              <el-input
+                ref="senderRef"
+                class="chat-textarea-vertical"
+                v-model="prompt"
+                type="textarea"
+                :placeholder="inputPlaceholder"
+                :autosize="false"
+                resize="none"
+                @keydown="handleKeyDown"
+                :disabled="isRecording"
+              />
+            </div>
+          </div>
+          <div v-else class="input-wrapper">
             <el-input
               ref="senderRef"
               class="chat-textarea-vertical"
               v-model="prompt"
               type="textarea"
-              :placeholder="
-                isRecording
-                  ? '录音中... 结束后将连同文本一起发送'
-                  : '输入、粘贴、拖拽以发送内容，“ @”选择MCP，“ /”选择skill'
-              "
+              :placeholder="inputPlaceholder"
               :autosize="false"
               resize="none"
               @keydown="handleKeyDown"
               :disabled="isRecording"
             />
           </div>
-          <div class="input-actions-bar">
+
+          <Transition name="compact-extra-actions">
+            <div v-if="showCompactExpandedActions" class="compact-extra-actions-row">
+              <el-tooltip :content="reasoningTooltipContent">
+                <el-button
+                  ref="reasoningButtonRef"
+                  :class="{
+                    'is-active-special': tempReasoningEffort && tempReasoningEffort !== 'default',
+                  }"
+                  class="input-icon-btn circle-action-btn"
+                  size="default"
+                  circle
+                  :disabled="isRecording"
+                  @click="toggleReasoningSelector"
+                >
+                  <Brain :size="17" />
+                </el-button>
+              </el-tooltip>
+
+              <el-tooltip content="语音回复设置">
+                <el-button
+                  ref="voiceButtonRef"
+                  class="input-icon-btn circle-action-btn"
+                  size="default"
+                  circle
+                  :disabled="isRecording"
+                  :class="{ 'is-active-special': selectedVoice }"
+                  @click="toggleVoiceSelector"
+                >
+                  <AudioLines :size="17" />
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="MCP工具">
+                <el-button
+                  class="input-icon-btn circle-action-btn"
+                  size="default"
+                  circle
+                  :disabled="isRecording"
+                  :class="{ 'is-active-special': isMcpActive }"
+                  @click="$emit('open-mcp-dialog')"
+                >
+                  <Hammer :size="17" />
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="Skill 技能库">
+                <el-button
+                  class="input-icon-btn circle-action-btn"
+                  size="default"
+                  circle
+                  :disabled="isRecording"
+                  :class="{ 'is-active-special': activeSkillIds && activeSkillIds.length > 0 }"
+                  @click="$emit('open-skill-dialog')"
+                >
+                  <Library :size="17" />
+                </el-button>
+              </el-tooltip>
+            </div>
+          </Transition>
+
+          <div
+            v-if="isCompactNewChatModeActive"
+            class="action-buttons-right compact-inline-actions compact-floating-actions"
+            :class="{ 'is-shifted': showCompactExpandedActions }"
+          >
+            <template v-if="isRecording">
+              <el-tooltip content="取消录音"
+                ><el-button
+                  class="input-icon-btn circle-action-btn"
+                  size="default"
+                  @click="handleCancelRecording"
+                  circle
+                >
+                  <X :size="17" /> </el-button
+              ></el-tooltip>
+              <el-tooltip content="结束并发送"
+                ><el-button
+                  class="input-icon-btn circle-action-btn"
+                  size="default"
+                  @click="handleConfirmAndSendRecording"
+                  circle
+                >
+                  <Check :size="17" /> </el-button
+              ></el-tooltip>
+            </template>
+            <template v-else>
+              <el-tooltip content="发送语音">
+                <el-button
+                  ref="audioButtonRef"
+                  class="input-icon-btn circle-action-btn"
+                  size="default"
+                  @click="toggleAudioSourceSelector"
+                  circle
+                >
+                  <Mic :size="17" />
+                </el-button>
+              </el-tooltip>
+              <el-button
+                v-if="!loading"
+                class="input-icon-btn send-action-btn message-send-btn"
+                @click="onSubmit"
+                circle
+                :disabled="loading"
+              >
+                <span class="send-state-icon" aria-hidden="true">
+                  <svg
+                    class="send-arrow-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <path
+                      d="M12 17V7"
+                      stroke="currentColor"
+                      stroke-width="2.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M7 12L12 7L17 12"
+                      stroke="currentColor"
+                      stroke-width="2.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </span>
+              </el-button>
+              <el-button
+                v-else
+                @click="onCancel"
+                circle
+                class="input-icon-btn send-action-btn message-send-btn"
+              >
+                <span class="send-state-icon" aria-hidden="true">
+                  <svg
+                    class="stop-square-icon"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    xmlns="http://www.w3.org/2000/svg"
+                  >
+                    <rect x="5.4" y="5.4" width="13.2" height="13.2" rx="3.2" fill="currentColor" />
+                  </svg>
+                </span>
+              </el-button>
+            </template>
+          </div>
+
+          <div v-if="!isCompactNewChatModeActive" class="input-actions-bar">
             <div class="action-buttons-left">
               <el-tooltip content="清除聊天记录">
                 <el-button
@@ -1762,6 +1943,10 @@ html.dark .el-divider--vertical {
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   position: relative;
+  transition:
+    padding 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-radius 320ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 320ms ease;
 }
 
 html.dark .chat-input-area-vertical {
@@ -1813,6 +1998,90 @@ html.dark .chat-input-area-vertical {
   padding-top: 0;
   border-top: none;
   flex-shrink: 0;
+}
+
+.chat-input-area-vertical.is-compact-new-chat {
+  border-radius: 999px;
+  padding: 8px 10px 8px 14px;
+}
+
+.chat-input-area-vertical.is-compact-new-chat.has-compact-extra-actions {
+  border-radius: 22px;
+  padding-bottom: 10px;
+}
+
+.compact-inline-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 84px;
+}
+
+.input-wrapper.input-wrapper-compact {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--input-text-height, 34px);
+  min-height: var(--input-text-height, 34px);
+}
+
+.compact-inline-actions {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 0 !important;
+}
+
+.compact-floating-actions {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  z-index: 3;
+  transition:
+    top 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.compact-floating-actions.is-shifted {
+  top: calc(8px + var(--input-text-height, 34px) + 8px);
+}
+
+.compact-extra-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 8px;
+  padding-right: 84px;
+  overflow: hidden;
+}
+
+.compact-extra-actions-enter-active,
+.compact-extra-actions-leave-active {
+  transition:
+    max-height 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 240ms ease,
+    transform 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.compact-extra-actions-enter-from,
+.compact-extra-actions-leave-to {
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-6px);
+  margin-top: 0;
+}
+
+.compact-extra-actions-enter-to,
+.compact-extra-actions-leave-from {
+  max-height: 44px;
+  opacity: 1;
+  transform: translateY(0);
+  margin-top: 8px;
+}
+
+.chat-input-area-vertical.is-compact-new-chat .chat-textarea-vertical:deep(.el-textarea__inner) {
+  overflow-y: hidden;
+  line-height: var(--input-text-height, 34px);
+  font-size: 16px;
 }
 
 .chat-input-area-vertical .action-buttons-left,

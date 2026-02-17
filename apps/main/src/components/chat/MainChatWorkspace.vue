@@ -1106,6 +1106,7 @@ const handleOpenSearch = () => {
             v-model:selectedVoice="selectedVoice"
             v-model:tempReasoningEffort="tempReasoningEffort"
             :loading="loading"
+            :compact-new-chat-mode="showNewChatAnimation"
             :ctrlEnterToSend="currentConfig.CtrlEnterToSend"
             :layout="inputLayout"
             :voiceList="currentConfig.voiceList"
