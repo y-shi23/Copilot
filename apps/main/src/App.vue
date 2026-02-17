@@ -1110,7 +1110,10 @@ onBeforeUnmount(() => {
                 v-model="localAssistantOrder"
                 item-key="code"
                 class="assistant-sidebar-draggable"
-                :class="{ 'is-sort-enabled': canDragAssistantsReorder }"
+                :class="{
+                  'is-sort-enabled': canDragAssistantsReorder,
+                  'is-assistant-dragging': isAssistantOrderDragging,
+                }"
                 :animation="250"
                 ghost-class="provider-drag-ghost"
                 :force-fallback="true"
@@ -1536,6 +1539,12 @@ onBeforeUnmount(() => {
 .assistant-row:hover {
   color: var(--text-primary);
   background-color: rgba(255, 255, 255, 0.62);
+}
+
+.assistant-sidebar-draggable.is-assistant-dragging .assistant-row:hover,
+.assistant-sidebar-draggable.is-assistant-dragging .assistant-row:focus-visible {
+  color: var(--text-secondary);
+  background-color: transparent;
 }
 
 .provider-drag-ghost {
@@ -1985,6 +1994,12 @@ html.dark .mobile-toggle-btn:hover,
 html.dark .assistant-row:hover {
   color: #efede9;
   background-color: rgba(255, 255, 255, 0.08);
+}
+
+html.dark .assistant-sidebar-draggable.is-assistant-dragging .assistant-row:hover,
+html.dark .assistant-sidebar-draggable.is-assistant-dragging .assistant-row:focus-visible {
+  color: #bfbcb8;
+  background-color: transparent;
 }
 
 html.dark .nav-item.active-tab {
