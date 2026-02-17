@@ -21,6 +21,9 @@ export function useSessionPersistence(options: any) {
     handleTogglePin,
     applyMcpTools,
     scrollToBottom,
+    persistConversation,
+    syncConversationMeta,
+    markSnapshotPersisted,
   } = options;
 
   const {
@@ -181,11 +184,12 @@ export function useSessionPersistence(options: any) {
           try {
             defaultConversationName.value = finalBasename;
             const sessionData = JSON.parse(JSON.stringify(getSessionDataAsObject()));
-            const result = await window.api.upsertConversation({
+            const result = await persistConversation({
               conversationId: currentConversationId.value || sessionData.conversationId || '',
               conversationName: finalBasename,
               assistantCode: CODE.value,
               sessionData,
+              skipWhenUnchanged: false,
             });
             if (result?.conversationId) {
               currentConversationId.value = result.conversationId;
@@ -695,6 +699,10 @@ export function useSessionPersistence(options: any) {
       if (resolvedConversationName) {
         defaultConversationName.value = resolvedConversationName;
       }
+      syncConversationMeta({
+        conversationId: resolvedConversationId,
+        conversationName: resolvedConversationName,
+      });
 
       CODE.value = jsonData.CODE;
       document.title = CODE.value;
@@ -820,6 +828,7 @@ export function useSessionPersistence(options: any) {
 
       isSessionDirty.value = false;
       hasSessionInitialized.value = true;
+      markSnapshotPersisted(jsonData);
     } catch (error: any) {
       console.error('加载会话失败:', error);
       showDismissibleMessage.error(`加载会话失败: ${error.message}`);

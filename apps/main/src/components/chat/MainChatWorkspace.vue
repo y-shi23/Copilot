@@ -31,6 +31,7 @@ import { useAutoSave } from '@window/composables/useAutoSave';
 import { useChatMessageActions } from '@window/composables/useChatMessageActions';
 import { useChatViewport } from '@window/composables/useChatViewport';
 import { useConversationMessageStore } from '@window/composables/useConversationMessageStore';
+import { useConversationPersistenceCoordinator } from '@window/composables/useConversationPersistenceCoordinator';
 import { useFileHandlers } from '@window/composables/useFileHandlers';
 import { useMcpSkillManager } from '@window/composables/useMcpSkillManager';
 import { usePromptModelSettings } from '@window/composables/usePromptModelSettings';
@@ -505,6 +506,36 @@ onBeforeUnmount(async () => {
   document.body?.classList.remove('mac-native-vibrancy');
 });
 
+const { persistConversation, syncConversationMeta, markSnapshotPersisted } =
+  useConversationPersistenceCoordinator({
+    refs: {
+      CODE,
+      defaultConversationName,
+      currentConversationId,
+      isSessionDirty,
+    },
+    getSessionDataAsObject: () => ({
+      anywhere_history: true,
+      conversationId: currentConversationId.value || '',
+      conversationName: defaultConversationName.value || '',
+      CODE: CODE.value,
+      basic_msg: basic_msg.value,
+      isInit: isInit.value,
+      autoCloseOnBlur: autoCloseOnBlur.value,
+      model: model.value,
+      currentPromptConfig: currentConfig.value.prompts[CODE.value] || {},
+      history: messageStore.sessionSnapshot.value?.history || [],
+      chat_show: messageStore.sessionSnapshot.value?.chat_show || [],
+      selectedVoice: selectedVoice.value,
+      activeMcpServerIds: sessionMcpServerIds.value || [],
+      activeSkillIds: sessionSkillIds.value || [],
+      isAutoApproveTools: isAutoApproveTools.value,
+    }),
+    onConversationPersisted: (payload: any) => {
+      emit('conversation-saved', payload);
+    },
+  });
+
 const { getSessionDataAsObject, handleSaveAction, loadSession, checkAndLoadSessionFromFile } =
   useSessionPersistence({
     refs: {
@@ -546,6 +577,9 @@ const { getSessionDataAsObject, handleSaveAction, loadSession, checkAndLoadSessi
     handleTogglePin,
     applyMcpTools: (...args) => applyMcpTools(...args),
     scrollToBottom: (...args) => scrollToBottom(...args),
+    persistConversation,
+    syncConversationMeta,
+    markSnapshotPersisted,
   });
 
 const { scheduleAutoSave, markSessionDirty, flushAutoSave, startAutoSaveFallback, stopAutoSave } =
@@ -561,6 +595,7 @@ const { scheduleAutoSave, markSessionDirty, flushAutoSave, startAutoSaveFallback
     },
     messageStore,
     getSessionDataAsObject: (...args) => getSessionDataAsObject(...args),
+    persistConversation,
     onConversationPersisted: (payload) => {
       emit('conversation-saved', payload);
     },

@@ -5,6 +5,7 @@ export function useAutoSave(options: any) {
     refs,
     messageStore,
     getSessionDataAsObject,
+    persistConversation,
     debounceMs = 1800,
     fallbackMs = 60000,
     onConversationPersisted,
@@ -176,11 +177,12 @@ export function useAutoSave(options: any) {
       if (!sessionData?.conversationName) {
         sessionData.conversationName = conversationNameToSave;
       }
-      const result = await window.api.upsertConversation({
+      const result = await persistConversation({
         conversationId: currentConversationId.value || sessionData.conversationId || '',
         conversationName: conversationNameToSave,
         assistantCode: CODE.value,
         sessionData,
+        skipWhenUnchanged: true,
       });
 
       const nextConversationId = String(

@@ -675,7 +675,7 @@ class StorageService {
     const parsed = safeJsonParse(this.getMeta(metaKey), null);
     const updatedAt = Number(parsed?.updatedAt || 0);
     return {
-      updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? Math.floor(updatedAt) : 0,
+      updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : 0,
       id: String(parsed?.id || ''),
     };
   }
@@ -687,7 +687,7 @@ class StorageService {
     this.setMeta(
       metaKey,
       JSON.stringify({
-        updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? Math.floor(updatedAt) : 0,
+        updatedAt: Number.isFinite(updatedAt) && updatedAt > 0 ? updatedAt : 0,
         id: String(cursor?.id || ''),
       }),
     );
@@ -752,10 +752,7 @@ class StorageService {
         Number.isFinite(createdAtRaw) && createdAtRaw > 0
           ? Math.floor(createdAtRaw)
           : Math.floor(nowMs()),
-      updatedAt:
-        Number.isFinite(updatedAtRaw) && updatedAtRaw > 0
-          ? Math.floor(updatedAtRaw)
-          : Math.floor(nowMs()),
+      updatedAt: Number.isFinite(updatedAtRaw) && updatedAtRaw > 0 ? updatedAtRaw : nowMs(),
       deletedAt:
         deletedAtRaw === null || !Number.isFinite(deletedAtRaw) || deletedAtRaw <= 0
           ? null

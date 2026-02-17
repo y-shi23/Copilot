@@ -115,6 +115,7 @@ const rootInlineStyles = computed(() => ({
 let sidebarResizeStartX = 0;
 let sidebarResizeStartWidth = SIDEBAR_DEFAULT_WIDTH;
 let sessionAutoSyncTimer = null;
+let sessionOpenRequestToken = 0;
 
 const clampSidebarWidth = (rawWidth) => {
   const width = Number(rawWidth);
@@ -341,11 +342,18 @@ const getSessionConversationId = (sessionItem) => {
 const openHistorySession = async (sessionItem) => {
   const conversationId = getSessionConversationId(sessionItem);
   if (!conversationId) return;
-  if (conversationId === selectedSessionId.value) return;
+  if (conversationId === selectedSessionId.value && !activeSessionId.value) return;
+  if (conversationId === activeSessionId.value) return;
+
+  const previousSelectedSessionId = selectedSessionId.value;
+  sessionOpenRequestToken += 1;
+  const requestToken = sessionOpenRequestToken;
 
   activeSessionId.value = conversationId;
+  selectedSessionId.value = conversationId;
   try {
     const payload = await loadSessionPayload(sessionItem);
+    if (requestToken !== sessionOpenRequestToken) return;
     const assistantCode = payload.assistantCode || sessionItem.assistantCode;
     const resolvedConversationId = String(payload.conversationId || conversationId).trim();
     selectedAssistantCode.value = assistantCode;
@@ -359,10 +367,15 @@ const openHistorySession = async (sessionItem) => {
       sessionData: payload.sessionData,
     });
   } catch (error) {
+    if (requestToken === sessionOpenRequestToken) {
+      selectedSessionId.value = previousSelectedSessionId;
+    }
     console.error('[Main] Failed to load session:', error);
     ElMessage.error(t('mainChat.errors.loadSessionFailed'));
   } finally {
-    activeSessionId.value = '';
+    if (requestToken === sessionOpenRequestToken) {
+      activeSessionId.value = '';
+    }
     if (isCompactMobile.value) {
       isMobileSidebarOpen.value = false;
     }
@@ -592,7 +605,12 @@ const refreshSessionIndexForSync = (force = true) => {
 
 const handleConversationSaved = (payload) => {
   const conversationId = String(payload?.conversationId || '').trim();
-  if (conversationId) {
+  if (
+    conversationId &&
+    (!selectedSessionId.value ||
+      selectedSessionId.value === conversationId ||
+      activeSessionId.value === conversationId)
+  ) {
     selectedSessionId.value = conversationId;
   }
   refreshSessionIndexForSync(true);
