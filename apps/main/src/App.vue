@@ -24,6 +24,7 @@ import {
   ArrowLeft,
   Pencil as EditIcon,
   Hammer as Wrench,
+  SquarePen,
 } from 'lucide-vue-next';
 import { ElBadge, ElMessage, ElMessageBox } from 'element-plus';
 import { useAssistantSessionIndex } from './composables/useAssistantSessionIndex';
@@ -58,7 +59,6 @@ const chatWorkspaceRef = ref(null);
 const {
   enabledAssistants,
   sessionMap,
-  sessionCountByAssistant,
   errorMessage: sessionIndexError,
   refreshIndex,
   loadSessionPayload,
@@ -515,6 +515,10 @@ const refreshSessionIndexForSync = (force = true) => {
   });
 };
 
+const handleConversationSaved = () => {
+  refreshSessionIndexForSync(true);
+};
+
 const stopSessionAutoSync = () => {
   if (!sessionAutoSyncTimer) return;
   window.clearInterval(sessionAutoSyncTimer);
@@ -917,10 +921,13 @@ onBeforeUnmount(() => {
                 class="assistant-group"
                 :class="{ active: selectedAssistantCode === assistant.code }"
               >
-                <button
-                  type="button"
+                <div
                   class="assistant-row"
+                  role="button"
+                  tabindex="0"
                   @click="toggleAssistantExpand(assistant.code)"
+                  @keydown.enter.prevent="toggleAssistantExpand(assistant.code)"
+                  @keydown.space.prevent="toggleAssistantExpand(assistant.code)"
                 >
                   <span class="assistant-folder">
                     <FolderOpen v-if="expandedAssistantCode === assistant.code" :size="14" />
@@ -928,10 +935,18 @@ onBeforeUnmount(() => {
                   </span>
 
                   <span class="assistant-name" :title="assistant.code">{{ assistant.code }}</span>
-                  <span class="assistant-count">{{
-                    sessionCountByAssistant[assistant.code] || 0
-                  }}</span>
-                </button>
+                  <button
+                    type="button"
+                    class="assistant-new-session-btn"
+                    :title="t('mainChat.actions.newConversation')"
+                    :aria-label="t('mainChat.actions.newConversation')"
+                    @click.stop="startNewSession(assistant.code)"
+                    @keydown.enter.stop.prevent="startNewSession(assistant.code)"
+                    @keydown.space.stop.prevent="startNewSession(assistant.code)"
+                  >
+                    <SquarePen :size="13" />
+                  </button>
+                </div>
 
                 <Transition
                   name="assistant-sessions-collapse"
@@ -1036,6 +1051,7 @@ onBeforeUnmount(() => {
               ref="chatWorkspaceRef"
               :assistant-code="selectedAssistantCode"
               :session-load-request="sessionLoadRequest"
+              @conversation-saved="handleConversationSaved"
             />
           </div>
         </template>
@@ -1293,9 +1309,15 @@ onBeforeUnmount(() => {
   padding: 8px 10px;
   cursor: pointer;
   text-align: left;
+  outline: none;
 }
 
 .assistant-row:hover {
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.62);
+}
+
+.assistant-row:focus-visible {
   color: var(--text-primary);
   background-color: rgba(255, 255, 255, 0.62);
 }
@@ -1333,10 +1355,42 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
-.assistant-count {
-  font-size: 11px;
+.assistant-new-session-btn {
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
   color: var(--text-tertiary);
-  padding: 0 6px;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity 0.16s ease,
+    color 0.16s ease,
+    background-color 0.16s ease;
+}
+
+.assistant-row:hover .assistant-new-session-btn,
+.assistant-row:focus-within .assistant-new-session-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.assistant-new-session-btn:hover {
+  color: var(--text-primary);
+  background-color: color-mix(in srgb, var(--bg-tertiary) 84%, transparent);
+}
+
+.assistant-new-session-btn:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+  color: var(--text-primary);
+  background-color: color-mix(in srgb, var(--bg-tertiary) 84%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--text-accent) 45%, transparent);
+  outline-offset: 1px;
 }
 
 .assistant-sessions {

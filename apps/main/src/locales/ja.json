@@ -704,7 +704,8 @@
     "actions": {
       "refresh": "セッション一覧を更新",
       "showSidebar": "サイドバーを表示",
-      "hideSidebar": "サイドバーを閉じる"
+      "hideSidebar": "サイドバーを閉じる",
+      "newConversation": "新しい会話"
     },
     "sources": {
       "local": "ローカル",

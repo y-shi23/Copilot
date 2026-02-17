@@ -704,7 +704,8 @@
     "actions": {
       "refresh": "Обновить список сессий",
       "showSidebar": "Показать боковую панель",
-      "hideSidebar": "Скрыть боковую панель"
+      "hideSidebar": "Скрыть боковую панель",
+      "newConversation": "Новый диалог"
     },
     "sources": {
       "local": "Локально",

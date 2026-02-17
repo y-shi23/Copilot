@@ -1,7 +1,13 @@
 // @ts-nocheck
 
 export function useAutoSave(options: any) {
-  const { refs, getSessionDataAsObject, debounceMs = 1800, fallbackMs = 60000 } = options;
+  const {
+    refs,
+    getSessionDataAsObject,
+    debounceMs = 1800,
+    fallbackMs = 60000,
+    onConversationPersisted,
+  } = options;
   const {
     loading,
     currentConfig,
@@ -13,12 +19,44 @@ export function useAutoSave(options: any) {
     hasSessionInitialized,
   } = refs;
 
+  const FALLBACK_CONVERSATION_TITLE = '新对话';
   let autoSaveInterval: any = null;
   let autoSaveDebounceTimer: any = null;
   let autoSaveInFlight = false;
   let autoSaveQueued = false;
   let autoSaveInFlightPromise: Promise<any> | null = null;
   let titleGenerationInFlight: Promise<string> | null = null;
+  let shouldGenerateTitleFromFallback = false;
+  let lastPersistedConversationId = '';
+  let lastPersistedConversationName = '';
+
+  const buildSerializableSessionData = () => {
+    try {
+      return JSON.parse(JSON.stringify(getSessionDataAsObject()));
+    } catch (error) {
+      console.error('Failed to serialize session data for auto-save:', error);
+      return null;
+    }
+  };
+
+  const hasMessageContent = (message: any) => {
+    const content = message?.content;
+    return (
+      (typeof content === 'string' && content.trim().length > 0) ||
+      (Array.isArray(content) && content.length > 0)
+    );
+  };
+
+  const hasAtLeastOneUserMessage = () => {
+    const list = Array.isArray(chat_show.value) ? chat_show.value : [];
+    if (!list.length) return false;
+
+    return list.some((message) => {
+      const role = String(message?.role || '').toLowerCase();
+      if (role !== 'user') return false;
+      return hasMessageContent(message);
+    });
+  };
 
   const hasAtLeastOneValidRound = () => {
     const list = Array.isArray(chat_show.value) ? chat_show.value : [];
@@ -29,11 +67,7 @@ export function useAutoSave(options: any) {
       const role = String(message?.role || '').toLowerCase();
       if (role !== 'user' && role !== 'assistant') continue;
 
-      const content = message?.content;
-      const hasContent =
-        (typeof content === 'string' && content.trim().length > 0) ||
-        (Array.isArray(content) && content.length > 0);
-      if (!hasContent) continue;
+      if (!hasMessageContent(message)) continue;
 
       if (role === 'user') {
         seenUser = true;
@@ -45,30 +79,37 @@ export function useAutoSave(options: any) {
     return false;
   };
 
-  const ensureGeneratedConversationName = async () => {
-    if (defaultConversationName.value) return defaultConversationName.value;
+  const ensureGeneratedConversationName = async (options: any = {}) => {
+    const force = options.force === true;
+    if (!force && defaultConversationName.value) return defaultConversationName.value;
     if (!hasAtLeastOneValidRound()) return '';
 
     if (!titleGenerationInFlight) {
       titleGenerationInFlight = (async () => {
         try {
           if (typeof window.api.generateConversationTitle !== 'function') {
-            return '新对话';
+            defaultConversationName.value = FALLBACK_CONVERSATION_TITLE;
+            return FALLBACK_CONVERSATION_TITLE;
+          }
+          const serializableSessionData = buildSerializableSessionData();
+          if (!serializableSessionData) {
+            defaultConversationName.value = FALLBACK_CONVERSATION_TITLE;
+            return FALLBACK_CONVERSATION_TITLE;
           }
           const result = await window.api.generateConversationTitle({
-            sessionData: getSessionDataAsObject(),
+            sessionData: serializableSessionData,
             language: String(
               currentConfig.value?.language || localStorage.getItem('language') || '',
             ),
             fallbackModelKey: String(currentConfig.value?.quickModel || ''),
           });
-          const title = String(result?.title || '').trim() || '新对话';
+          const title = String(result?.title || '').trim() || FALLBACK_CONVERSATION_TITLE;
           defaultConversationName.value = title;
           return title;
         } catch (error) {
           console.error('Generate conversation title failed:', error);
-          defaultConversationName.value = '新对话';
-          return '新对话';
+          defaultConversationName.value = FALLBACK_CONVERSATION_TITLE;
+          return FALLBACK_CONVERSATION_TITLE;
         } finally {
           titleGenerationInFlight = null;
         }
@@ -88,29 +129,78 @@ export function useAutoSave(options: any) {
 
     const promptConfig = currentConfig.value?.prompts?.[CODE.value];
     const isAutoSaveConfigEnabled = promptConfig?.autoSaveChat ?? true;
+    const hasUserMessage = hasAtLeastOneUserMessage();
+    const hasValidRound = hasAtLeastOneValidRound();
+    const shouldCreateFirstConversation =
+      !currentConversationId.value && hasUserMessage && !defaultConversationName.value;
 
-    if (!defaultConversationName.value && hasAtLeastOneValidRound()) {
-      await ensureGeneratedConversationName();
+    if (hasValidRound && (!defaultConversationName.value || shouldGenerateTitleFromFallback)) {
+      await ensureGeneratedConversationName({ force: shouldGenerateTitleFromFallback });
+      shouldGenerateTitleFromFallback = false;
     }
 
-    if (!isAutoSaveConfigEnabled && !currentConversationId.value) {
+    let conversationNameToSave = String(defaultConversationName.value || '').trim();
+    if (!conversationNameToSave && hasUserMessage) {
+      conversationNameToSave = FALLBACK_CONVERSATION_TITLE;
+      defaultConversationName.value = conversationNameToSave;
+      shouldGenerateTitleFromFallback = !hasValidRound;
+    }
+
+    if (
+      !isAutoSaveConfigEnabled &&
+      !currentConversationId.value &&
+      !shouldCreateFirstConversation
+    ) {
       return;
     }
 
-    if (!defaultConversationName.value) {
+    if (!conversationNameToSave) {
       return;
     }
 
     try {
-      const sessionData = getSessionDataAsObject();
+      const sessionData = buildSerializableSessionData();
+      if (!sessionData) {
+        return;
+      }
+      if (!sessionData?.conversationName) {
+        sessionData.conversationName = conversationNameToSave;
+      }
       const result = await window.api.upsertConversation({
         conversationId: currentConversationId.value || sessionData.conversationId || '',
-        conversationName: defaultConversationName.value,
+        conversationName: conversationNameToSave,
         assistantCode: CODE.value,
         sessionData,
       });
+
+      const nextConversationId = String(
+        result?.conversationId || currentConversationId.value || sessionData.conversationId || '',
+      ).trim();
+      const nextConversationName = String(
+        result?.conversationName || defaultConversationName.value || conversationNameToSave,
+      ).trim();
+
       if (result?.conversationId) {
         currentConversationId.value = result.conversationId;
+      }
+      if (nextConversationName) {
+        defaultConversationName.value = nextConversationName;
+      }
+
+      if (
+        typeof onConversationPersisted === 'function' &&
+        nextConversationId &&
+        nextConversationName &&
+        (nextConversationId !== lastPersistedConversationId ||
+          nextConversationName !== lastPersistedConversationName)
+      ) {
+        lastPersistedConversationId = nextConversationId;
+        lastPersistedConversationName = nextConversationName;
+        onConversationPersisted({
+          conversationId: nextConversationId,
+          conversationName: nextConversationName,
+          assistantCode: CODE.value,
+        });
       }
       isSessionDirty.value = false;
     } catch (error) {
@@ -169,6 +259,19 @@ export function useAutoSave(options: any) {
   const markSessionDirty = () => {
     if (!hasSessionInitialized.value) return;
     isSessionDirty.value = true;
+    if (!currentConversationId.value && !defaultConversationName.value) {
+      lastPersistedConversationId = '';
+      lastPersistedConversationName = '';
+      shouldGenerateTitleFromFallback = false;
+    }
+    if (
+      !currentConversationId.value &&
+      !defaultConversationName.value &&
+      hasAtLeastOneUserMessage()
+    ) {
+      scheduleAutoSave({ immediate: true, force: true });
+      return;
+    }
     scheduleAutoSave();
   };
 
@@ -194,6 +297,7 @@ export function useAutoSave(options: any) {
     }
     titleGenerationInFlight = null;
     autoSaveInFlightPromise = null;
+    shouldGenerateTitleFromFallback = false;
   };
 
   return {

@@ -704,7 +704,8 @@
     "actions": {
       "refresh": "刷新会话列表",
       "showSidebar": "显示侧栏",
-      "hideSidebar": "收起侧栏"
+      "hideSidebar": "收起侧栏",
+      "newConversation": "新建对话"
     },
     "sources": {
       "local": "本地",

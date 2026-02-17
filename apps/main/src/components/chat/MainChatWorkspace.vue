@@ -41,6 +41,7 @@ const props = defineProps({
   assistantCode: { type: String, default: 'AI' },
   sessionLoadRequest: { type: Object, default: null },
 });
+const emit = defineEmits(['conversation-saved']);
 
 const showDismissibleMessage = createDismissibleMessage();
 
@@ -549,6 +550,9 @@ const { scheduleAutoSave, markSessionDirty, flushAutoSave, startAutoSaveFallback
       hasSessionInitialized,
     },
     getSessionDataAsObject: (...args) => getSessionDataAsObject(...args),
+    onConversationPersisted: (payload) => {
+      emit('conversation-saved', payload);
+    },
   });
 
 const { file2fileList, processFilePath, sendFile } = useFileHandlers({
