@@ -64,7 +64,8 @@ const editInputRef = ref(null);
 const isEditing = ref(false);
 const editedContent = ref('');
 const isCopied = ref(false);
-const reasoningExpanded = ref(false);
+const reasoningExpandedMap = ref<Record<string, boolean>>({});
+const toolSectionExpandedMap = ref<Record<string, boolean>>({});
 
 let copyFeedbackTimer = null;
 const RENDER_CACHE_LIMIT = 500;
@@ -558,33 +559,129 @@ const renderedMarkdownContent = computed(() => {
   return rendered;
 });
 
-const normalizedReasoningContent = computed(() =>
-  String(props.message?.reasoning_content || '').trim(),
-);
+const normalizeReasoningText = (value: any) => String(value || '').trim();
 
-const shouldShowReasoningCard = computed(
-  () => props.message?.status === 'thinking' || normalizedReasoningContent.value.length > 0,
-);
+const assistantToolCallMap = computed(() => {
+  const map = new Map<string, any>();
+  const list = Array.isArray(props.message?.tool_calls) ? props.message.tool_calls : [];
+  list.forEach((toolCall: any) => {
+    const id = String(toolCall?.id || '').trim();
+    if (!id) return;
+    map.set(id, toolCall);
+  });
+  return map;
+});
 
-const reasoningLoading = computed(() => props.message?.status === 'thinking');
+const assistantTimelineSegments = computed(() => {
+  if (String(props.message?.role || '') !== 'assistant') return [];
 
-watch(
-  () => props.message?.status,
-  (status, prevStatus) => {
-    if (status === 'thinking' && prevStatus !== 'thinking') {
-      reasoningExpanded.value = false;
+  const apiSegments = Array.isArray(props.message?.meta?.apiMessages)
+    ? props.message.meta.apiMessages
+    : [];
+  const segments: any[] = [];
+
+  apiSegments.forEach((apiSegment: any, index: number) => {
+    const reasoningContent = normalizeReasoningText(apiSegment?.reasoning_content);
+    if (reasoningContent) {
+      segments.push({
+        id: `reasoning-${index}`,
+        type: 'reasoning',
+        content: reasoningContent,
+        status: 'end',
+        reasoningStartedAt: null,
+        reasoningFinishedAt: null,
+      });
+    }
+
+    const rawToolCalls = Array.isArray(apiSegment?.tool_calls) ? apiSegment.tool_calls : [];
+    if (rawToolCalls.length > 0) {
+      const toolCalls = rawToolCalls
+        .map((rawToolCall: any) => {
+          const id = String(rawToolCall?.id || '').trim();
+          if (!id) return null;
+
+          const currentToolCall = assistantToolCallMap.value.get(id);
+          if (currentToolCall) return currentToolCall;
+
+          const args = rawToolCall?.function?.arguments ?? rawToolCall?.args ?? '{}';
+          return {
+            id,
+            name: String(rawToolCall?.function?.name || rawToolCall?.name || 'unknown_tool'),
+            args: typeof args === 'string' ? args : JSON.stringify(args),
+            result: '',
+            approvalStatus: 'finished',
+          };
+        })
+        .filter(Boolean);
+
+      if (toolCalls.length > 0) {
+        segments.push({
+          id: `tool-calls-${index}`,
+          type: 'tool_calls',
+          toolCalls,
+        });
+      }
+    }
+  });
+
+  const liveReasoningContent = normalizeReasoningText(props.message?.reasoning_content);
+  const hasLiveReasoning = props.message?.status === 'thinking' && liveReasoningContent.length > 0;
+  if (hasLiveReasoning) {
+    segments.push({
+      id: 'reasoning-live',
+      type: 'reasoning',
+      content: liveReasoningContent,
+      status: 'thinking',
+      reasoningStartedAt: props.message?.reasoningStartedAt ?? null,
+      reasoningFinishedAt: props.message?.reasoningFinishedAt ?? null,
+    });
+  }
+
+  return segments;
+});
+
+const syncToggleMap = (
+  stateRef: any,
+  activeIds: string[],
+  getDefaultValue: (id: string) => boolean,
+) => {
+  const nextState: Record<string, boolean> = {};
+  activeIds.forEach((id) => {
+    if (Object.prototype.hasOwnProperty.call(stateRef.value, id)) {
+      nextState[id] = stateRef.value[id];
       return;
     }
+    nextState[id] = getDefaultValue(id);
+  });
+  stateRef.value = nextState;
+};
 
-    if ((status === 'end' || status === 'error') && prevStatus === 'thinking') {
-      reasoningExpanded.value = false;
-    }
+watch(
+  assistantTimelineSegments,
+  (segments) => {
+    const reasoningIds = segments
+      .filter((segment: any) => segment.type === 'reasoning')
+      .map((segment: any) => String(segment.id));
+    syncToggleMap(reasoningExpandedMap, reasoningIds, () => false);
+
+    const toolSegmentIds = segments
+      .filter((segment: any) => segment.type === 'tool_calls')
+      .map((segment: any) => String(segment.id));
+    syncToggleMap(toolSectionExpandedMap, toolSegmentIds, () => true);
   },
   { immediate: true },
 );
 
-const toggleReasoningExpanded = () => {
-  reasoningExpanded.value = !reasoningExpanded.value;
+const isReasoningExpanded = (segmentId: string) => !!reasoningExpandedMap.value[String(segmentId)];
+const toggleReasoningExpanded = (segmentId: string) => {
+  const key = String(segmentId);
+  reasoningExpandedMap.value[key] = !reasoningExpandedMap.value[key];
+};
+const isToolSectionExpanded = (segmentId: string) =>
+  toolSectionExpandedMap.value[String(segmentId)] !== false;
+const toggleToolSectionExpanded = (segmentId: string) => {
+  const key = String(segmentId);
+  toolSectionExpandedMap.value[key] = !isToolSectionExpanded(key);
 };
 
 const shouldShowCollapseButton = computed(() => {
@@ -805,23 +902,180 @@ onBeforeUnmount(() => {
           isLoading &&
           renderedMarkdownContent === ' ' &&
           (!message.tool_calls || message.tool_calls.length === 0) &&
-          !shouldShowReasoningCard
+          assistantTimelineSegments.length === 0
         "
       >
-        <template #header>
-          <DeepThinkingCard
-            v-if="shouldShowReasoningCard"
-            :content="normalizedReasoningContent"
-            :loading="reasoningLoading"
-            :status="message.status"
-            :expanded="reasoningExpanded"
-            :reasoning-started-at="message.reasoningStartedAt"
-            :reasoning-finished-at="message.reasoningFinishedAt"
-            :is-dark-mode="isDarkMode"
-            @toggle="toggleReasoningExpanded"
-          />
-        </template>
         <template #content>
+          <template v-for="segment in assistantTimelineSegments" :key="segment.id">
+            <DeepThinkingCard
+              v-if="segment.type === 'reasoning'"
+              :content="segment.content"
+              :loading="segment.status === 'thinking'"
+              :status="segment.status"
+              :expanded="isReasoningExpanded(segment.id)"
+              :reasoning-started-at="segment.reasoningStartedAt"
+              :reasoning-finished-at="segment.reasoningFinishedAt"
+              :is-dark-mode="isDarkMode"
+              @toggle="toggleReasoningExpanded(segment.id)"
+            />
+
+            <div
+              v-else-if="segment.type === 'tool_calls'"
+              class="mcp-thinking-card"
+              :class="{ 'is-dark': isDarkMode }"
+            >
+              <button
+                type="button"
+                class="mcp-thinking-header"
+                aria-label="切换 MCP 工具调用展开状态"
+                @click="toggleToolSectionExpanded(segment.id)"
+              >
+                <span class="mcp-thinking-icon-wrap">
+                  <Wrench :size="16" class="mcp-thinking-icon" />
+                </span>
+                <span class="mcp-thinking-title">MCP 工具调用</span>
+                <span class="mcp-thinking-count">({{ segment.toolCalls.length }})</span>
+                <span class="mcp-thinking-spacer"></span>
+                <svg
+                  class="mcp-thinking-chevron"
+                  :class="{ 'is-expanded': isToolSectionExpanded(segment.id) }"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                >
+                  <polyline points="9 18 15 12 9 6" />
+                </svg>
+              </button>
+
+              <Transition name="mcp-expand">
+                <div v-show="isToolSectionExpanded(segment.id)" class="mcp-thinking-body">
+                  <div class="tool-calls-container">
+                    <div
+                      v-for="toolCall in segment.toolCalls"
+                      :key="toolCall.id"
+                      class="single-tool-wrapper"
+                    >
+                      <el-collapse
+                        class="tool-collapse"
+                        :model-value="
+                          !isAutoApprove &&
+                          (toolCall.approvalStatus === 'waiting' ||
+                            toolCall.approvalStatus === 'executing')
+                            ? [toolCall.id]
+                            : []
+                        "
+                      >
+                        <el-collapse-item :name="toolCall.id">
+                          <template #title>
+                            <div class="tool-call-title">
+                              <Wrench :size="15" class="tool-icon" />
+                              <span class="tool-name">{{ toolCall.name }}</span>
+                              <div class="tool-header-right">
+                                <el-tag
+                                  v-if="toolCall.approvalStatus === 'waiting'"
+                                  type="warning"
+                                  size="small"
+                                  effect="light"
+                                  round
+                                  >等待批准</el-tag
+                                >
+                                <el-tag
+                                  v-else-if="toolCall.approvalStatus === 'executing'"
+                                  type="primary"
+                                  size="small"
+                                  effect="light"
+                                  round
+                                  >执行中</el-tag
+                                >
+                                <el-tag
+                                  v-else-if="toolCall.approvalStatus === 'rejected'"
+                                  type="danger"
+                                  size="small"
+                                  effect="plain"
+                                  round
+                                  >已拒绝</el-tag
+                                >
+                                <el-tag
+                                  v-else-if="toolCall.approvalStatus === 'finished'"
+                                  type="success"
+                                  size="small"
+                                  effect="plain"
+                                  round
+                                  >完成</el-tag
+                                >
+                                <el-tooltip
+                                  content="停止执行"
+                                  placement="top"
+                                  v-if="toolCall.approvalStatus === 'executing'"
+                                >
+                                  <div
+                                    class="stop-btn-wrapper"
+                                    @click.stop="$emit('cancel-tool-call', toolCall.id)"
+                                  >
+                                    <Square :size="14" />
+                                  </div>
+                                </el-tooltip>
+                              </div>
+                            </div>
+                          </template>
+                          <div class="tool-call-details">
+                            <div class="tool-detail-section">
+                              <strong>参数:</strong>
+                              <pre><code>{{ formatToolArgs(toolCall.args) }}</code></pre>
+                            </div>
+                            <div
+                              class="tool-detail-section"
+                              v-if="
+                                toolCall.result &&
+                                toolCall.result !== '等待批准...' &&
+                                toolCall.result !== '执行中...'
+                              "
+                            >
+                              <strong>结果:</strong>
+                              <div class="tool-result-wrapper">
+                                <pre><code>{{ toolCall.result }}</code></pre>
+                              </div>
+                            </div>
+                          </div>
+                        </el-collapse-item>
+                      </el-collapse>
+                      <div
+                        v-if="toolCall.approvalStatus === 'waiting'"
+                        class="tool-approval-actions"
+                      >
+                        <div class="actions-left">
+                          <el-button
+                            type="primary"
+                            size="small"
+                            @click="$emit('confirm-tool', toolCall.id, true)"
+                          >
+                            <template #icon>
+                              <Check :size="14" />
+                            </template>
+                            确认
+                          </el-button>
+                          <el-button size="small" @click="$emit('reject-tool', toolCall.id, false)">
+                            <template #icon>
+                              <X :size="14" />
+                            </template>
+                            取消
+                          </el-button>
+                        </div>
+                        <div class="actions-right">
+                          <el-checkbox
+                            :model-value="isAutoApprove"
+                            @change="(val) => $emit('update-auto-approve', val)"
+                            label="自动批准后续调用"
+                            size="small"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Transition>
+            </div>
+          </template>
+
           <div v-if="!isEditing" class="markdown-wrapper" :class="{ collapsed: isCollapsed }">
             <XMarkdown
               :markdown="renderedMarkdownContent"
@@ -850,128 +1104,6 @@ onBeforeUnmount(() => {
               <el-button @click="finishEdit('cancel')" size="small" circle>
                 <X :size="14" />
               </el-button>
-            </div>
-          </div>
-          <div
-            v-if="message.tool_calls && message.tool_calls.length > 0"
-            class="tool-calls-container"
-          >
-            <div
-              v-for="toolCall in message.tool_calls"
-              :key="toolCall.id"
-              class="single-tool-wrapper"
-            >
-              <el-collapse
-                class="tool-collapse"
-                :model-value="
-                  !isAutoApprove &&
-                  (toolCall.approvalStatus === 'waiting' || toolCall.approvalStatus === 'executing')
-                    ? [toolCall.id]
-                    : []
-                "
-              >
-                <el-collapse-item :name="toolCall.id">
-                  <template #title>
-                    <div class="tool-call-title">
-                      <Wrench :size="15" class="tool-icon" />
-                      <span class="tool-name">{{ toolCall.name }}</span>
-                      <div class="tool-header-right">
-                        <el-tag
-                          v-if="toolCall.approvalStatus === 'waiting'"
-                          type="warning"
-                          size="small"
-                          effect="light"
-                          round
-                          >等待批准</el-tag
-                        >
-                        <el-tag
-                          v-else-if="toolCall.approvalStatus === 'executing'"
-                          type="primary"
-                          size="small"
-                          effect="light"
-                          round
-                          >执行中</el-tag
-                        >
-                        <el-tag
-                          v-else-if="toolCall.approvalStatus === 'rejected'"
-                          type="danger"
-                          size="small"
-                          effect="plain"
-                          round
-                          >已拒绝</el-tag
-                        >
-                        <el-tag
-                          v-else-if="toolCall.approvalStatus === 'finished'"
-                          type="success"
-                          size="small"
-                          effect="plain"
-                          round
-                          >完成</el-tag
-                        >
-                        <el-tooltip
-                          content="停止执行"
-                          placement="top"
-                          v-if="toolCall.approvalStatus === 'executing'"
-                        >
-                          <div
-                            class="stop-btn-wrapper"
-                            @click.stop="$emit('cancel-tool-call', toolCall.id)"
-                          >
-                            <Square :size="14" />
-                          </div>
-                        </el-tooltip>
-                      </div>
-                    </div>
-                  </template>
-                  <div class="tool-call-details">
-                    <div class="tool-detail-section">
-                      <strong>参数:</strong>
-                      <pre><code>{{ formatToolArgs(toolCall.args) }}</code></pre>
-                    </div>
-                    <div
-                      class="tool-detail-section"
-                      v-if="
-                        toolCall.result &&
-                        toolCall.result !== '等待批准...' &&
-                        toolCall.result !== '执行中...'
-                      "
-                    >
-                      <strong>结果:</strong>
-                      <div class="tool-result-wrapper">
-                        <pre><code>{{ toolCall.result }}</code></pre>
-                      </div>
-                    </div>
-                  </div>
-                </el-collapse-item>
-              </el-collapse>
-              <div v-if="toolCall.approvalStatus === 'waiting'" class="tool-approval-actions">
-                <div class="actions-left">
-                  <el-button
-                    type="primary"
-                    size="small"
-                    @click="$emit('confirm-tool', toolCall.id, true)"
-                  >
-                    <template #icon>
-                      <Check :size="14" />
-                    </template>
-                    确认
-                  </el-button>
-                  <el-button size="small" @click="$emit('reject-tool', toolCall.id, false)">
-                    <template #icon>
-                      <X :size="14" />
-                    </template>
-                    取消
-                  </el-button>
-                </div>
-                <div class="actions-right">
-                  <el-checkbox
-                    :model-value="isAutoApprove"
-                    @change="(val) => $emit('update-auto-approve', val)"
-                    label="自动批准后续调用"
-                    size="small"
-                  />
-                </div>
-              </div>
             </div>
           </div>
         </template>
@@ -2157,17 +2289,125 @@ html.dark .ai-name {
   flex-shrink: 0;
 }
 
+.mcp-thinking-card {
+  width: 100%;
+  margin: 0 0 8px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--el-border-color-lighter) 78%, transparent);
+  background: color-mix(in srgb, var(--el-fill-color-light) 86%, transparent);
+  color: var(--el-text-color-primary);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.mcp-thinking-card.is-dark {
+  background: color-mix(in srgb, var(--el-fill-color-darker, #2c2e33) 84%, transparent);
+  border-color: color-mix(in srgb, var(--el-border-color-dark, #373a40) 80%, transparent);
+}
+
+.mcp-thinking-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 13px;
+  padding: 8px 10px;
+  user-select: none;
+}
+
+.mcp-thinking-header:hover {
+  background-color: color-mix(in srgb, var(--el-fill-color) 70%, transparent);
+}
+
+.mcp-thinking-card.is-dark .mcp-thinking-header:hover {
+  background-color: color-mix(in srgb, var(--el-fill-color-dark, #323844) 68%, transparent);
+}
+
+.mcp-thinking-icon-wrap {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-accent);
+  flex-shrink: 0;
+}
+
+.mcp-thinking-icon {
+  display: block;
+}
+
+.mcp-thinking-title,
+.mcp-thinking-count {
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--el-text-color-regular);
+}
+
+.mcp-thinking-title {
+  font-weight: 700;
+}
+
+.mcp-thinking-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.92;
+}
+
+.mcp-thinking-spacer {
+  flex: 1;
+}
+
+.mcp-thinking-chevron {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  color: var(--el-text-color-secondary);
+  transition: transform 0.2s ease;
+}
+
+.mcp-thinking-chevron.is-expanded {
+  transform: rotate(90deg);
+}
+
+.mcp-thinking-body {
+  padding: 0 10px 10px;
+}
+
+.mcp-expand-enter-active,
+.mcp-expand-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+  transform-origin: top center;
+}
+
+.mcp-expand-enter-from,
+.mcp-expand-leave-to {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
 .tool-calls-container {
-  margin-top: 8px;
+  width: 100%;
+  margin-top: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .single-tool-wrapper {
   width: 100%;
-  max-width: 85vw;
-  min-width: 250px;
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
 }

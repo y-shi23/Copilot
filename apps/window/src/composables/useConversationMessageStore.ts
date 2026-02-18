@@ -365,7 +365,16 @@ export function useConversationMessageStore(options: any = {}) {
       message.meta.apiMessages.push(normalizedSegment);
       message.meta.pending = false;
       if (rawToolCalls.length > 0) {
-        message.rawToolCalls = rawToolCalls;
+        const existingRaw = sanitizeToolCalls(message.rawToolCalls || []);
+        const existingRawById = new Map(
+          existingRaw.map((toolCall: any) => [String(toolCall?.id || ''), toolCall]),
+        );
+        rawToolCalls.forEach((toolCall: any) => {
+          const id = String(toolCall?.id || '');
+          if (!id) return;
+          existingRawById.set(id, toolCall);
+        });
+        message.rawToolCalls = Array.from(existingRawById.values());
       }
       return normalizedSegment;
     });
@@ -375,12 +384,45 @@ export function useConversationMessageStore(options: any = {}) {
       const message = getVisibleMessageById(assistantId);
       if (!message || normalizeRole(message.role) !== 'assistant') return [];
       const normalizedToolCalls = sanitizeToolCalls(toolCalls);
-      message.rawToolCalls = normalizedToolCalls;
-      message.tool_calls = buildUiToolCalls(normalizedToolCalls, {
-        existing: message.tool_calls,
+      const existingRaw = sanitizeToolCalls(message.rawToolCalls || []);
+      const rawById = new Map(
+        existingRaw.map((toolCall: any) => [String(toolCall?.id || ''), toolCall]),
+      );
+      normalizedToolCalls.forEach((toolCall: any) => {
+        const id = String(toolCall?.id || '');
+        if (!id) return;
+        rawById.set(id, toolCall);
+      });
+      message.rawToolCalls = Array.from(rawById.values());
+
+      const existingUi = Array.isArray(message.tool_calls) ? message.tool_calls : [];
+      const nextIncomingUi = buildUiToolCalls(normalizedToolCalls, {
+        existing: existingUi,
         autoApprove: options2.autoApprove,
         pending: true,
       });
+      const existingIndexById = new Map<string, number>();
+      const mergedUi = [...existingUi];
+      mergedUi.forEach((toolCall: any, index: number) => {
+        const id = String(toolCall?.id || '');
+        if (!id) return;
+        existingIndexById.set(id, index);
+      });
+      nextIncomingUi.forEach((toolCall: any) => {
+        const id = String(toolCall?.id || '');
+        if (!id) return;
+        const existingIndex = existingIndexById.get(id);
+        if (existingIndex === undefined) {
+          mergedUi.push(toolCall);
+          existingIndexById.set(id, mergedUi.length - 1);
+          return;
+        }
+        mergedUi[existingIndex] = {
+          ...mergedUi[existingIndex],
+          ...toolCall,
+        };
+      });
+      message.tool_calls = mergedUi;
       return message.tool_calls;
     });
 
