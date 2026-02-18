@@ -701,6 +701,55 @@ export function useConversationMessageStore(options: any = {}) {
         }
 
         const visibleCandidate = pickVisibleCandidate(role);
+        if (role === 'assistant' && !visibleCandidate) {
+          const lastVisibleMessage = [...normalized]
+            .reverse()
+            .find((message: any) => normalizeRole(message?.role) !== 'tool');
+          if (normalizeRole(lastVisibleMessage?.role) === 'assistant') {
+            const mergedAssistant = lastVisibleMessage as any;
+            const historyToolCalls = sanitizeToolCalls(historyMessage?.tool_calls || []);
+            if (historyToolCalls.length > 0) {
+              const existingRaw = sanitizeToolCalls(mergedAssistant.rawToolCalls || []);
+              const rawById = new Map(
+                existingRaw.map((toolCall: any) => [String(toolCall?.id || ''), toolCall]),
+              );
+              historyToolCalls.forEach((toolCall: any) => {
+                const id = String(toolCall?.id || '').trim();
+                if (!id) return;
+                rawById.set(id, toolCall);
+              });
+              mergedAssistant.rawToolCalls = Array.from(rawById.values());
+              mergedAssistant.tool_calls = buildUiToolCalls(mergedAssistant.rawToolCalls, {
+                existing: mergedAssistant.tool_calls,
+                pending: false,
+              });
+            }
+            if (historyMessage?.content !== undefined && historyMessage?.content !== null) {
+              mergedAssistant.content = normalizeVisibleContent(historyMessage.content);
+            }
+            if (historyMessage?.reasoning_content !== undefined) {
+              mergedAssistant.reasoning_content = historyMessage.reasoning_content || '';
+            }
+            if (historyMessage?.extra_content !== undefined) {
+              mergedAssistant.extra_content = clonePlain(historyMessage.extra_content);
+            }
+            mergedAssistant.meta = mergedAssistant.meta || {};
+            if (!Array.isArray(mergedAssistant.meta.apiMessages)) {
+              mergedAssistant.meta.apiMessages = [];
+            }
+            mergedAssistant.meta.apiMessages.push({
+              role: 'assistant',
+              content: clonePlain(historyMessage?.content ?? null),
+              reasoning_content: historyMessage?.reasoning_content ?? null,
+              extra_content: clonePlain(historyMessage?.extra_content ?? null),
+              tool_calls: historyToolCalls,
+            });
+            mergedAssistant.meta.pending = false;
+            lastAssistantId = String(mergedAssistant.id || lastAssistantId || '');
+            return;
+          }
+        }
+
         const visibleId = visibleCandidate?.id ?? reserveMessageId();
         const base: any = {
           id: visibleId,
@@ -732,9 +781,18 @@ export function useConversationMessageStore(options: any = {}) {
           base.reasoningFinishedAt = visibleCandidate?.reasoningFinishedAt ?? null;
           base.status = visibleCandidate?.status || '';
           base.aiName =
-            visibleCandidate?.aiName || visibleCandidate?.modelLabel || DEFAULT_ASSISTANT_NAME;
-          base.modelKey = visibleCandidate?.modelKey || '';
-          base.modelLabel = visibleCandidate?.modelLabel || visibleCandidate?.aiName || base.aiName;
+            visibleCandidate?.aiName ||
+            visibleCandidate?.modelLabel ||
+            historyMessage?.aiName ||
+            historyMessage?.modelLabel ||
+            DEFAULT_ASSISTANT_NAME;
+          base.modelKey = visibleCandidate?.modelKey || historyMessage?.modelKey || '';
+          base.modelLabel =
+            visibleCandidate?.modelLabel ||
+            visibleCandidate?.aiName ||
+            historyMessage?.modelLabel ||
+            historyMessage?.aiName ||
+            base.aiName;
           base.voiceName = visibleCandidate?.voiceName || '';
           base.tool_calls = clonePlain(
             visibleCandidate?.tool_calls ||
@@ -788,6 +846,10 @@ export function useConversationMessageStore(options: any = {}) {
             cloned.meta.visible = true;
             if (role === 'assistant') {
               const toolCalls = sanitizeToolCalls(cloned.rawToolCalls || cloned.tool_calls || []);
+              cloned.aiName = cloned.aiName || cloned.modelLabel || DEFAULT_ASSISTANT_NAME;
+              cloned.modelLabel = cloned.modelLabel || cloned.aiName;
+              cloned.modelKey = cloned.modelKey || '';
+              cloned.voiceName = cloned.voiceName || '';
               cloned.rawToolCalls = toolCalls;
               if (!Array.isArray(cloned.tool_calls)) {
                 cloned.tool_calls = buildUiToolCalls(toolCalls, { pending: false });
@@ -890,6 +952,7 @@ export function useConversationMessageStore(options: any = {}) {
   const visibleMessages = computed(() => buildVisibleMessagesSnapshot());
   const apiHistory = computed(() => buildApiHistorySnapshot());
   const sessionSnapshot = computed(() => ({
+    timeline: clonePlain(timeline.value),
     history: clonePlain(buildApiHistorySnapshot()),
     chat_show: clonePlain(buildVisibleMessagesSnapshot()),
   }));

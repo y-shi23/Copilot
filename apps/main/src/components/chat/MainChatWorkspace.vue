@@ -629,6 +629,7 @@ const { persistConversation, syncConversationMeta, markSnapshotPersisted } =
       autoCloseOnBlur: autoCloseOnBlur.value,
       model: model.value,
       currentPromptConfig: currentConfig.value.prompts[CODE.value] || {},
+      timeline: messageStore.sessionSnapshot.value?.timeline || [],
       history: messageStore.sessionSnapshot.value?.history || [],
       chat_show: messageStore.sessionSnapshot.value?.chat_show || [],
       selectedVoice: selectedVoice.value,

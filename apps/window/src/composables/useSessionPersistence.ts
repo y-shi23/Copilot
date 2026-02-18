@@ -96,7 +96,11 @@ export function useSessionPersistence(options: any) {
 
   const getSessionDataAsObject = () => {
     const currentPromptConfig = currentConfig.value.prompts[CODE.value] || {};
-    const snapshot = messageStore.sessionSnapshot.value || { history: [], chat_show: [] };
+    const snapshot = messageStore.sessionSnapshot.value || {
+      timeline: [],
+      history: [],
+      chat_show: [],
+    };
     return {
       anywhere_history: true,
       conversationId: currentConversationId.value || '',
@@ -107,6 +111,7 @@ export function useSessionPersistence(options: any) {
       autoCloseOnBlur: autoCloseOnBlur.value,
       model: model.value,
       currentPromptConfig,
+      timeline: snapshot.timeline,
       history: snapshot.history,
       chat_show: snapshot.chat_show,
       selectedVoice: selectedVoice.value,
