@@ -1209,6 +1209,11 @@ html.dark .chat-message .user-bubble {
 }
 
 .chat-message .ai-bubble {
+  width: 100%;
+  max-width: 100%;
+  align-self: stretch;
+  display: block;
+
   :deep(.el-bubble-content-wrapper) {
     background: transparent;
     box-shadow: none;
@@ -1219,6 +1224,10 @@ html.dark .chat-message .user-bubble {
     align-items: stretch;
     width: 100%;
     max-width: 100%;
+  }
+
+  :deep(.el-bubble-content-wrapper .el-bubble-header) {
+    width: 100%;
   }
 
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
