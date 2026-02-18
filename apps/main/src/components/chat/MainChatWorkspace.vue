@@ -1223,13 +1223,16 @@ const handleOpenSearch = () => {
   --chat-input-shell-top: 0px;
   --chat-input-shell-height: 0px;
   --new-chat-animation-top: 0px;
+  --chat-input-bottom-gap-height: 20px;
 }
 
 .main-area-wrapper .chat-main {
   padding-bottom: calc(var(--chat-input-shell-height) + 14px) !important;
+  clip-path: inset(0 0 var(--chat-input-bottom-gap-height) 0);
   transition:
     padding-bottom 360ms cubic-bezier(0.22, 1, 0.36, 1),
-    opacity 220ms ease;
+    opacity 220ms ease,
+    clip-path 220ms ease;
 }
 
 .main-area-wrapper.is-new-chat-layout .chat-main {
