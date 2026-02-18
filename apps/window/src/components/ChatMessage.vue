@@ -914,7 +914,7 @@ onBeforeUnmount(() => {
               <div
                 v-for="toolCall in segment.toolCalls"
                 :key="toolCall.id"
-                class="single-tool-wrapper"
+                :class="['single-tool-wrapper', { 'is-dark': isDarkMode }]"
               >
                 <el-collapse
                   class="tool-collapse"
@@ -2247,10 +2247,10 @@ html.dark .ai-name {
 
 .tool-calls-container {
   width: 100%;
-  margin-top: 0;
+  margin: 0 0 8px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .single-tool-wrapper {
@@ -2259,39 +2259,59 @@ html.dark .ai-name {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--el-border-color-lighter) 78%, transparent);
+  background: color-mix(in srgb, var(--el-fill-color-light) 86%, transparent);
+  color: var(--el-text-color-primary);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.single-tool-wrapper.is-dark {
+  background: color-mix(in srgb, var(--el-fill-color-darker, #2c2e33) 84%, transparent);
+  border-color: color-mix(in srgb, var(--el-border-color-dark, #373a40) 80%, transparent);
 }
 
 .tool-collapse {
   width: 100%;
   border: none;
-  --el-collapse-header-height: 38px;
+  background: transparent;
+  --el-collapse-header-height: auto;
+}
 
-  :deep(.el-collapse-item__header) {
-    background-color: var(--el-fill-color-light);
-    border: 1px solid var(--el-border-color-lighter);
-    border-radius: 8px;
-    padding: 0 12px;
-    font-size: 13px;
-    transition: border-radius 0.2s;
+.tool-collapse :deep(.el-collapse-item__header) {
+  background: transparent;
+  border: none;
+  border-bottom: none !important;
+  border-radius: 13px;
+  padding: 8px 10px;
+  min-height: 36px;
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: inherit;
+  transition: background-color 0.2s ease;
+}
 
-    &:active {
-      border-bottom-left-radius: 0;
-      border-bottom-right-radius: 0;
-      border-bottom-color: transparent;
-    }
-  }
+.tool-collapse :deep(.el-collapse-item__header:hover) {
+  background-color: color-mix(in srgb, var(--el-fill-color) 70%, transparent);
+}
 
-  :deep(.el-collapse-item__wrap) {
-    background-color: transparent;
-    border: 1px solid var(--el-border-color-lighter);
-    border-top: none;
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
-  }
+.single-tool-wrapper.is-dark .tool-collapse :deep(.el-collapse-item__header:hover) {
+  background-color: color-mix(in srgb, var(--el-fill-color-dark, #323844) 68%, transparent);
+}
 
-  :deep(.el-collapse-item__content) {
-    padding: 12px;
-  }
+.tool-collapse :deep(.el-collapse-item__wrap) {
+  background: transparent;
+  border: none;
+}
+
+.tool-collapse :deep(.el-collapse-item__content) {
+  padding: 0 10px 10px;
+}
+
+.tool-collapse :deep(.el-collapse-item__arrow) {
+  color: var(--el-text-color-secondary);
 }
 
 .tool-call-title {
@@ -2302,17 +2322,20 @@ html.dark .ai-name {
 }
 
 .tool-name {
-  font-weight: 500;
-  color: var(--el-text-color-primary);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--el-text-color-regular);
 }
 
 .tool-icon {
-  color: var(--el-text-color-secondary);
+  color: var(--text-accent);
+  flex-shrink: 0;
 }
 
 .tool-header-right {
   margin-left: auto;
-  margin-right: 12px;
+  margin-right: 8px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -2351,15 +2374,12 @@ html.dark .stop-btn-wrapper {
 }
 
 .tool-approval-actions {
-  margin-top: -2px;
-  margin-left: 1px;
-  margin-right: 1px;
-  padding: 8px 12px;
-  background-color: var(--el-fill-color-lighter);
-  border: 1px solid var(--el-border-color-lighter);
-  border-top: 1px dashed var(--el-border-color-lighter);
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
+  margin: 0 10px 10px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--el-fill-color) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-border-color-lighter) 78%, transparent);
+  border-top: 1px dashed color-mix(in srgb, var(--el-border-color-lighter) 78%, transparent);
+  border-radius: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2411,7 +2431,8 @@ html.dark .stop-btn-wrapper {
       margin: 0;
       padding: 8px;
       border-radius: 6px;
-      background-color: var(--el-fill-color-light);
+      background-color: color-mix(in srgb, var(--el-fill-color) 76%, transparent);
+      border: 1px solid var(--el-border-color-lighter);
       max-height: 150px;
       overflow: auto;
       font-size: 12px;
@@ -2439,7 +2460,7 @@ html.dark .stop-btn-wrapper {
 .tool-call-details .tool-detail-section pre::-webkit-scrollbar-thumb {
   background: var(--el-text-color-disabled, #c0c4cc);
   border-radius: 4px;
-  border: 2px solid var(--el-fill-color-light);
+  border: 2px solid color-mix(in srgb, var(--el-fill-color) 76%, transparent);
   background-clip: content-box;
 }
 
@@ -2457,40 +2478,31 @@ html.dark .stop-btn-wrapper {
   flex-grow: 1;
 }
 
-html.dark .tool-collapse {
-  :deep(.el-collapse-item__header) {
-    background-color: var(--el-fill-color-darker);
-    border-color: var(--el-border-color-dark);
-  }
-
-  :deep(.el-collapse-item__wrap) {
-    border-color: var(--el-border-color-dark);
-  }
-}
-
 html.dark .stop-btn-wrapper:hover {
   background-color: rgba(245, 108, 108, 0.2);
   color: #f56c6c;
 }
 
-html.dark .tool-approval-actions {
-  background-color: var(--el-fill-color-dark);
-  border-color: var(--el-border-color-dark);
-  border-top-color: var(--el-border-color-dark);
+.single-tool-wrapper.is-dark .tool-approval-actions {
+  background: color-mix(in srgb, var(--el-fill-color-dark, #323844) 74%, transparent);
+  border-color: color-mix(in srgb, var(--el-border-color-dark, #373a40) 80%, transparent);
+  border-top-color: color-mix(in srgb, var(--el-border-color-dark, #373a40) 80%, transparent);
 }
 
-html.dark .tool-call-details {
-  .tool-detail-section pre {
-    background-color: var(--el-fill-color-darker);
-  }
+.single-tool-wrapper.is-dark .tool-call-details .tool-detail-section pre {
+  background-color: color-mix(in srgb, var(--el-fill-color-darker, #262a31) 84%, transparent);
+  border-color: var(--el-border-color-dark, #373a40);
 }
 
-html.dark .tool-call-details .tool-detail-section pre::-webkit-scrollbar-thumb {
+.single-tool-wrapper.is-dark .tool-call-details .tool-detail-section pre::-webkit-scrollbar-thumb {
   background: #6b6b6b;
-  border-color: var(--el-fill-color-darker);
+  border-color: color-mix(in srgb, var(--el-fill-color-darker, #262a31) 84%, transparent);
 }
 
-html.dark .tool-call-details .tool-detail-section pre::-webkit-scrollbar-thumb:hover {
+.single-tool-wrapper.is-dark
+  .tool-call-details
+  .tool-detail-section
+  pre::-webkit-scrollbar-thumb:hover {
   background: #999;
 }
 
