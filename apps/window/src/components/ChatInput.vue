@@ -1931,33 +1931,22 @@ html.dark .el-divider--vertical {
   flex-direction: column;
   border-radius: 24px;
   padding: 13px 20px 10px;
-  border: 2px solid transparent;
-  background:
-    linear-gradient(
-        color-mix(in srgb, var(--el-bg-color-overlay) 94%, transparent),
-        color-mix(in srgb, var(--el-bg-color-overlay) 94%, transparent)
-      )
-      padding-box,
-    linear-gradient(96deg, rgba(229, 190, 120, 0.95) 0%, rgba(163, 153, 221, 0.95) 100%) border-box;
-  box-shadow: 0 16px 32px rgba(32, 32, 32, 0.08);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid #e6e6e6;
+  background: #ffffff;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   position: relative;
   transition:
     padding 320ms cubic-bezier(0.22, 1, 0.36, 1),
     border-radius 320ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 320ms ease;
+    background-color 220ms ease,
+    border-color 220ms ease;
 }
 
 html.dark .chat-input-area-vertical {
-  border-color: var(--el-border-color-light);
-  background:
-    linear-gradient(
-        color-mix(in srgb, var(--el-bg-color-input) 94%, transparent),
-        color-mix(in srgb, var(--el-bg-color-input) 94%, transparent)
-      )
-      padding-box,
-    linear-gradient(96deg, rgba(140, 121, 189, 0.82) 0%, rgba(109, 145, 177, 0.82) 100%) border-box;
+  border-color: #2a2a2a;
+  background: #1c1c1c;
 }
 
 .chat-textarea-vertical {
