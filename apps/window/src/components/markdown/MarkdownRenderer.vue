@@ -15,6 +15,7 @@ interface Props {
   isDark?: boolean;
   enableLatex?: boolean;
   allowHtml?: boolean;
+  headingIdPrefix?: string;
   mermaidConfig?: MermaidConfigLike;
   defaultThemeMode?: 'light' | 'dark';
   themes?: Record<string, string>;
@@ -108,6 +109,7 @@ const refreshMarkdown = async () => {
     enableLatex: props.enableLatex,
     renderMode: 'interactive',
     mermaidMode: props.mermaidMode,
+    headingIdPrefix: props.headingIdPrefix || '',
   });
 
   renderedHtml.value = rendered.html || ' ';
@@ -136,6 +138,7 @@ watch(
     props.isDark,
     props.allowHtml,
     props.enableLatex,
+    props.headingIdPrefix,
     props.mermaidConfig?.theme,
     props.mermaidMode,
   ],

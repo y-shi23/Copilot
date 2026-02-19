@@ -1,6 +1,6 @@
-# Vue 聊天项目移植指南：对话导航锚点与消息大纲功能
+# Vue 聊天项目移植指南：对话锚点与消息大纲功能
 
-> 本文档详细分析了当前 React 项目中的对话导航锚点（MessageOutline）和消息大纲功能，为 Vue 项目提供完整的移植方案。
+> 本文档详细分析当前 React 项目中的**对话锚点线（MessageAnchorLine）**和**消息大纲（MessageOutline）**功能，为 Vue 项目提供完整的移植方案。
 
 ---
 
@@ -17,7 +17,29 @@
 
 ## 功能概述
 
-### 对话导航锚点（MessageOutline）
+### 对话锚点线（MessageAnchorLine）
+
+**设置路径**: `messageNavigation: 'anchor'`
+
+**功能描述**：在聊天界面右侧显示一条垂直锚点线，包含：
+
+- 所有消息的缩略图标点
+- 鼠标悬停时展开显示消息预览（用户名 + 内容摘要）
+- 根据鼠标距离动态调整图标大小和透明度
+- 点击锚点快速滚动到对应消息
+- 底部固定"滚动到底部"按钮
+
+**交互特点**：
+
+- 默认收起为 14px 宽的细线
+- 鼠标悬停时展开为 500px 宽的面板
+- 鼠标位置决定列表的垂直偏移（双向滚动效果）
+- 使用距离算法实现动态缩放和透明度
+- 支持分组消息的折叠状态处理
+
+### 消息大纲锚点（MessageOutline）
+
+**设置路径**: `showMessageOutline: true`
 
 **功能描述**：在 AI 助手回复的消息左侧显示标题层级大纲，用户可以：
 
@@ -32,121 +54,208 @@
 - 支持 sticky 定位，随滚动保持可见
 - 不支持 grid 布局的消息样式
 
-### 全局导航栏（ChatNavigation）
-
-**功能描述**：屏幕右侧固定的导航控制面板，包含：
-
-- 关闭按钮：手动隐藏导航栏（1分钟内不响应鼠标靠近）
-- 顶部/底部：快速滚动到对话首尾
-- 上/下一个：在用户消息间导航
-- 历史记录：打开聊天历史抽屉
-
-**交互特点**：
-
-- 鼠标靠近时自动显示
-- 离开后延迟 500ms 隐藏
-- 手动关闭后 1 分钟内不自动显示
-- 智能检测当前可见消息
-
 ---
 
 ## 核心组件分析
 
-### 1. MessageOutline 组件
+### 1. MessageAnchorLine 组件
 
-**文件位置**: `src/renderer/src/pages/home/Messages/MessageOutline.tsx`
+**文件位置**: `src/renderer/src/pages/home/Messages/MessageAnchorLine.tsx`
 
-#### 核心逻辑
+#### 核心数据结构
 
 ```typescript
-// 数据结构
-interface HeadingItem {
-  id: string    // 格式: "heading-{blockId}--{slug}"
-  level: number // 1-6
-  text: string  // 标题文本
+interface MessageLineProps {
+  messages: Message[]; // 所有消息列表
 }
 
-// 主要流程
-1. 从 Redux 获取 message blocks
-2. 筛选 MAIN_TEXT 类型的 blocks
-3. 使用 unified + remarkParse 解析 markdown
-4. 遍历 AST 提取 heading 和 html 节点
-5. 为每个标题生成唯一 slug ID
-6. 渲染锚点列表
-```
-
-#### 样式设计
-
-| 元素     | 样式特点                                                        |
-| -------- | --------------------------------------------------------------- |
-| **容器** | `position: absolute`, `inset: 63px 0 36px 10px`, `z-index: 999` |
-| **锚点** | 宽度随层级递减 (`16px - level * 2px`), 圆角 2px                 |
-| **文本** | 默认 `opacity: 0`, 悬停时 `opacity: 1`                          |
-| **字体** | 随层级递减 (`16px - level`px)                                   |
-| **缩进** | `(level - miniLevel) * 8px`                                     |
-
-### 2. ChatNavigation 组件
-
-**文件位置**: `src/renderer/src/pages/home/Messages/ChatNavigation.tsx`
-
-#### 显示/隐藏机制
-
-```typescript
 // 状态管理
-const [isVisible, setIsVisible] = useState(false);
-const [manuallyClosedUntil, setManuallyClosedUntil] = useState<number | null>(null);
-const isHoveringNavigationRef = useRef(false);
-const isPointerInTriggerAreaRef = useRef(false);
-
-// 触发区域计算
-const triggerWidth = 60;
-const rightOffset = RIGHT_GAP + (showRightTopics ? 275 : 0);
-const rightPosition = window.innerWidth - rightOffset - triggerWidth;
-const topPosition = window.innerHeight * 0.35; // 35% from top
-const height = window.innerHeight * 0.3; // 30% height
+const [mouseY, setMouseY] = useState<number | null>(null); // 鼠标在列表中的Y坐标
+const [listOffsetY, setListOffsetY] = useState(0); // 列表垂直偏移量
+const [containerHeight, setContainerHeight] = useState<number | null>(null);
+const messageItemsRef = useRef<Map<string, HTMLDivElement>>(new Map());
 ```
 
-#### 消息导航算法
+#### 距离计算算法（核心）
 
 ```typescript
-// 查找当前可见消息
-const getCurrentVisibleIndex = (direction: 'up' | 'down') => {
-  const containerRect = container.getBoundingClientRect();
-  const visibleThreshold = containerRect.height * 0.1;
+// 根据鼠标距离计算动态值（透明度、缩放、大小）
+const calculateValueByDistance = useCallback(
+  (itemId: string, maxValue: number) => {
+    if (mouseY === null) return 0;
 
-  // 计算消息可见高度
-  const visibleHeight =
-    Math.min(messageRect.bottom, containerRect.bottom) -
-    Math.max(messageRect.top, containerRect.top);
+    const element = messageItemsRef.current.get(itemId);
+    if (!element) return 0;
 
-  // 判断是否可见（至少 10% 容器高度或消息自身高度）
-  if (visibleHeight > 0 && visibleHeight >= Math.min(messageRect.height, visibleThreshold)) {
-    return true;
+    // 计算元素中心点到鼠标位置的距离
+    const rect = element.getBoundingClientRect();
+    const centerY = rect.top + rect.height / 2;
+    const distance = Math.abs(
+      centerY - (messagesListRef.current?.getBoundingClientRect().top || 0) - mouseY,
+    );
+
+    const maxDistance = 100; // 最大影响距离 100px
+
+    // 距离越近，返回值越大（0 ~ maxValue）
+    return Math.max(0, maxValue * (1 - distance / maxDistance));
+  },
+  [mouseY],
+);
+```
+
+#### 视觉效果计算
+
+```typescript
+// 对消息锚点应用动态样式
+const opacity = 0.5 + calculateValueByDistance(message.id, 0.5); // 0.5 ~ 1.0
+const scale = 1 + calculateValueByDistance(message.id, 0.2); // 1.0 ~ 1.2
+const size = 10 + calculateValueByDistance(message.id, 20); // 10px ~ 30px
+
+// 默认状态（无鼠标悬停）
+const defaultOpacity = Math.max(0, 0.6 - (0.3 * Math.abs(index - messages.length / 2)) / 5);
+// 中间的消息不透明度更高（0.6），两端的消息更低（渐隐效果）
+```
+
+#### 列表偏移算法
+
+```typescript
+// 当鼠标在容器中移动时，根据鼠标位置调整列表偏移
+const handleMouseMove = (e: React.MouseEvent) => {
+  const containerRect = e.currentTarget.getBoundingClientRect();
+  const listRect = messagesListRef.current.getBoundingClientRect();
+
+  // 计算鼠标在列表中的相对位置
+  setMouseY(e.clientY - listRect.top);
+
+  // 如果列表高度超过容器高度，计算偏移量
+  if (listRect.height > containerRect.height) {
+    const mousePositionRatio = (e.clientY - containerRect.top) / containerRect.height;
+    const maxOffset = (containerRect.height - listRect.height) / 2 - 20;
+
+    // 根据鼠标在容器中的位置比例，计算列表偏移
+    setListOffsetY(-maxOffset + mousePositionRatio * (maxOffset * 2));
+  } else {
+    setListOffsetY(0);
   }
 };
 ```
 
-### 3. 滚动工具函数
-
-**文件位置**: `src/renderer/src/utils/dom.ts`
+#### 分组消息处理
 
 ```typescript
-// 标准滚动函数
-export function scrollIntoView(element: HTMLElement, options?: ChromiumScrollIntoViewOptions): void;
+// 处理分组消息的点击
+const setSelectedMessage = useCallback(
+  (message: Message) => {
+    // 找到同一组的所有消息（通过 askId 关联）
+    const groupMessages = messages.filter((m) => m.askId === message.askId);
 
-// 容器内智能滚动
-export function scrollElementIntoView(
-  element: HTMLElement,
-  scrollContainer?: HTMLElement | null,
-  behavior: ScrollBehavior = 'smooth',
-): void;
+    if (groupMessages.length > 1) {
+      // 更新所有消息的折叠状态
+      for (const m of groupMessages) {
+        dispatch(
+          newMessagesActions.updateMessage({
+            topicId: m.topicId,
+            messageId: m.id,
+            updates: { foldSelected: m.id === message.id }, // 只展开选中的
+          }),
+        );
+      }
+
+      // 延迟滚动以确保 DOM 更新完成
+      setTimeoutTimer(
+        'setSelectedMessage',
+        () => {
+          const messageElement = document.getElementById(`message-${message.id}`);
+          if (messageElement) {
+            scrollIntoView(messageElement, {
+              behavior: 'auto',
+              block: 'start',
+              container: 'nearest',
+            });
+          }
+        },
+        100,
+      );
+    }
+  },
+  [dispatch, messages, setTimeoutTimer],
+);
 ```
 
-**参数说明**:
+#### 样式设计
 
-- `container: 'nearest'` - 在最近的滚动容器内滚动（Chromium 特有）
-- `block: 'start' | 'center' | 'end'` - 对齐方式
-- `behavior: 'smooth' | 'auto'` - 滚动行为
+| 元素         | 默认状态   | 悬停状态            |
+| ------------ | ---------- | ------------------- |
+| **容器宽度** | 14px       | 500px               |
+| **overflow** | hidden     | visible             |
+| **消息卡片** | opacity: 0 | opacity: 1          |
+| **头像大小** | 固定       | 10px ~ 30px（动态） |
+
+### 2. MessageOutline 组件
+
+**文件位置**: `src/renderer/src/pages/home/Messages/MessageOutline.tsx`
+
+#### 标题提取流程
+
+```typescript
+// 1. 从 Redux 获取 blocks
+const blockEntities = useSelector((state: RootState) =>
+  messageBlocksSelectors.selectEntities(state),
+);
+
+// 2. 筛选 MAIN_TEXT 类型的 blocks
+const mainTextBlocks = message.blocks
+  .map((blockId) => blockEntities[blockId])
+  .filter((b) => b?.type === MessageBlockType.MAIN_TEXT);
+
+// 3. 解析 Markdown 提取标题
+const tree = unified().use(remarkParse).parse(mainTextBlock?.content);
+const slugger = createSlugger();
+
+visit(tree, ['heading', 'html'], (node) => {
+  if (node.type === 'heading') {
+    // 处理 Markdown 标题 (# heading)
+    const level = node.depth ?? 0;
+    const text = extractTextFromNode(node);
+    const id = `heading-${mainTextBlock.id}--` + slugger.slug(text);
+    result.push({ id, level, text });
+  } else if (node.type === 'html') {
+    // 处理 HTML 标题 (<h1>heading</h1>)
+    const match = node.value.match(/<h([1-6])[^>]*>(.*?)<\/h\1>/i);
+    if (match) {
+      const level = parseInt(match[1], 10);
+      const text = match[2].replace(/<[^>]*>/g, '').trim();
+      const id = `heading-${mainTextBlock.id}--${slugger.slug(text)}`;
+      result.push({ id, level, text });
+    }
+  }
+});
+```
+
+#### 滚动定位
+
+```typescript
+const scrollToHeading = (id: string) => {
+  const parent = messageOutlineContainerRef.current?.parentElement;
+  const messageContentContainer = parent?.querySelector('.message-content-container');
+
+  if (messageContentContainer) {
+    const headingElement = messageContentContainer.querySelector<HTMLElement>(`#${id}`);
+    if (headingElement) {
+      // 根据消息样式选择滚动方式
+      const scrollBlock = ['horizontal', 'grid'].includes(message.multiModelMessageStyle ?? '')
+        ? 'nearest'
+        : 'start';
+
+      scrollIntoView(headingElement, {
+        behavior: 'smooth',
+        block: scrollBlock,
+        container: 'nearest',
+      });
+    }
+  }
+};
+```
 
 ---
 
@@ -157,23 +266,32 @@ export function scrollElementIntoView(
 ```typescript
 // src/renderer/src/store/settings.ts
 export interface SettingsState {
-  showMessageOutline: boolean; // 是否显示消息大纲
+  // 消息导航模式：none | buttons | anchor
   messageNavigation: 'none' | 'buttons' | 'anchor';
-  // ... 其他设置
+
+  // 是否显示消息大纲（左侧标题锚点）
+  showMessageOutline: boolean;
+
+  // 话题列表位置（影响锚点线位置）
+  topicPosition: 'left' | 'right';
+  showTopics: boolean;
 }
 
 // src/renderer/src/types/newMessage.ts
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
-  blocks: string[]; // Block ID 引用
+  askId?: string; // 用于关联分组消息
+  topicId: string;
+  blocks: string[]; // Block ID 引用数组
+  model?: Model;
   multiModelMessageStyle?: 'horizontal' | 'vertical' | 'fold' | 'grid';
-  // ... 其他字段
+  type?: 'clear' | 'default';
 }
 
 export interface MessageBlock {
   id: string;
-  type: MessageBlockType; // MAIN_TEXT | IMAGE | etc.
+  type: MessageBlockType; // MAIN_TEXT | IMAGE | FILE | etc.
   content: string; // Markdown 内容
 }
 ```
@@ -185,26 +303,26 @@ export interface MessageBlock {
 ```typescript
 // GitHub 风格的 slug 生成算法
 const normalize = (text: string): string => {
-  return text
+  return (text || 'section')
     .toLowerCase()
     .trim()
     .replace(/[\u200B-\u200D\uFEFF]/g, '') // 移除零宽字符
-    .replace(/["'`(){}[\]:;!?.,]/g, '') // 移除标点
-    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-') // 合并非字母数字
-    .replace(/-{2,}/g, '-') // 合并多余 '-'
-    .replace(/^-|-$/g, ''); // 去除首尾 '-'
+    .replace(/["'`(){}[\]:;!?.,]/g, '') // 移除标点符号
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, '-') // 支持中文，将非字母数字转为 '-'
+    .replace(/-{2,}/g, '-') // 合并连续的 '-'
+    .replace(/^-|-$/g, ''); // 移除首尾的 '-'
 };
 
-// 去重逻辑
+// 去重逻辑：重复的标题添加递增数字后缀
 const slug = (text: string): string => {
   const base = normalize(text);
   const count = seen.get(base) || 0;
   seen.set(base, count + 1);
-  return `${base}-${count}`; // 重复时添加 -1, -2, ...
+  return `${base}-${count}`; // 第一个无后缀，后续为 -1, -2, -3...
 };
 
-// 最终 ID 格式
-const id = `heading-${blockId}--${slug}`;
+// 最终 ID 格式：heading-{blockId}--{slug}
+const id = `heading-${blockId}--${slugger.slug(text)}`;
 ```
 
 ---
@@ -213,31 +331,31 @@ const id = `heading-${blockId}--${slug}`;
 
 ### 技术栈对比
 
-| 功能          | React 项目            | Vue 项目建议                  |
-| ------------- | --------------------- | ----------------------------- |
-| 状态管理      | Redux Toolkit         | Pinia                         |
-| 样式方案      | styled-components     | CSS Modules / UnoCSS          |
-| Markdown 解析 | unified + remarkParse | unified + remarkParse         |
-| DOM 操作      | scrollIntoView        | scrollIntoView (原生)         |
-| 图标库        | ant-design icons      | @iconify/vue / unplugin-icons |
+| 功能          | React 项目            | Vue 项目建议                   |
+| ------------- | --------------------- | ------------------------------ |
+| 状态管理      | Redux Toolkit         | Pinia                          |
+| 样式方案      | styled-components     | CSS Modules / UnoCSS           |
+| Markdown 解析 | unified + remarkParse | unified + remarkParse（相同）  |
+| DOM 操作      | scrollIntoView        | scrollIntoView（原生）         |
+| Ref 管理      | useRef                | ref / templateRef              |
+| 图标库        | ant-design icons      | @iconify/vue / lucide-vue-next |
 
 ### 组件结构设计
 
 ```
 src/components/chat/
 ├── navigation/
-│   ├── ChatNavigation.vue          # 全局导航栏
-│   ├── MessageOutline.vue          # 消息大纲锚点
-│   ├── MessageAnchorLine.vue       # 消息锚点线（可选）
+│   ├── MessageAnchorLine.vue      # 消息锚点线（右侧）
+│   ├── MessageOutline.vue         # 消息大纲锚点（左侧）
 │   └── hooks/
-│       ├── useNavigationVisible.ts # 显示/隐藏逻辑
-│       └── useMessageScroll.ts     # 滚动导航逻辑
+│       ├── useAnchorDistance.ts   # 距离计算逻辑
+│       └── useMessageNavigation.ts # 导航滚动逻辑
 ├── markdown/
 │   ├── plugins/
-│   │   └── rehypeHeadingIds.ts     # 标题 ID 生成
-│   └── MarkdownRenderer.vue        # Markdown 渲染器
+│   │   └── rehypeHeadingIds.ts    # 标题 ID 生成（直接复用）
+│   └── MarkdownRenderer.vue       # Markdown 渲染器
 └── utils/
-    └── scroll.ts                   # 滚动工具函数
+    └── scroll.ts                  # 滚动工具函数
 ```
 
 ### Pinia Store 设计
@@ -248,8 +366,10 @@ import { defineStore } from 'pinia';
 
 export const useSettingsStore = defineStore('settings', {
   state: () => ({
-    showMessageOutline: false,
     messageNavigation: 'none' as 'none' | 'buttons' | 'anchor',
+    showMessageOutline: false,
+    topicPosition: 'left' as 'left' | 'right',
+    showTopics: true,
   }),
 
   persist: {
@@ -263,14 +383,34 @@ export const useMessagesStore = defineStore('messages', {
   state: () => ({
     messages: [] as Message[],
     currentTopicId: '',
+    blocks: {} as Record<string, MessageBlock>,
   }),
 
   getters: {
-    assistantMessages: (state) => state.messages.filter((m) => m.role === 'assistant'),
-
-    getMainTextBlocks: (state) => (messageId: string) => {
+    // 获取消息的主文本内容
+    getMessageMainText: (state) => (messageId: string) => {
       const message = state.messages.find((m) => m.id === messageId);
-      return message?.blocks.map((id) => blockEntities[id]).filter((b) => b?.type === 'MAIN_TEXT');
+      if (!message) return '';
+
+      return message.blocks
+        .map((id) => state.blocks[id])
+        .filter((b) => b?.type === 'MAIN_TEXT')
+        .map((b) => b.content)
+        .join('\n\n');
+    },
+
+    // 获取分组消息
+    getMessageGroup: (state) => (askId: string) => {
+      return state.messages.filter((m) => m.askId === askId);
+    },
+  },
+
+  actions: {
+    updateMessageFoldSelected(topicId: string, messageId: string, foldSelected: boolean) {
+      const message = this.messages.find((m) => m.id === messageId && m.topicId === topicId);
+      if (message) {
+        // 更新消息状态
+      }
     },
   },
 });
@@ -287,10 +427,13 @@ export const useMessagesStore = defineStore('messages', {
   "dependencies": {
     "unified": "^11.0.0",
     "remark-parse": "^11.0.0",
-    "unist-util-visit": "^5.0.0",
+    "remark-rehype": "^11.0.0",
+    "rehype-stringify": "^10.0.0",
     "rehype-raw": "^7.0.0",
+    "unist-util-visit": "^5.0.0",
     "hast": "^3.0.0",
-    "pinia": "^2.1.0"
+    "pinia": "^2.1.0",
+    "pinia-plugin-persistedstate": "^3.2.0"
   }
 }
 ```
@@ -301,6 +444,7 @@ export const useMessagesStore = defineStore('messages', {
 {
   "dependencies": {
     "@iconify/vue": "^4.1.0",
+    "lucide-vue-next": "^0.400.0",
     "@vueuse/core": "^10.7.0"
   }
 }
@@ -333,7 +477,7 @@ export function scrollIntoView(element: HTMLElement, options: ScrollIntoViewOpti
 }
 
 /**
- * 在容器内滚动到指定元素
+ * 在容器内智能滚动
  */
 export function scrollElementIntoView(
   element: HTMLElement,
@@ -366,7 +510,7 @@ export function scrollElementIntoView(
 }
 ```
 
-### 2. 标题 ID 生成插件
+### 2. 标题 ID 生成插件（直接复用）
 
 ```typescript
 // src/components/chat/markdown/plugins/rehypeHeadingIds.ts
@@ -436,7 +580,397 @@ export default function rehypeHeadingIds(options?: { prefix?: string }) {
 }
 ```
 
-### 3. MessageOutline 组件
+### 3. 距离计算 Hook
+
+```typescript
+// src/components/chat/navigation/hooks/useAnchorDistance.ts
+import { ref, Ref } from 'vue';
+
+interface DistanceOptions {
+  maxDistance?: number; // 最大影响距离，默认 100px
+}
+
+/**
+ * 根据鼠标距离计算动态值的 Hook
+ */
+export function useAnchorDistance(
+  itemsRef: Ref<Map<string, HTMLElement>>,
+  options: DistanceOptions = {},
+) {
+  const { maxDistance = 100 } = options;
+  const mouseY = ref<number | null>(null);
+
+  /**
+   * 计算指定元素到鼠标的距离相关值
+   * @param itemId 元素 ID
+   * @param maxValue 最大值
+   * @returns 0 ~ maxValue 之间的值，距离越近值越大
+   */
+  function calculateValueByDistance(itemId: string, maxValue: number): number {
+    if (mouseY.value === null) return 0;
+
+    const element = itemsRef.value.get(itemId);
+    if (!element) return 0;
+
+    const rect = element.getBoundingClientRect();
+    const centerY = rect.top + rect.height / 2;
+
+    // 需要传入列表容器的 top
+    const listTop =
+      itemsRef.value.values().next().value?.closest('.messages-list')?.getBoundingClientRect()
+        .top ?? 0;
+
+    const distance = Math.abs(centerY - listTop - mouseY.value);
+
+    return Math.max(0, maxValue * (1 - distance / maxDistance));
+  }
+
+  return {
+    mouseY,
+    setMouseY: (y: number | null) => {
+      mouseY.value = y;
+    },
+    calculateValueByDistance,
+  };
+}
+```
+
+### 4. MessageAnchorLine 组件
+
+```vue
+<!-- src/components/chat/navigation/MessageAnchorLine.vue -->
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useSettingsStore } from '@/stores/settings';
+import { useMessagesStore } from '@/stores/messages';
+import { scrollIntoView } from '@/utils/scroll';
+import { CircleChevronDown } from 'lucide-vue-next';
+import EmojiAvatar from '@/components/Avatar/EmojiAvatar.vue';
+
+interface Props {
+  messages: Message[];
+}
+
+const props = defineProps<Props>();
+const settings = useSettingsStore();
+const messagesStore = useMessagesStore();
+
+// Refs
+const containerRef = ref<HTMLElement>();
+const messagesListRef = ref<HTMLElement>();
+const messageItemsRef = new Map<string, HTMLElement>();
+
+// State
+const mouseY = ref<number | null>(null);
+const listOffsetY = ref(0);
+const containerHeight = ref<number | null>(null);
+
+// 计算容器高度
+function updateHeight() {
+  if (containerRef.value) {
+    const parentElement = containerRef.value.parentElement;
+    if (parentElement) {
+      containerHeight.value = parentElement.clientHeight;
+    }
+  }
+}
+
+onMounted(() => {
+  updateHeight();
+  window.addEventListener('resize', updateHeight);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('resize', updateHeight);
+});
+
+// 距离计算
+function calculateValueByDistance(itemId: string, maxValue: number): number {
+  if (mouseY.value === null) return 0;
+
+  const element = messageItemsRef.get(itemId);
+  if (!element) return 0;
+
+  const rect = element.getBoundingClientRect();
+  const centerY = rect.top + rect.height / 2;
+  const listTop = messagesListRef.value?.getBoundingClientRect().top || 0;
+  const distance = Math.abs(centerY - listTop - mouseY.value);
+  const maxDistance = 100;
+
+  return Math.max(0, maxValue * (1 - distance / maxDistance));
+}
+
+// 获取用户名
+function getUserName(message: Message): string {
+  if (message.role === 'assistant') {
+    return message.model?.name || message.modelId || 'AI';
+  }
+  return settings.userName || 'You';
+}
+
+// 获取消息摘要
+function getMessageContent(message: Message): string {
+  return messagesStore.getMessageMainText(message.id).substring(0, 50);
+}
+
+// 滚动到消息
+function scrollToMessage(message: Message) {
+  const messageElement = document.getElementById(`message-${message.id}`);
+  if (!messageElement) return;
+
+  const display = window.getComputedStyle(messageElement).display;
+  if (display === 'none') {
+    // 处理分组消息
+    setSelectedMessage(message);
+    return;
+  }
+
+  scrollIntoView(messageElement, {
+    behavior: 'smooth',
+    block: 'start',
+  });
+}
+
+// 处理分组消息
+function setSelectedMessage(message: Message) {
+  const groupMessages = props.messages.filter((m) => m.askId === message.askId);
+
+  if (groupMessages.length > 1) {
+    // 更新所有消息的折叠状态
+    for (const m of groupMessages) {
+      messagesStore.updateMessageFoldSelected(m.topicId, m.id, m.id === message.id);
+    }
+
+    // 延迟滚动
+    setTimeout(() => {
+      const messageElement = document.getElementById(`message-${message.id}`);
+      if (messageElement) {
+        scrollIntoView(messageElement, {
+          behavior: 'auto',
+          block: 'start',
+        });
+      }
+    }, 100);
+  }
+}
+
+// 滚动到底部
+function scrollToBottom() {
+  const messagesContainer = document.getElementById('messages');
+  if (messagesContainer) {
+    messagesContainer.scrollTo({
+      top: messagesContainer.scrollHeight,
+      behavior: 'smooth',
+    });
+  }
+}
+
+// 鼠标移动处理
+function handleMouseMove(e: MouseEvent) {
+  if (!messagesListRef.value) return;
+
+  const containerRect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+  const listRect = messagesListRef.value.getBoundingClientRect();
+
+  setMouseY(e.clientY - listRect.top);
+
+  // 计算列表偏移
+  if (listRect.height > containerRect.height) {
+    const mousePositionRatio = (e.clientY - containerRect.top) / containerRect.height;
+    const maxOffset = (containerRect.height - listRect.height) / 2 - 20;
+    listOffsetY.value = -maxOffset + mousePositionRatio * (maxOffset * 2);
+  } else {
+    listOffsetY.value = 0;
+  }
+}
+
+function handleMouseLeave() {
+  mouseY.value = null;
+  listOffsetY.value = 0;
+}
+
+// 计算消息样式
+function getMessageStyle(message: Message, index: number) {
+  const opacity = mouseY.value
+    ? 0.5 + calculateValueByDistance(message.id, 0.5)
+    : Math.max(0, 0.6 - (0.3 * Math.abs(index - props.messages.length / 2)) / 5);
+
+  const scale = 1 + calculateValueByDistance(message.id, 0.2);
+  const size = 10 + calculateValueByDistance(message.id, 20);
+
+  return { opacity, scale, size };
+}
+
+// 获取头像
+function getAvatarSource(message: Message) {
+  if (message.role === 'assistant') {
+    return message.model?.logo || null;
+  }
+  return null;
+}
+</script>
+
+<template>
+  <div
+    v-if="messages.length > 0"
+    ref="containerRef"
+    class="message-anchor-line"
+    :style="{ height: containerHeight ? `${containerHeight - 20}px` : 'auto' }"
+    @mousemove="handleMouseMove"
+    @mouseleave="handleMouseLeave"
+  >
+    <div
+      ref="messagesListRef"
+      class="messages-list"
+      :style="{ transform: `translateY(${listOffsetY}px)` }"
+    >
+      <!-- 底部锚点 -->
+      <div
+        :ref="
+          (el: any) =>
+            el ? messageItemsRef.set('bottom-anchor', el) : messageItemsRef.delete('bottom-anchor')
+        "
+        class="message-item bottom-anchor"
+        :style="{
+          opacity: mouseY ? 0.5 : Math.max(0, 0.6 - (0.3 * Math.abs(0 - messages.length / 2)) / 5),
+        }"
+        @click="scrollToBottom"
+      >
+        <CircleChevronDown :size="10 + calculateValueByDistance('bottom-anchor', 20)" />
+      </div>
+
+      <!-- 消息锚点 -->
+      <div
+        v-for="(message, index) in messages"
+        :key="message.id"
+        :ref="
+          (el: any) =>
+            el ? messageItemsRef.set(message.id, el) : messageItemsRef.delete(message.id)
+        "
+        class="message-item"
+        :style="{ opacity: getMessageStyle(message, index).opacity }"
+        @click="() => scrollToMessage(message)"
+      >
+        <div
+          class="message-item-content"
+          :style="{ transform: `scale(${getMessageStyle(message, index).scale})` }"
+        >
+          <div class="message-item-title">
+            {{ getUserName(message) }}
+          </div>
+          <div class="message-item-text">
+            {{ getMessageContent(message) }}
+          </div>
+        </div>
+
+        <!-- 头像 -->
+        <img
+          v-if="message.role === 'assistant'"
+          class="message-item-avatar"
+          :src="getAvatarSource(message)"
+          :style="{
+            width: `${getMessageStyle(message, index).size}px`,
+            height: `${getMessageStyle(message, index).size}px`,
+          }"
+        />
+        <EmojiAvatar v-else :size="getMessageStyle(message, index).size">
+          {{ userAvatar }}
+        </EmojiAvatar>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.message-anchor-line {
+  width: 14px;
+  position: fixed;
+  top: calc(50% - var(--status-bar-height) - 10px);
+  right: 13px;
+  max-height: calc(100% - var(--status-bar-height) * 2 - 20px);
+  transform: translateY(-50%);
+  z-index: 0;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  font-size: 5px;
+  overflow: hidden;
+  transition: width 0.3s ease;
+}
+
+.message-anchor-line:hover {
+  width: 500px;
+  overflow-x: visible;
+  overflow-y: hidden;
+}
+
+.messages-list {
+  display: flex;
+  flex-direction: column-reverse;
+  will-change: transform;
+}
+
+.message-item {
+  display: flex;
+  position: relative;
+  cursor: pointer;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  transform-origin: right center;
+  padding: 2px 0;
+  will-change: opacity;
+  opacity: 0.4;
+  transition: opacity 0.1s linear;
+}
+
+.message-item-content {
+  line-height: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  text-align: right;
+  gap: 3px;
+  opacity: 0;
+  transform-origin: right center;
+  transition: transform cubic-bezier(0.25, 1, 0.5, 1) 150ms;
+  will-change: transform;
+}
+
+.message-anchor-line:hover .message-item-content {
+  opacity: 1;
+}
+
+.message-item-title {
+  font-weight: 500;
+  color: var(--color-text);
+  white-space: nowrap;
+}
+
+.message-item-text {
+  color: var(--color-text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.message-item-avatar {
+  transition:
+    width 150ms cubic-bezier(0.25, 1, 0.5, 1),
+    height 150ms cubic-bezier(0.25, 1, 0.5, 1);
+  will-change: width, height;
+}
+
+.bottom-anchor {
+  color: var(--color-primary);
+}
+</style>
+```
+
+### 5. MessageOutline 组件
 
 ```vue
 <!-- src/components/chat/navigation/MessageOutline.vue -->
@@ -457,6 +991,7 @@ interface HeadingItem {
 
 interface Props {
   messageId: string;
+  messageStyle?: 'horizontal' | 'vertical' | 'fold' | 'grid';
 }
 
 const props = defineProps<Props>();
@@ -465,12 +1000,7 @@ const containerRef = ref<HTMLElement>();
 
 // 从 store 获取主文本内容
 const mainTextContent = computed(() => {
-  return (
-    messagesStore
-      .getMainTextBlocks(props.messageId)
-      ?.map((b) => b.content)
-      .join('\n\n') || ''
-  );
+  return messagesStore.getMessageMainText(props.messageId);
 });
 
 // 提取标题
@@ -520,17 +1050,26 @@ function scrollToHeading(id: string) {
   if (messageContentContainer) {
     const headingElement = messageContentContainer.querySelector<HTMLElement>(`#${id}`);
     if (headingElement) {
+      const scrollBlock = ['horizontal', 'grid'].includes(props.messageStyle ?? '')
+        ? 'nearest'
+        : 'start';
+
       scrollIntoView(headingElement, {
         behavior: 'smooth',
-        block: 'start',
+        block: scrollBlock,
       });
     }
   }
 }
+
+// 检查是否应该显示（grid 布局不显示）
+const shouldShow = computed(() => {
+  return props.messageStyle !== 'grid' && headings.value.length > 0;
+});
 </script>
 
 <template>
-  <div v-if="headings.length > 0" ref="containerRef" class="message-outline-container">
+  <div v-if="shouldShow" ref="containerRef" class="message-outline-container">
     <div class="message-outline-body">
       <div
         v-for="(heading, index) in headings"
@@ -538,12 +1077,12 @@ function scrollToHeading(id: string) {
         class="message-outline-item"
         @click="scrollToHeading(heading.id)"
       >
-        <div class="message-outline-dot" :class="`level-${heading.level}`" />
+        <div class="message-outline-dot" :data-level="heading.level" />
         <div
           class="message-outline-text"
+          :data-level="heading.level"
           :style="{
             paddingLeft: `${(heading.level - miniLevel) * 8}px`,
-            fontSize: `${16 - heading.level}px`,
           }"
         >
           {{ heading.text }}
@@ -553,7 +1092,7 @@ function scrollToHeading(id: string) {
   </div>
 </template>
 
-<style module>
+<style scoped>
 .message-outline-container {
   position: absolute;
   inset: 63px 0 36px 10px;
@@ -563,6 +1102,10 @@ function scrollToHeading(id: string) {
 
 .message-outline-container ~ .message-content-container {
   padding-left: 46px !important;
+}
+
+.message-outline-container ~ .message-footer {
+  margin-left: 46px !important;
 }
 
 .message-outline-body {
@@ -590,6 +1133,7 @@ function scrollToHeading(id: string) {
 
 .message-outline-body:hover .message-outline-text {
   opacity: 1;
+  display: block;
 }
 
 .message-outline-item {
@@ -619,8 +1163,10 @@ function scrollToHeading(id: string) {
   overflow: hidden;
   color: var(--color-text-3);
   opacity: 0;
+  display: none;
   transition: opacity 0.2s ease;
   padding: 2px 8px;
+  font-size: calc(16px - var(--level) px);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -631,436 +1177,34 @@ function scrollToHeading(id: string) {
 </style>
 ```
 
-### 4. ChatNavigation 组件
+### 6. 在 Messages 组件中使用
 
 ```vue
-<!-- src/components/chat/navigation/ChatNavigation.vue -->
-<script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
-import { useSettingsStore } from '@/stores/settings';
-import { scrollIntoView } from '@/utils/scroll';
-
-interface Props {
-  containerId: string;
-}
-
-const props = defineProps<Props>();
-const settings = useSettingsStore();
-
-const isVisible = ref(false);
-const manuallyClosedUntil = ref<number | null>(null);
-const isHovering = ref(false);
-const isInTriggerArea = ref(false);
-const lastMoveTime = ref(0);
-
-let hideTimer: ReturnType<typeof setTimeout> | null = null;
-
-// 计算右侧偏移
-const rightOffset = computed(() => {
-  let offset = 16; // RIGHT_GAP
-  if (settings.topicPosition === 'right' && settings.showTopics) {
-    offset += 275;
-  }
-  return offset;
-});
-
-// 清除隐藏定时器
-function clearHideTimer() {
-  if (hideTimer) {
-    clearTimeout(hideTimer);
-    hideTimer = null;
-  }
-}
-
-// 调度隐藏
-function scheduleHide(delay: number) {
-  clearHideTimer();
-  hideTimer = setTimeout(() => {
-    if (!isHovering.value && !isInTriggerArea.value) {
-      isVisible.value = false;
-    }
-  }, delay);
-}
-
-// 显示导航
-function showNavigation() {
-  if (manuallyClosedUntil.value && Date.now() < manuallyClosedUntil.value) {
-    return;
-  }
-  isVisible.value = true;
-  clearHideTimer();
-}
-
-// 查找用户消息
-function findUserMessages(): HTMLElement[] {
-  const container = document.getElementById(props.containerId);
-  if (!container) return [];
-  return Array.from(container.getElementsByClassName('message-user')) as HTMLElement[];
-}
-
-// 滚动到消息
-function scrollToMessage(element: HTMLElement) {
-  scrollIntoView(element, {
-    behavior: 'smooth',
-    block: 'start',
-  });
-}
-
-// 滚动到顶部
-function scrollToTop() {
-  const container = document.getElementById(props.containerId);
-  if (container) {
-    container.scrollTo({ top: -container.scrollHeight, behavior: 'smooth' });
-  }
-}
-
-// 滚动到底部
-function scrollToBottom() {
-  const container = document.getElementById(props.containerId);
-  if (container) {
-    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
-  }
-}
-
-// 获取当前可见消息索引
-function getCurrentVisibleIndex(direction: 'up' | 'down'): number {
-  const container = document.getElementById(props.containerId);
-  if (!container) return -1;
-
-  const userMessages = findUserMessages();
-  const containerRect = container.getBoundingClientRect();
-  const visibleThreshold = containerRect.height * 0.1;
-
-  let visibleIndices: number[] = [];
-
-  for (let i = 0; i < userMessages.length; i++) {
-    const messageRect = userMessages[i].getBoundingClientRect();
-    const visibleHeight =
-      Math.min(messageRect.bottom, containerRect.bottom) -
-      Math.max(messageRect.top, containerRect.top);
-
-    if (visibleHeight > 0 && visibleHeight >= Math.min(messageRect.height, visibleThreshold)) {
-      visibleIndices.push(i);
-    }
-  }
-
-  if (visibleIndices.length > 0) {
-    return direction === 'up' ? Math.max(...visibleIndices) : Math.min(...visibleIndices);
-  }
-
-  return -1;
-}
-
-// 下一个消息
-function handleNextMessage() {
-  showNavigation();
-  const userMessages = findUserMessages();
-
-  if (userMessages.length === 0) {
-    return scrollToBottom();
-  }
-
-  const visibleIndex = getCurrentVisibleIndex('down');
-
-  if (visibleIndex === -1) {
-    return scrollToBottom();
-  }
-
-  const targetIndex = visibleIndex - 1;
-
-  if (targetIndex < 0) {
-    return scrollToBottom();
-  }
-
-  scrollToMessage(userMessages[targetIndex]);
-}
-
-// 上一个消息
-function handlePrevMessage() {
-  showNavigation();
-  const userMessages = findUserMessages();
-
-  if (userMessages.length === 0) {
-    return scrollToTop();
-  }
-
-  const visibleIndex = getCurrentVisibleIndex('up');
-
-  if (visibleIndex === -1) {
-    return scrollToTop();
-  }
-
-  const targetIndex = visibleIndex + 1;
-
-  if (targetIndex >= userMessages.length) {
-    return scrollToTop();
-  }
-
-  scrollToMessage(userMessages[targetIndex]);
-}
-
-// 关闭导航
-function handleClose() {
-  isVisible.value = false;
-  isHovering.value = false;
-  isInTriggerArea.value = false;
-  clearHideTimer();
-  // 1分钟内不响应鼠标靠近
-  manuallyClosedUntil.value = Date.now() + 60000;
-}
-
-// 鼠标进入导航区域
-function handleMouseEnter() {
-  if (manuallyClosedUntil.value && Date.now() < manuallyClosedUntil.value) {
-    return;
-  }
-  isHovering.value = true;
-  showNavigation();
-}
-
-// 鼠标离开导航区域
-function handleMouseLeave() {
-  isHovering.value = false;
-  scheduleHide(500);
-}
-
-// 处理全局鼠标移动
-function handleMouseMove(e: MouseEvent) {
-  if (manuallyClosedUntil.value && Date.now() < manuallyClosedUntil.value) {
-    return;
-  }
-
-  const now = Date.now();
-  if (now - lastMoveTime.value < 50) return;
-  lastMoveTime.value = now;
-
-  const triggerWidth = 60;
-  const rightPosition = window.innerWidth - rightOffset.value - triggerWidth;
-  const topPosition = window.innerHeight * 0.35;
-  const height = window.innerHeight * 0.3;
-
-  const target = e.target as HTMLElement;
-  const isInExcludedArea = [
-    '.MessageFooter',
-    '.code-toolbar',
-    '.ant-collapse-header',
-    '.group-menu-bar',
-    '.code-block',
-    '.message-editor',
-    '.table-wrapper',
-  ].some((selector) => target.closest(selector));
-
-  const inTriggerArea =
-    !isInExcludedArea &&
-    e.clientX > rightPosition &&
-    e.clientX < rightPosition + triggerWidth + 16 &&
-    e.clientY > topPosition &&
-    e.clientY < topPosition + height;
-
-  if (inTriggerArea) {
-    if (!isInTriggerArea.value) {
-      isInTriggerArea.value = true;
-      showNavigation();
-    }
-  } else if (isInTriggerArea.value) {
-    isInTriggerArea.value = false;
-    if (!isHovering.value) {
-      scheduleHide(500);
-    }
-  }
-}
-
-onMounted(() => {
-  window.addEventListener('mousemove', handleMouseMove);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('mousemove', handleMouseMove);
-  clearHideTimer();
-});
-</script>
-
-<template>
-  <div
-    v-if="settings.messageNavigation === 'buttons'"
-    class="chat-navigation"
-    :class="{ visible: isVisible }"
-    @mouseenter="handleMouseEnter"
-    @mouseleave="handleMouseLeave"
-  >
-    <div class="button-group">
-      <button class="nav-button" :title="$t('chat.navigation.close')" @click="handleClose">
-        <Icon icon="mdi:close" />
-      </button>
-
-      <div class="divider" />
-
-      <button class="nav-button" :title="$t('chat.navigation.top')" @click="scrollToTop">
-        <Icon icon="mdi:arrow-collapse-up" />
-      </button>
-
-      <div class="divider" />
-
-      <button class="nav-button" :title="$t('chat.navigation.prev')" @click="handlePrevMessage">
-        <Icon icon="mdi:arrow-up" />
-      </button>
-
-      <div class="divider" />
-
-      <button class="nav-button" :title="$t('chat.navigation.next')" @click="handleNextMessage">
-        <Icon icon="mdi:arrow-down" />
-      </button>
-
-      <div class="divider" />
-
-      <button class="nav-button" :title="$t('chat.navigation.bottom')" @click="scrollToBottom">
-        <Icon icon="mdi:arrow-collapse-down" />
-      </button>
-    </div>
-  </div>
-</template>
-
-<style scoped>
-.chat-navigation {
-  position: fixed;
-  right: v-bind('rightOffset + "px"');
-  top: 50%;
-  transform: translateY(-50%) translateX(32px);
-  z-index: 999;
-  opacity: 0;
-  pointer-events: none;
-  transition:
-    transform 0.3s ease-in-out,
-    opacity 0.3s ease-in-out;
-}
-
-.chat-navigation.visible {
-  transform: translateY(-50%) translateX(0);
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.button-group {
-  display: flex;
-  flex-direction: column;
-  background: var(--bg-color);
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  overflow: hidden;
-  border: 1px solid var(--color-border);
-}
-
-.nav-button {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
-  color: var(--color-text);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.nav-button:hover {
-  background-color: var(--color-hover);
-  color: var(--color-primary);
-}
-
-.divider {
-  height: 1px;
-  background: var(--color-border);
-  margin: 0;
-}
-</style>
-```
-
-### 5. 在 Message 组件中使用
-
-```vue
-<!-- src/components/chat/MessageItem.vue -->
+<!-- src/components/chat/Messages.vue -->
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useSettingsStore } from '@/stores/settings';
-import MessageOutline from './navigation/MessageOutline.vue';
+import MessageAnchorLine from './navigation/MessageAnchorLine.vue';
+import MessageItem from './MessageItem.vue';
 
-interface Props {
-  message: Message;
-}
-
-const props = defineProps<Props>();
 const settings = useSettingsStore();
 
-const showOutline = computed(() => {
-  return (
-    settings.showMessageOutline &&
-    props.message.role === 'assistant' &&
-    props.message.multiModelMessageStyle !== 'grid'
-  );
+// 根据 messageNavigation 设置显示不同的导航方式
+const showAnchorLine = computed(() => {
+  return settings.messageNavigation === 'anchor';
 });
 </script>
 
 <template>
-  <div class="message-item" :id="`message-${message.id}`">
-    <MessageOutline v-if="showOutline" :message-id="message.id" />
-
-    <div class="message-content-container">
-      <!-- 消息内容 -->
+  <div class="messages-container">
+    <!-- 消息列表 -->
+    <div class="messages-list">
+      <MessageItem v-for="message in messages" :key="message.id" :message="message" />
     </div>
 
-    <div v-if="showOutline" class="message-footer" />
+    <!-- 消息锚点线（右侧） -->
+    <MessageAnchorLine v-if="showAnchorLine" :messages="messages" />
   </div>
-</template>
-```
-
-### 6. Markdown 渲染集成
-
-```vue
-<!-- src/components/chat/markdown/MarkdownRenderer.vue -->
-<script setup lang="ts">
-import { unified } from 'unified';
-import remarkParse from 'remark-parse';
-import remarkRehype from 'remark-rehype';
-import rehypeStringify from 'rehype-stringify';
-import rehypeRaw from 'rehype-raw';
-import rehypeHeadingIds from './plugins/rehypeHeadingIds';
-
-interface Props {
-  content: string;
-  blockId: string;
-  mathEngine?: 'KaTeX' | 'MathJax';
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  mathEngine: 'KaTeX',
-});
-
-const html = computed(() => {
-  const processor = unified().use(remarkParse).use(remarkRehype, { allowDangerousHtml: true });
-
-  // 添加标题 ID 插件
-  processor.use(rehypeHeadingIds, {
-    prefix: `heading-${props.blockId}`,
-  });
-
-  // 如果需要支持 HTML
-  processor.use(rehypeRaw);
-
-  // 数学公式支持
-  if (props.mathEngine === 'KaTeX') {
-    // processor.use(rehypeKatex)
-  }
-
-  processor.use(rehypeStringify);
-
-  const result = processor.processSync(props.content);
-  return result.toString();
-});
-</script>
-
-<template>
-  <div class="markdown-content" v-html="html" />
 </template>
 ```
 
@@ -1068,62 +1212,71 @@ const html = computed(() => {
 
 ## 移植检查清单
 
-### 必需功能
+### 对话锚点线（MessageAnchorLine）
 
-- [ ] 消息大纲显示与隐藏
-- [ ] 标题提取与层级识别
-- [ ] 唯一 ID 生成（去重）
-- [ ] 锚点点击滚动
+- [ ] 右侧固定显示的细线（14px 宽）
+- [ ] 悬停展开为预览面板（500px 宽）
+- [ ] 消息缩略图标点显示
+- [ ] 鼠标距离动态效果（透明度、缩放、大小）
+- [ ] 列表偏移算法（鼠标位置决定）
+- [ ] 分组消息的折叠状态处理
+- [ ] 滚动到指定消息
+- [ ] 底部"滚动到底部"按钮
+- [ ] 响应式高度调整
+
+### 消息大纲锚点（MessageOutline）
+
+- [ ] 左侧显示的标题层级锚点
+- [ ] Markdown 标题提取（# ~ ######）
+- [ ] HTML 标题支持（<h1> ~ <h6>）
+- [ ] 唯一 ID 生成（GitHub 风格 slug + 去重）
+- [ ] 中文 slug 支持
+- [ ] 点击滚动到标题
 - [ ] 悬停展开效果
-- [ ] 全局导航栏显示/隐藏
-- [ ] 消息间上下导航
-- [ ] 顶部/底部快速滚动
-
-### 优化功能
-
-- [ ] 手动关闭与 1 分钟静默
-- [ ] 触发区域智能检测
-- [ ] 可见消息计算算法
-- [ ] 平滑滚动动画
-- [ ] 响应式布局适配
-- [ ] 键盘快捷键支持
-
-### 边界情况处理
-
-- [ ] Grid 布局禁用大纲
-- [ ] 空内容/无标题处理
-- [ ] 中文 slug 生成
-- [ ] 重复标题去重
-- [ ] 滚动容器检测
+- [ ] 层级缩进显示
+- [ ] Grid 布局禁用
 
 ---
 
 ## 注意事项
 
-### 1. CSS 模块化
+### 1. 性能优化
 
-原文档使用 styled-components，Vue 建议使用：
+- **防抖鼠标移动**：距离计算使用节流（throttle）避免频繁计算
+- **虚拟滚动**：消息列表很长时考虑虚拟滚动
+- **缓存标题解析**：使用 `computed` 缓存 Markdown 解析结果
+- **Ref 管理**：使用 Map 存储 DOM 引用，避免重复查询
 
-- **CSS Modules**: 作用域样式隔离
-- **UnoCSS/Tailwind**: 原子化 CSS
-- **SCSS**: 嵌套和变量支持
+### 2. 边界情况
 
-### 2. 性能优化
+- **Grid 布局**：MessageOutline 在 grid 模式下禁用（会导致渲染错位）
+- **空内容**：无标题时不显示大纲
+- **分组消息**：处理 `askId` 关联的消息组
+- **消息隐藏**：检查 `display: none` 处理折叠消息
 
-- 使用 `computed` 缓存标题计算
-- 虚拟滚动处理长列表
-- 防抖鼠标移动事件
-- 避免不必要的 DOM 查询
+### 3. 样式适配
 
-### 3. 兼容性
+- **CSS 变量**：使用 CSS 变量支持明暗主题切换
+- **响应式**：容器高度动态计算
+- **will-change**：对动画属性使用 `will-change` 优化性能
+- **backdrop-filter**：注意浏览器兼容性
 
-- `container: 'nearest'` 是 Chromium 特有参数
-- Firefox/Safari 不支持，需回退到默认滚动
+### 4. 状态持久化
 
-### 4. 主题适配
+```typescript
+// Pinia 状态持久化
+export const useSettingsStore = defineStore('settings', {
+  state: () => ({
+    messageNavigation: 'anchor',
+    showMessageOutline: true,
+  }),
 
-- 使用 CSS 变量支持明暗主题
-- 注意 `backdrop-filter` 的浏览器兼容性
+  persist: {
+    key: 'chat-settings',
+    storage: localStorage,
+  },
+});
+```
 
 ---
 
@@ -1134,3 +1287,4 @@ const html = computed(() => {
 - [remark-parse 文档](https://github.com/remarkjs/remark/tree/main/packages/remark-parse)
 - [unist-util-visit 文档](https://github.com/syntax-tree/unist-util-visit)
 - [GitHub Flavored Markdown spec](https://github.github.com/gfm/)
+- [Pinia 持久化插件](https://prazdevs.github.io/pinia-plugin-persistedstate/)

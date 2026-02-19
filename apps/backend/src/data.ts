@@ -126,6 +126,8 @@ const defaultConfig = {
     tags: {},
     skipLineBreak: false,
     CtrlEnterToSend: false,
+    messageNavigation: 'anchor',
+    showMessageOutline: true,
     showNotification: true,
     isDarkMode: false,
     fix_position: false,
@@ -490,6 +492,8 @@ function checkConfig(config) {
     autoCloseOnBlur_global: true,
     autoSaveChat_global: false,
     CtrlEnterToSend: false,
+    messageNavigation: 'anchor',
+    showMessageOutline: true,
     showNotification: false,
     fix_position: false,
     zoom: 1,
@@ -523,6 +527,16 @@ function checkConfig(config) {
     flag = true;
   } else if (config.launcherHotkey !== config.launcherHotkey.trim()) {
     config.launcherHotkey = config.launcherHotkey.trim();
+    flag = true;
+  }
+
+  if (!['none', 'anchor'].includes(String(config.messageNavigation || ''))) {
+    config.messageNavigation = 'anchor';
+    flag = true;
+  }
+
+  if (typeof config.showMessageOutline !== 'boolean') {
+    config.showMessageOutline = true;
     flag = true;
   }
 

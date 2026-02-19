@@ -556,6 +556,16 @@
       "label": "Ctrl+Enter 发送",
       "description": "启用以通过按 Ctrl+Enter 发送消息"
     },
+    "messageNavigation": {
+      "label": "消息导航模式",
+      "description": "控制聊天页面右侧的消息导航锚点线显示方式",
+      "anchor": "锚点线",
+      "none": "关闭"
+    },
+    "showMessageOutline": {
+      "label": "显示消息大纲",
+      "description": "在 AI 消息左侧显示标题锚点大纲"
+    },
     "notification": {
       "label": "显示成功通知",
       "description": "启用以在响应成功时显示通知"

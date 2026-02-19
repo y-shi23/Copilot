@@ -556,6 +556,16 @@
       "label": "Ctrl+Enterで送信",
       "description": "Ctrl+Enterを押してメッセージを送信するようにします。"
     },
+    "messageNavigation": {
+      "label": "メッセージナビゲーション",
+      "description": "チャット右側のメッセージアンカー表示方式を制御します。",
+      "anchor": "アンカーライン",
+      "none": "オフ"
+    },
+    "showMessageOutline": {
+      "label": "メッセージ大綱を表示",
+      "description": "AI メッセージ左側に見出し大綱アンカーを表示します。"
+    },
     "notification": {
       "label": "成功通知を表示",
       "description": "応答が成功したときに通知を表示します。"

@@ -4,6 +4,7 @@ import hljs from 'highlight.js';
 import katex from 'katex';
 
 import { isLikelyLocalPath, normalizeLocalPath, preprocessMarkdownText } from './preprocess';
+import { injectHeadingIdsIntoHtml } from './headingIds';
 import type { MarkdownRenderOptions, MarkdownRenderResult } from './types';
 
 const parserCache = new Map<string, MarkdownIt>();
@@ -279,12 +280,16 @@ export const renderMarkdownToHtml = (
     enableLatex: options.enableLatex !== false,
     renderMode: options.renderMode || 'interactive',
     mermaidMode: options.mermaidMode || 'preview-source',
+    headingIdPrefix: options.headingIdPrefix || '',
   };
 
   const source = preprocessMarkdownText(markdown || '', normalizedOptions.enableLatex);
   const parser = buildMarkdownParser(normalizedOptions);
   const rawHtml = parser.render(source);
-  const safeHtml = sanitizeHtml(rawHtml);
+  const headingAwareHtml = injectHeadingIdsIntoHtml(rawHtml, {
+    idPrefix: normalizedOptions.headingIdPrefix,
+  });
+  const safeHtml = sanitizeHtml(headingAwareHtml);
   return {
     html: safeHtml || ' ',
   };

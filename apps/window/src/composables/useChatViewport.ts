@@ -46,19 +46,10 @@ export function useChatViewport(options: any) {
     return undefined;
   };
 
-  const isViewingLastMessage = computed(() => {
-    if (focusedMessageIndex.value === null) return false;
-    return focusedMessageIndex.value === chatShow.value.length - 1;
-  });
-
   const focusedMessageId = computed(() => {
     if (focusedMessageIndex.value === null) return null;
     const msg = chatShow.value[focusedMessageIndex.value];
     return msg ? msg.id : null;
-  });
-
-  const nextButtonTooltip = computed(() => {
-    return isViewingLastMessage.value ? '滚动到底部' : '查看下一条消息';
   });
 
   const scrollToBottom = async (behavior = 'auto') => {
@@ -67,13 +58,6 @@ export function useChatViewport(options: any) {
     if (el) {
       isSticky.value = true;
       el.scrollTo({ top: el.scrollHeight, behavior });
-    }
-  };
-
-  const scrollToTop = () => {
-    const el = chatContainerRef.value?.$el;
-    if (el) {
-      el.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -140,45 +124,6 @@ export function useChatViewport(options: any) {
       if (isAtBottom.value) isAtBottom.value = false;
       showScrollToBottomButton.value = true;
       findFocusedMessageIndex();
-    }
-  };
-
-  const navigateToPreviousMessage = () => {
-    findFocusedMessageIndex();
-    const currentIndex = focusedMessageIndex.value;
-    if (currentIndex === null) return;
-
-    const targetComponent = getMessageComponentByIndex(currentIndex);
-    const container = chatContainerRef.value?.$el;
-    if (!targetComponent || !container) return;
-
-    const element = targetComponent.$el;
-    const scrollDifference = container.scrollTop - element.offsetTop;
-    if (scrollDifference > 5) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else if (currentIndex > 0) {
-      const newIndex = currentIndex - 1;
-      focusedMessageIndex.value = newIndex;
-      const previousComponent = getMessageComponentByIndex(newIndex);
-      if (previousComponent) {
-        previousComponent.$el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }
-  };
-
-  const navigateToNextMessage = () => {
-    findFocusedMessageIndex();
-    if (
-      focusedMessageIndex.value !== null &&
-      focusedMessageIndex.value < chatShow.value.length - 1
-    ) {
-      focusedMessageIndex.value++;
-      const targetComponent = getMessageComponentByIndex(focusedMessageIndex.value);
-      if (targetComponent) {
-        targetComponent.$el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    } else {
-      forceScrollToBottom();
     }
   };
 
@@ -271,12 +216,6 @@ export function useChatViewport(options: any) {
     }
   };
 
-  const scrollToMessageByIndex = (index: number) => {
-    const message = chatShow.value[index];
-    if (!message) return;
-    scrollToMessageById(message.id);
-  };
-
   return {
     isAtBottom,
     showScrollToBottomButton,
@@ -287,15 +226,10 @@ export function useChatViewport(options: any) {
     setMessageRef,
     getMessageComponentByIndex,
     getMessageComponentById,
-    isViewingLastMessage,
     focusedMessageId,
-    nextButtonTooltip,
     scrollToBottom,
-    scrollToTop,
     forceScrollToBottom,
     handleScroll,
-    navigateToPreviousMessage,
-    navigateToNextMessage,
     scheduleCodeBlockEnhancement,
     handleMarkdownImageClick,
     handleWheel,
@@ -303,6 +237,5 @@ export function useChatViewport(options: any) {
     detachChatDomObserver,
     navMessages,
     scrollToMessageById,
-    scrollToMessageByIndex,
   };
 }

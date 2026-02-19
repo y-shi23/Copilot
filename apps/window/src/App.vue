@@ -14,7 +14,7 @@ import { ElContainer, ElMain } from 'element-plus';
 import TitleBar from './components/TitleBar.vue';
 import ChatHeader from './components/ChatHeader.vue';
 const ChatMessage = defineAsyncComponent(() => import('./components/ChatMessage.vue'));
-import ChatNavigationSidebar from './components/ChatNavigationSidebar.vue';
+import MessageAnchorLine from './components/navigation/MessageAnchorLine.vue';
 import ChatInput from './components/ChatInput.vue';
 import ImageViewerOverlay from './components/ImageViewerOverlay.vue';
 import McpDialog from './components/McpDialog.vue';
@@ -209,13 +209,9 @@ const {
   getMessageComponentByIndex,
   getMessageComponentById,
   focusedMessageId,
-  nextButtonTooltip,
   scrollToBottom,
-  scrollToTop,
   forceScrollToBottom,
   handleScroll,
-  navigateToPreviousMessage,
-  navigateToNextMessage,
   scheduleCodeBlockEnhancement,
   handleMarkdownImageClick,
   handleWheel,
@@ -223,7 +219,6 @@ const {
   detachChatDomObserver,
   navMessages,
   scrollToMessageById,
-  scrollToMessageByIndex,
 } = useChatViewport({
   chatShow: chat_show,
   chatContainerRef,
@@ -881,6 +876,7 @@ const handleOpenSearch = () => {
             :ai-avatar="AIAvart"
             :is-collapsed="isCollapsed(index)"
             :is-dark-mode="currentConfig.isDarkMode"
+            :show-message-outline="currentConfig.showMessageOutline !== false"
             @delete-message="handleDeleteMessage"
             @copy-text="handleCopyText"
             @re-ask="handleReAsk"
@@ -894,18 +890,16 @@ const handleOpenSearch = () => {
           />
         </el-main>
 
-        <ChatNavigationSidebar
-          v-if="chat_show.length > 0"
-          :nav-messages="navMessages"
+        <MessageAnchorLine
+          v-if="currentConfig.messageNavigation === 'anchor' && navMessages.length > 0"
+          :messages="navMessages"
           :focused-message-id="focusedMessageId"
-          :next-button-tooltip="nextButtonTooltip"
           :show-scroll-to-bottom-button="showScrollToBottomButton"
           :get-message-preview-text="getMessagePreviewText"
-          @scroll-top="scrollToTop"
-          @previous="navigateToPreviousMessage"
-          @next="navigateToNextMessage"
-          @bottom="forceScrollToBottom"
+          :user-avatar="UserAvart"
+          :ai-avatar="AIAvart"
           @jump="scrollToMessageById"
+          @bottom="forceScrollToBottom"
         />
 
         <ChatInput

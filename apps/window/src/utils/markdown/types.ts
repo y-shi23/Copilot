@@ -8,6 +8,7 @@ export interface MarkdownRenderOptions {
   enableLatex?: boolean;
   renderMode?: MarkdownRenderMode;
   mermaidMode?: MermaidRenderMode;
+  headingIdPrefix?: string;
 }
 
 export interface MarkdownRenderResult {

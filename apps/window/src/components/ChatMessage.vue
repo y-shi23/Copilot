@@ -29,6 +29,7 @@ import {
 } from 'lucide-vue-next';
 
 import DeepThinkingCard from './reasoning/DeepThinkingCard.vue';
+import MessageOutline from './navigation/MessageOutline.vue';
 import MarkdownRenderer from './markdown/MarkdownRenderer.vue';
 import { formatTimestamp, formatMessageText, sanitizeToolArgs } from '../utils/formatters';
 import { handleModelLogoError, resolveModelLogoUrl } from '../utils/modelLogos';
@@ -43,6 +44,7 @@ const props = defineProps({
   isCollapsed: Boolean,
   isDarkMode: Boolean,
   isAutoApprove: Boolean,
+  showMessageOutline: Boolean,
 });
 
 const emit = defineEmits([
@@ -513,6 +515,14 @@ const shouldShowCollapseButton = computed(() => {
   return false;
 });
 
+const headingIdPrefix = computed(() => `heading-${String(props.message?.id ?? props.index ?? '')}`);
+
+const assistantMessageStyle = computed(() => String(props.message?.multiModelMessageStyle || ''));
+
+const shouldShowOutline = computed(
+  () => Boolean(props.showMessageOutline) && String(props.message?.role || '') === 'assistant',
+);
+
 const onCopy = () => {
   if (props.isLoading && props.isLastMessage) return;
   emit('copy-text', formatMessageText(props.message.content), props.message.id);
@@ -551,7 +561,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="chat-message" v-if="message.role !== 'system'">
+  <div :id="`message-${message.id}`" class="chat-message" v-if="message.role !== 'system'">
     <!-- 用户消息 -->
     <div v-if="message.role === 'user'" class="message-wrapper user-wrapper">
       <div class="message-meta-header user-meta-header">
@@ -566,13 +576,16 @@ onBeforeUnmount(() => {
       <Bubble class="user-bubble" placement="end" shape="corner" maxWidth="100%">
         <template #content>
           <div v-if="!isEditing" class="markdown-wrapper" :class="{ collapsed: isCollapsed }">
-            <MarkdownRenderer
-              :markdown="renderedMarkdownContent"
-              :is-dark="isDarkMode"
-              :enable-latex="true"
-              :mermaid-config="mermaidConfig"
-              :allow-html="true"
-            />
+            <div class="message-content-container">
+              <MarkdownRenderer
+                :markdown="renderedMarkdownContent"
+                :is-dark="isDarkMode"
+                :enable-latex="true"
+                :mermaid-config="mermaidConfig"
+                :allow-html="true"
+                :heading-id-prefix="headingIdPrefix"
+              />
+            </div>
           </div>
           <div v-else class="editing-wrapper">
             <el-input
@@ -870,14 +883,27 @@ onBeforeUnmount(() => {
             </div>
           </template>
 
-          <div v-if="!isEditing" class="markdown-wrapper" :class="{ collapsed: isCollapsed }">
-            <MarkdownRenderer
+          <div
+            v-if="!isEditing"
+            class="markdown-wrapper"
+            :class="{ collapsed: isCollapsed, 'has-message-outline': shouldShowOutline }"
+          >
+            <MessageOutline
+              :message-id="message.id"
               :markdown="renderedMarkdownContent"
-              :is-dark="isDarkMode"
-              :enable-latex="true"
-              :mermaid-config="mermaidConfig"
-              :allow-html="true"
+              :enabled="shouldShowOutline"
+              :message-style="assistantMessageStyle"
             />
+            <div class="message-content-container">
+              <MarkdownRenderer
+                :markdown="renderedMarkdownContent"
+                :is-dark="isDarkMode"
+                :enable-latex="true"
+                :mermaid-config="mermaidConfig"
+                :allow-html="true"
+                :heading-id-prefix="headingIdPrefix"
+              />
+            </div>
           </div>
           <div v-else class="editing-wrapper">
             <el-input
@@ -1223,8 +1249,18 @@ html.dark .chat-message .ai-bubble {
 .markdown-wrapper {
   width: 100%;
   min-width: 0;
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+
+  .message-content-container {
+    width: 100%;
+    min-width: 0;
+  }
+
+  &.has-message-outline .message-content-container {
+    padding-left: 36px;
+  }
 
   :deep(.elx-xmarkdown-container) {
     background: transparent !important;

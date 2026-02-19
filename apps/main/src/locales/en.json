@@ -556,6 +556,16 @@
       "label": "Ctrl+Enter to Send",
       "description": "Enable to send messages by pressing Ctrl+Enter."
     },
+    "messageNavigation": {
+      "label": "Message Navigation Mode",
+      "description": "Controls how the message anchor line is shown on the right side of chat.",
+      "anchor": "Anchor Line",
+      "none": "Off"
+    },
+    "showMessageOutline": {
+      "label": "Show Message Outline",
+      "description": "Show a heading outline on the left side of AI messages."
+    },
     "notification": {
       "label": "Show Success Notification",
       "description": "Enable to show a notification on successful response."

@@ -41,6 +41,8 @@ export interface AppConfig {
   quickModel?: string;
   skillPath?: string;
   language?: string;
+  messageNavigation?: 'none' | 'anchor';
+  showMessageOutline?: boolean;
   isDarkMode?: boolean;
   zoom?: number;
   launcherEnabled?: boolean;

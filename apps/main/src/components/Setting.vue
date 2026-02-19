@@ -479,6 +479,37 @@ const deleteVoice = (voiceToDelete) => {
           </div>
           <div class="setting-option-item">
             <div class="setting-text-content">
+              <span class="setting-option-label">{{ t('setting.messageNavigation.label') }}</span>
+              <span class="setting-option-description">{{
+                t('setting.messageNavigation.description')
+              }}</span>
+            </div>
+            <el-select
+              v-model="currentConfig.messageNavigation"
+              @change="(value) => saveSingleSetting('messageNavigation', value)"
+              size="default"
+              style="width: 140px"
+              class="setting-inline-select"
+              popper-class="settings-select-popper"
+            >
+              <el-option :label="t('setting.messageNavigation.anchor')" value="anchor"></el-option>
+              <el-option :label="t('setting.messageNavigation.none')" value="none"></el-option>
+            </el-select>
+          </div>
+          <div class="setting-option-item">
+            <div class="setting-text-content">
+              <span class="setting-option-label">{{ t('setting.showMessageOutline.label') }}</span>
+              <span class="setting-option-description">{{
+                t('setting.showMessageOutline.description')
+              }}</span>
+            </div>
+            <el-switch
+              v-model="currentConfig.showMessageOutline"
+              @change="(value) => saveSingleSetting('showMessageOutline', value)"
+            />
+          </div>
+          <div class="setting-option-item">
+            <div class="setting-text-content">
               <span class="setting-option-label">{{ t('setting.notification.label') }}</span>
               <span class="setting-option-description">{{
                 t('setting.notification.description')
