@@ -51,7 +51,7 @@ export default defineConfig({
             if (id.includes('element-plus')) return 'vendor-element-plus';
             if (id.includes('vue-i18n')) return 'vendor-i18n';
             if (id.includes('lucide-vue-next')) return 'vendor-icons';
-            if (id.includes('marked')) return 'vendor-markdown';
+            if (id.includes('markdown-it')) return 'vendor-markdown';
             if (id.includes('openai')) return 'vendor-openai';
             if (id.includes('recorder-core')) return 'vendor-recorder';
             if (id.includes('mermaid')) return 'vendor-mermaid';

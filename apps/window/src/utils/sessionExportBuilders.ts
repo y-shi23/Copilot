@@ -1,3 +1,5 @@
+import { renderMarkdownToHtml } from './markdown/renderer';
+
 export const getExportTimestamp = (now: Date = new Date()) =>
   `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
     now.getDate(),
@@ -127,7 +129,6 @@ export const buildHtmlSessionContent = async ({
   userAvatar,
   aiAvatar,
   formatTimestamp,
-  getMarkdownRuntime,
 }: {
   code: string;
   timestamp: string;
@@ -137,9 +138,7 @@ export const buildHtmlSessionContent = async ({
   userAvatar: string;
   aiAvatar: string;
   formatTimestamp: (value: any) => string;
-  getMarkdownRuntime: () => Promise<any>;
 }) => {
-  const { marked, DOMPurify } = await getMarkdownRuntime();
   let bodyContent = '';
   let tocContent = '';
 
@@ -198,7 +197,12 @@ export const buildHtmlSessionContent = async ({
     } else {
       markdownString = String(content);
     }
-    return marked.parse(markdownString);
+    return renderMarkdownToHtml(markdownString, {
+      allowHtml: true,
+      enableLatex: true,
+      renderMode: 'static',
+      mermaidMode: 'source-only',
+    }).html;
   };
 
   if (currentSystemPrompt && currentSystemPrompt.trim()) {
@@ -215,7 +219,14 @@ export const buildHtmlSessionContent = async ({
     bodyContent += `
             <div id="${sysMsgId}" class="message-wrapper align-left">
               <div class="header system-header"><strong>系统提示词</strong></div>
-              <div class="message-body system-body">${DOMPurify.sanitize(marked.parse(currentSystemPrompt))}</div>
+              <div class="message-body system-body">${
+                renderMarkdownToHtml(currentSystemPrompt, {
+                  allowHtml: true,
+                  enableLatex: true,
+                  renderMode: 'static',
+                  mermaidMode: 'source-only',
+                }).html
+              }</div>
             </div>
           `;
   }
@@ -250,15 +261,7 @@ export const buildHtmlSessionContent = async ({
     const time = message.timestamp || message.completedTimestamp;
     const alignClass = isUser ? 'align-right' : 'align-left';
 
-    const processedHtml = processContentToHtml(message.content);
-    let contentHtml = '';
-    if (processedHtml && processedHtml.trim() !== '') {
-      contentHtml = DOMPurify.sanitize(processedHtml, {
-        ADD_TAGS: ['video', 'audio', 'source', 'blockquote'],
-        USE_PROFILES: { html: true, svg: true },
-        ADD_ATTR: ['style'],
-      });
-    }
+    const contentHtml = processContentToHtml(message.content);
 
     let toolsHtml = '';
     if (message.tool_calls && message.tool_calls.length > 0) {

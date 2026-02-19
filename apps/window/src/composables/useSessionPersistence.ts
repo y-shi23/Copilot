@@ -3,7 +3,6 @@ import { h, nextTick, ref } from 'vue';
 import { ElButton, ElInput, ElMessageBox } from 'element-plus';
 
 import { formatTimestamp } from '../utils/formatters';
-import { getMarkdownRuntime } from '../utils/lazyRuntime';
 import {
   buildHtmlSessionContent,
   buildMarkdownSessionContent,
@@ -402,7 +401,6 @@ export function useSessionPersistence(options: any) {
                 userAvatar: UserAvart.value,
                 aiAvatar: AIAvart.value,
                 formatTimestamp,
-                getMarkdownRuntime,
               });
               await window.api.saveFile({
                 title: '保存为 HTML',

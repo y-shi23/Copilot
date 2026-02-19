@@ -30,6 +30,7 @@ import {
 } from 'lucide-vue-next';
 import { ElBadge, ElMessage, ElMessageBox } from 'element-plus';
 import { useAssistantSessionIndex } from './composables/useAssistantSessionIndex';
+import MarkdownRenderer from '@window/components/markdown/MarkdownRenderer.vue';
 
 const MainChatWorkspace = defineAsyncComponent(
   () => import('./components/chat/MainChatWorkspace.vue'),
@@ -800,14 +801,6 @@ const docList = ref([
   { i18nKey: 'doc.titles.setting', file: 'setting_doc.md', lastUpdated: null },
 ]);
 
-let markedParserPromise = null;
-const getMarkedParser = async () => {
-  if (!markedParserPromise) {
-    markedParserPromise = import('marked').then((module) => module.marked);
-  }
-  return markedParserPromise;
-};
-
 const fetchAllDocsMetadata = async () => {
   const baseUrl = 'https://raw.githubusercontent.com/Komorebi-yaodong/Anywhere/main/docs/';
   const dateRegex = /\*\*文档更新时间：(\d{4})年(\d{1,2})月(\d{1,2})日\*\*/;
@@ -888,11 +881,10 @@ const fetchAndParseDoc = async (filename) => {
       },
     );
 
-    const markedParser = await getMarkedParser();
-    currentDocContent.value = markedParser.parse(text);
+    currentDocContent.value = text;
   } catch (error) {
     console.error('Failed to load doc:', error);
-    currentDocContent.value = `<h3>${t('doc.loadFailed')}</h3><p>${t('doc.checkNetwork')}</p>`;
+    currentDocContent.value = `### ${t('doc.loadFailed')}\n\n${t('doc.checkNetwork')}`;
   } finally {
     docLoading.value = false;
   }
@@ -1335,7 +1327,14 @@ onBeforeUnmount(() => {
           </div>
           <div class="doc-content" v-loading="docLoading" :element-loading-text="t('doc.loading')">
             <el-scrollbar height="60vh">
-              <div class="markdown-body" v-html="currentDocContent" @click="handleDocLinks"></div>
+              <div class="markdown-body" @click="handleDocLinks">
+                <MarkdownRenderer
+                  :markdown="currentDocContent"
+                  :is-dark="config?.isDarkMode || false"
+                  :enable-latex="true"
+                  :allow-html="true"
+                />
+              </div>
             </el-scrollbar>
           </div>
         </div>

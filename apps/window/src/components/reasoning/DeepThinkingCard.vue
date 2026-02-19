@@ -41,14 +41,12 @@
           :class="{ 'has-fade': hasOverflow }"
           @scroll="checkOverflow"
         >
-          <XMarkdown
+          <MarkdownRenderer
             v-if="hasReasoningContent"
             :markdown="normalizedContent"
             :is-dark="isDarkMode"
             :enable-latex="true"
             :mermaid-config="mermaidConfig"
-            :default-theme-mode="isDarkMode ? 'dark' : 'light'"
-            :themes="{ light: 'one-light', dark: 'vesper' }"
             :allow-html="true"
           />
 
@@ -63,11 +61,11 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
-import { XMarkdown } from 'vue-element-plus-x';
 
 import DeepThinkIcon from './DeepThinkIcon.vue';
 import ShimmerEffect from './ShimmerEffect.vue';
 import ThreeDotLoading from './ThreeDotLoading.vue';
+import MarkdownRenderer from '../markdown/MarkdownRenderer.vue';
 
 interface Props {
   content: string;

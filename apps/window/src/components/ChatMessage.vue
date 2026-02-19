@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // -nocheck
 import { computed, ref, nextTick, onBeforeUnmount, watch } from 'vue';
-import { Bubble, XMarkdown } from 'vue-element-plus-x';
+import { Bubble } from 'vue-element-plus-x';
 import {
   ElTooltip,
   ElButton,
@@ -27,10 +27,9 @@ import {
   ArrowDown,
   AlarmClockCheck,
 } from 'lucide-vue-next';
-import 'katex/dist/katex.min.css';
-import DOMPurify from 'dompurify';
 
 import DeepThinkingCard from './reasoning/DeepThinkingCard.vue';
+import MarkdownRenderer from './markdown/MarkdownRenderer.vue';
 import { formatTimestamp, formatMessageText, sanitizeToolArgs } from '../utils/formatters';
 import { handleModelLogoError, resolveModelLogoUrl } from '../utils/modelLogos';
 
@@ -117,76 +116,6 @@ const formatToolArgs = (argsString) => {
   } catch (e) {
     return argsString;
   }
-};
-
-const preprocessKatex = (text) => {
-  if (!text) return '';
-  let processedText = text;
-
-  // 1. 替换非标准连字符
-  processedText = processedText.replace(/\u2013/g, '-').replace(/\u2014/g, '-');
-
-  // 2. 将 \[ ... \] 转换为 $$ ... $$ (块级公式)
-  processedText = processedText.replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$');
-
-  // 3. 将 \( ... \) 转换为 $ ... $ (行内公式)
-  processedText = processedText.replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$');
-
-  // 4. 将 {align} 和 {equation} 替换为 {aligned}
-  // KaTeX 在 $$...$$ 内部通常不支持 align 环境（它是顶级环境）。
-  // 使用 aligned 环境可以完美解决渲染问题，同时配合下方的 \tag 模拟显示。
-  processedText = processedText.replace(/\\begin\{align\*?\}/g, '\\begin{aligned}');
-  processedText = processedText.replace(/\\end\{align\*?\}/g, '\\end{aligned}');
-  processedText = processedText.replace(/\\begin\{equation\*?\}/g, '\\begin{aligned}');
-  processedText = processedText.replace(/\\end\{equation\*?\}/g, '\\end{aligned}');
-
-  // 5. 模拟 LaTeX \tag{} 显示
-  // 由于 aligned 环境不支持原生 \tag，或者 Markdown 渲染器会吞掉反斜杠，
-  // 将其替换为右侧间距 + 文本的形式： \qquad \text{(...)}
-  processedText = processedText.replace(/(?<!\\)\\tag\s*\{([^{}]+)\}/g, '\\qquad \\text{($1)}');
-
-  return processedText;
-};
-
-const processFilePaths = (text) => {
-  if (!text) return '';
-
-  // 辅助函数：生成链接 HTML
-  const createLink = (pathStr) => {
-    // 清洗末尾的标点符号 (如句号、逗号、括号)
-    const cleanPath = pathStr.replace(/[.,;:)\]。，；：]+$/, '').trim();
-
-    // 过滤过短的误判
-    if (cleanPath.length < 2) return pathStr;
-    // 排除单纯的根目录符号
-    if (cleanPath === '/' || cleanPath === '~' || cleanPath === '\\') return pathStr;
-
-    // 生成带 data-filepath 的链接，href 设为 void(0) 防止跳转
-    return `<a href="javascript:void(0)" data-filepath="${cleanPath}" class="local-file-link" title="点击打开文件: ${cleanPath}">${cleanPath}</a>`;
-  };
-
-  let processed = text;
-
-  // 1. 处理 Windows 路径 (盘符开头，如 C:\Users)
-  // (?<!["'=]) 避免匹配到 HTML 属性中的路径
-  processed = processed.replace(/(?<!["'=])([a-zA-Z]:\\[^:<>"|?*\n\r\t]+)/g, (match) => {
-    return createLink(match);
-  });
-
-  // 2. 处理 Unix/Linux/macOS 路径 (/ 或 ~ 开头)
-  // (?<!["'=:\w]) 避免匹配 URL (http://) 或 HTML 属性
-  // (^|[\s"'(>]) 确保路径出现在行首、空格、引号或括号之后
-  processed = processed.replace(
-    /(^|[\s"'(>])((?:\/|~)[^:<>"|?*\n\r\t\s]+)/g,
-    (match, prefix, pathStr) => {
-      // 二次校验：防止匹配 URL 的一部分 (如 https://example.com/foo)
-      // 如果 prefix 是空或者是空白符，通常是安全的。
-      // 如果是 > (HTML标签结束)，也是安全的。
-      return prefix + createLink(pathStr);
-    },
-  );
-
-  return processed;
 };
 
 const mermaidConfig = computed(() => ({
@@ -454,106 +383,9 @@ const renderedMarkdownContent = computed(() => {
 
   const content = props.message.role ? props.message.content : props.message;
   const role = props.message.role ? props.message.role : 'user';
-  let formattedContent = formatMessageContent(content, role);
-  formattedContent = preprocessKatex(formattedContent);
-
-  const protectedMap = new Map();
-  let placeholderIndex = 0;
-  const addPlaceholder = (text) => {
-    const placeholder = `__PROTECTED_CONTENT_${placeholderIndex++}__`;
-    protectedMap.set(placeholder, text);
-    return placeholder;
-  };
-
-  // 1. HTML 转义辅助函数 (用于显示文本)
-  const escapeHtml = (unsafe) => {
-    return unsafe
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  };
-
-  // 2. 属性转义辅助函数 (本逻辑中已改用 encodeURIComponent，此函数暂留作备用)
-  const escapeAttr = (unsafe) => {
-    return unsafe.replace(/"/g, '&quot;');
-  };
-
-  // 3. 保护数学公式 (最高优先级)
-  let processedContent = formattedContent.replace(/(\$\$)([\s\S]*?)(\$\$)/g, (match) =>
-    addPlaceholder(match),
-  );
-  processedContent = processedContent.replace(/(\$)(?!\s)([^$\n]+?)(?<!\s)(\$)/g, (match) =>
-    addPlaceholder(match),
-  );
-
-  // 4. 保护块级代码 (```...```)
-  // [修改] 优化正则以支持带缩进的代码块（例如列表中的代码块）
-  // 原正则: /(^|\n)(```)([\s\S]*?)\2/g
-  // 新正则: /(^|\n)([ \t]*)(```)([\s\S]*?)\3/g  <- 增加了 ([ \t]*) 捕获缩进，并将反向引用改为 \3
-  processedContent = processedContent.replace(/(^|\n)([ \t]*)(```)([\s\S]*?)\3/g, (match) => {
-    return addPlaceholder(match);
-  });
-
-  // 5. 处理行内代码 (`...`) - 在此处检测文件路径并生成链接
-  processedContent = processedContent.replace(
-    /(^|[^\\])(`+)([\s\S]*?)\2/g,
-    (match, prefix, delimiter, inner) => {
-      const trimmedInner = inner.trim();
-
-      // 路径判定逻辑：
-      // 1. 包含 Windows 盘符 (C:\) 或 Unix 路径符 (/ 或 ~)
-      // 2. 不包含换行符
-      // 3. 长度大于 1
-      const isWinPath = /^[a-zA-Z]:\\/.test(trimmedInner);
-      const isUnixPath = /^[\/~]/.test(trimmedInner);
-      const hasNewline = trimmedInner.includes('\n');
-
-      if ((isWinPath || isUnixPath) && !hasNewline && trimmedInner.length > 1) {
-        // 清洗末尾标点
-        const cleanPath = trimmedInner.replace(/[.,;:)\]。，；：]+$/, '');
-
-        // 1. 将 <a> 包裹在 <code> 外面，避免 HTML 解析器截断或隐藏代码块内容。
-        // 2. 使用 encodeURIComponent 编码路径，解决空格和中文导致的属性解析错误。
-        // 3. 添加 style="text-decoration:none;" 防止下划线干扰代码块样式。
-        const linkHtml = `<a href="#" data-filepath="${encodeURIComponent(cleanPath)}" class="local-file-link" style="text-decoration:none;" title="点击打开文件"><code class="inline-code-tag">${escapeHtml(inner)}</code></a>`;
-        return prefix + addPlaceholder(linkHtml);
-      }
-
-      // 普通代码块，正常显示
-      const codeHtml = `<code class="inline-code-tag">${escapeHtml(inner)}</code>`;
-      return prefix + addPlaceholder(codeHtml);
-    },
-  );
-
-  // 6. 加粗处理
-  processedContent = processedContent.replace(
-    /(^|[^\\])\*\*([^\n]+?)\*\*/g,
-    '$1<strong>$2</strong>',
-  );
-
-  // 7. HTML 清洗
-  let sanitizedPart = DOMPurify.sanitize(processedContent, {
-    ADD_TAGS: ['video', 'audio', 'source'],
-    USE_PROFILES: { html: true, svg: true, svgFilters: true },
-    // 确保允许 data-filepath 和 onclick
-    ADD_ATTR: ['style', 'data-filepath', 'onclick', 'target', 'title'],
-  });
-
-  sanitizedPart = sanitizedPart.replace(/&gt;/g, '>');
-
-  // 8. 恢复受保护的内容
-  let finalContent = sanitizedPart.replace(/__PROTECTED_CONTENT_\d+__/g, (placeholder) => {
-    return protectedMap.get(placeholder) || placeholder;
-  });
-
-  // 9. 表格包裹
-  finalContent = finalContent
-    .replace(/<table/g, '<div class="table-scroll-wrapper"><table')
-    .replace(/<\/table>/g, '</table></div>');
-
-  const rendered = !finalContent && props.message.role === 'assistant' ? ' ' : finalContent || ' ';
+  const formattedContent = formatMessageContent(content, role);
+  const rendered =
+    !formattedContent && props.message.role === 'assistant' ? ' ' : formattedContent || ' ';
   setCachedRender(cacheKey, rendered);
   return rendered;
 });
@@ -734,13 +566,11 @@ onBeforeUnmount(() => {
       <Bubble class="user-bubble" placement="end" shape="corner" maxWidth="100%">
         <template #content>
           <div v-if="!isEditing" class="markdown-wrapper" :class="{ collapsed: isCollapsed }">
-            <XMarkdown
+            <MarkdownRenderer
               :markdown="renderedMarkdownContent"
               :is-dark="isDarkMode"
               :enable-latex="true"
               :mermaid-config="mermaidConfig"
-              :default-theme-mode="isDarkMode ? 'dark' : 'light'"
-              :themes="{ light: 'github-light', dark: 'github-dark-default' }"
               :allow-html="true"
             />
           </div>
@@ -977,6 +807,14 @@ onBeforeUnmount(() => {
                             </div>
                           </el-tooltip>
                         </div>
+                        <svg
+                          class="tool-chevron"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          aria-hidden="true"
+                        >
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
                       </div>
                     </template>
                     <div class="tool-call-details">
@@ -1033,13 +871,11 @@ onBeforeUnmount(() => {
           </template>
 
           <div v-if="!isEditing" class="markdown-wrapper" :class="{ collapsed: isCollapsed }">
-            <XMarkdown
+            <MarkdownRenderer
               :markdown="renderedMarkdownContent"
               :is-dark="isDarkMode"
               :enable-latex="true"
               :mermaid-config="mermaidConfig"
-              :default-theme-mode="isDarkMode ? 'dark' : 'light'"
-              :themes="{ light: 'one-light', dark: 'vesper' }"
               :allow-html="true"
             />
           </div>
@@ -2311,7 +2147,7 @@ html.dark .ai-name {
 }
 
 .tool-collapse :deep(.el-collapse-item__arrow) {
-  color: var(--el-text-color-secondary);
+  display: none !important;
 }
 
 .tool-call-title {
@@ -2335,10 +2171,26 @@ html.dark .ai-name {
 
 .tool-header-right {
   margin-left: auto;
-  margin-right: 8px;
+  margin-right: 0;
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.tool-chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--el-text-color-secondary);
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.tool-collapse :deep(.el-collapse-item__header.is-active .tool-chevron) {
+  transform: rotate(90deg);
 }
 
 .stop-btn-wrapper {

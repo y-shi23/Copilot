@@ -1,14 +1,10 @@
 // @ts-nocheck
 import { computed, nextTick, ref } from 'vue';
-import { Copy } from 'lucide-vue-next';
-
-import { renderLucideSvg } from '../utils/lucideSvg';
 
 export function useChatViewport(options: any) {
   const {
     chatShow,
     chatContainerRef,
-    showDismissibleMessage,
     zoomLevel,
     currentConfig,
     imageViewerVisible,
@@ -26,9 +22,6 @@ export function useChatViewport(options: any) {
   let chatObserver: MutationObserver | null = null;
   let observerFlushFrame = 0;
   let shouldFlushStickyScroll = false;
-  let shouldFlushCodeBlockScan = false;
-  let codeBlockScanFrame = 0;
-  let isCodeBlockScanQueued = false;
 
   const setMessageRef = (el: any, id: any) => {
     if (el) {
@@ -189,55 +182,8 @@ export function useChatViewport(options: any) {
     }
   };
 
-  const addCopyButtonsToCodeBlocks = async () => {
-    await nextTick();
-    document.querySelectorAll('.markdown-body pre.hljs').forEach((pre) => {
-      if (pre.querySelector('.code-block-copy-button')) return;
-      const codeElement = pre.querySelector('code');
-      if (!codeElement) return;
-
-      const wrapper = document.createElement('div');
-      wrapper.className = 'code-block-wrapper';
-      pre.parentNode?.insertBefore(wrapper, pre);
-      wrapper.appendChild(pre);
-
-      const codeText = codeElement.textContent || '';
-      const lines = codeText.trimEnd().split('\n');
-      const lineCount = lines.length;
-      const copyButtonSVG = renderLucideSvg(Copy, { size: 14, strokeWidth: 2 });
-
-      const createButton = (positionClass: string) => {
-        const button = document.createElement('button');
-        button.className = `code-block-copy-button ${positionClass}`;
-        button.innerHTML = copyButtonSVG;
-        button.title = 'Copy code';
-        button.addEventListener('click', async (event) => {
-          event.stopPropagation();
-          try {
-            await navigator.clipboard.writeText(codeText.trimEnd());
-            showDismissibleMessage.success('Code copied to clipboard!');
-          } catch (err) {
-            console.error('Failed to copy code:', err);
-            showDismissibleMessage.error('Failed to copy code.');
-          }
-        });
-        wrapper.appendChild(button);
-      };
-
-      createButton('code-block-copy-button-bottom');
-      if (lineCount > 3) createButton('code-block-copy-button-top');
-    });
-  };
-
   const scheduleCodeBlockEnhancement = () => {
-    if (isCodeBlockScanQueued) return;
-    isCodeBlockScanQueued = true;
-
-    codeBlockScanFrame = window.requestAnimationFrame(async () => {
-      codeBlockScanFrame = 0;
-      isCodeBlockScanQueued = false;
-      await addCopyButtonsToCodeBlocks();
-    });
+    // 兼容旧调用链：新的 markdown 渲染器已内置代码块工具栏与交互。
   };
 
   const flushObservedDomUpdates = () => {
@@ -249,12 +195,7 @@ export function useChatViewport(options: any) {
       chatMainElement.scrollTop = chatMainElement.scrollHeight;
     }
 
-    if (shouldFlushCodeBlockScan) {
-      scheduleCodeBlockEnhancement();
-    }
-
     shouldFlushStickyScroll = false;
-    shouldFlushCodeBlockScan = false;
   };
 
   const handleMarkdownImageClick = (event: any) => {
@@ -285,7 +226,6 @@ export function useChatViewport(options: any) {
 
     chatObserver = new MutationObserver(() => {
       shouldFlushStickyScroll = true;
-      shouldFlushCodeBlockScan = true;
       if (!observerFlushFrame) {
         observerFlushFrame = window.requestAnimationFrame(flushObservedDomUpdates);
       }
@@ -303,11 +243,6 @@ export function useChatViewport(options: any) {
       window.cancelAnimationFrame(observerFlushFrame);
       observerFlushFrame = 0;
     }
-    if (codeBlockScanFrame) {
-      window.cancelAnimationFrame(codeBlockScanFrame);
-      codeBlockScanFrame = 0;
-    }
-
     const chatMainElement = chatContainerRef.value?.$el;
     if (chatMainElement) {
       chatMainElement.removeEventListener('click', handleMarkdownImageClick);
