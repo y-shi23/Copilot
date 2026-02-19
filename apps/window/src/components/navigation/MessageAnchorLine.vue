@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { ChevronsDown } from 'lucide-vue-next';
+import { resolveModelLogoUrl } from '../../utils/modelLogos';
 
 type MessageId = string | number;
 
@@ -77,7 +78,7 @@ const getItemStyle = (itemId: string, index: number, total: number) => {
       ? 0.5 + calculateValueByDistance(itemId, 0.5)
       : getDefaultOpacity(index, total);
   const scale = 1 + calculateValueByDistance(itemId, 0.2);
-  const size = 10 + calculateValueByDistance(itemId, 16);
+  const size = 10 + calculateValueByDistance(itemId, 12);
   return {
     opacity,
     scale,
@@ -98,8 +99,59 @@ const getAuthorName = (message: NavigationMessage) => {
   return 'You';
 };
 
-const getAvatarSource = (message: NavigationMessage) =>
-  String(message?.role || '').toLowerCase() === 'assistant' ? props.aiAvatar : props.userAvatar;
+const getAssistantModelIdentity = (message: NavigationMessage) => {
+  const modelLabel = String(message?.modelLabel || message?.aiName || '').trim();
+  const modelKey = String(message?.modelKey || message?.model || '').trim();
+
+  let providerName = '';
+  let providerId = '';
+  let modelNameFromLabel = '';
+  let modelNameFromKey = '';
+
+  if (modelLabel.includes('|')) {
+    const [provider = '', ...modelParts] = modelLabel.split('|');
+    providerName = provider.trim();
+    modelNameFromLabel = modelParts.join('|').trim();
+  }
+
+  if (modelKey.includes('|')) {
+    const [provider = '', ...modelParts] = modelKey.split('|');
+    providerId = provider.trim();
+    modelNameFromKey = modelParts.join('|').trim();
+  }
+
+  const fallbackName = String(message?.aiName || 'AI').trim() || 'AI';
+  const modelName = modelNameFromKey || modelNameFromLabel || fallbackName;
+
+  return {
+    modelName,
+    providerName: providerName || providerId,
+    providerId,
+  };
+};
+
+const getAvatarSource = (message: NavigationMessage) => {
+  const isAssistant = String(message?.role || '').toLowerCase() === 'assistant';
+  if (!isAssistant) {
+    return props.userAvatar;
+  }
+
+  const identity = getAssistantModelIdentity(message);
+  return (
+    resolveModelLogoUrl(identity.modelName, {
+      providerName: identity.providerName,
+      metadataProviderId: identity.providerId,
+    }) || props.aiAvatar
+  );
+};
+
+const handleAvatarError = (event: Event, message: NavigationMessage) => {
+  const img = event?.target as HTMLImageElement | null;
+  if (!img || img.dataset.anchorFallbackApplied === '1') return;
+  img.dataset.anchorFallbackApplied = '1';
+  const isAssistant = String(message?.role || '').toLowerCase() === 'assistant';
+  img.src = isAssistant ? props.aiAvatar : props.userAvatar;
+};
 
 const handleMouseMove = (event: MouseEvent) => {
   const listElement = messagesListRef.value;
@@ -173,6 +225,7 @@ const isActiveMessage = (message: NavigationMessage) =>
           class="message-anchor-avatar"
           :src="getAvatarSource(message)"
           alt="message avatar"
+          @error="(event) => handleAvatarError(event, message)"
           :style="{
             width: `${getItemStyle(toItemId(message), index, navigationMessages.length).size}px`,
             height: `${getItemStyle(toItemId(message), index, navigationMessages.length).size}px`,
@@ -233,8 +286,8 @@ const isActiveMessage = (message: NavigationMessage) =>
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 5px;
-  padding: 6px 0;
+  gap: 2px;
+  padding: 4px 0;
   will-change: transform;
 }
 
@@ -246,7 +299,7 @@ const isActiveMessage = (message: NavigationMessage) =>
   width: 100%;
   cursor: pointer;
   transform-origin: right center;
-  padding: 1px 0;
+  padding: 0;
   transition:
     opacity 0.12s linear,
     filter 0.2s ease;

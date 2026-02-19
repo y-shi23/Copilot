@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 import { extractMarkdownHeadings, type HeadingItem } from '../../utils/markdown/headingIds';
 
@@ -35,6 +35,14 @@ const shouldShow = computed(
   () => props.enabled && props.messageStyle !== 'grid' && headings.value.length > 0,
 );
 
+const containerRef = ref<HTMLElement | null>(null);
+const centerTopPx = ref(0);
+const isCenterActive = ref(true);
+
+let scrollHost: HTMLElement | null = null;
+let scrollTarget: EventTarget | null = null;
+let frameId = 0;
+
 const escapeSelector = (value: string) => {
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
     return CSS.escape(value);
@@ -49,6 +57,72 @@ const dotWidth = (level: number) => {
 };
 
 const textOffset = (level: number) => Math.max(0, level - minHeadingLevel.value) * 8;
+
+const getViewportCenterY = () => {
+  if (scrollHost) {
+    const rect = scrollHost.getBoundingClientRect();
+    return rect.top + rect.height / 2;
+  }
+  return window.innerHeight / 2;
+};
+
+const computeCenterTop = () => {
+  if (scrollHost) {
+    centerTopPx.value = Math.max(0, scrollHost.getBoundingClientRect().height / 2);
+    return;
+  }
+  centerTopPx.value = Math.max(0, window.innerHeight / 2);
+};
+
+const computeActiveState = () => {
+  if (!containerRef.value) {
+    isCenterActive.value = true;
+    return;
+  }
+
+  const messageElement = containerRef.value.closest('.chat-message') as HTMLElement | null;
+  if (!messageElement) {
+    isCenterActive.value = true;
+    return;
+  }
+
+  const rect = messageElement.getBoundingClientRect();
+  const centerY = getViewportCenterY();
+  isCenterActive.value = rect.top <= centerY && rect.bottom >= centerY;
+};
+
+const syncLayoutState = () => {
+  computeCenterTop();
+  computeActiveState();
+};
+
+const scheduleLayoutSync = () => {
+  if (frameId) return;
+  frameId = window.requestAnimationFrame(() => {
+    frameId = 0;
+    syncLayoutState();
+  });
+};
+
+const handleViewportChange = () => {
+  scheduleLayoutSync();
+};
+
+const bindViewportListeners = () => {
+  scrollHost = (containerRef.value?.closest('.chat-main') as HTMLElement | null) || null;
+  scrollTarget = scrollHost || window;
+  scrollTarget.addEventListener('scroll', handleViewportChange, { passive: true });
+  window.addEventListener('resize', handleViewportChange, { passive: true });
+};
+
+const unbindViewportListeners = () => {
+  if (scrollTarget) {
+    scrollTarget.removeEventListener('scroll', handleViewportChange);
+  }
+  scrollTarget = null;
+  scrollHost = null;
+  window.removeEventListener('resize', handleViewportChange);
+};
 
 const scrollToHeading = (id: string) => {
   const messageElement = document.getElementById(`message-${String(props.messageId)}`);
@@ -66,11 +140,38 @@ const scrollToHeading = (id: string) => {
     inline: 'nearest',
   });
 };
+
+onMounted(async () => {
+  await nextTick();
+  bindViewportListeners();
+  syncLayoutState();
+});
+
+onBeforeUnmount(() => {
+  if (frameId) {
+    window.cancelAnimationFrame(frameId);
+    frameId = 0;
+  }
+  unbindViewportListeners();
+});
+
+watch(
+  () => [props.enabled, props.messageStyle, props.markdown, headings.value.length],
+  async () => {
+    await nextTick();
+    scheduleLayoutSync();
+  },
+);
 </script>
 
 <template>
-  <div v-if="shouldShow" class="message-outline-container">
-    <div class="message-outline-body">
+  <div
+    v-if="shouldShow"
+    ref="containerRef"
+    class="message-outline-container"
+    :class="{ 'is-active': isCenterActive }"
+  >
+    <div class="message-outline-body" :style="{ '--outline-center-top': `${centerTopPx}px` }">
       <button
         v-for="heading in headings"
         :key="heading.id"
@@ -104,19 +205,26 @@ const scrollToHeading = (id: string) => {
 
 .message-outline-body {
   position: sticky;
-  top: 18px;
+  top: var(--outline-center-top, 50%);
+  transform: translateY(-50%);
   display: inline-flex;
   flex-direction: column;
   gap: 4px;
-  max-height: min(70vh, 100%);
+  max-height: min(72vh, calc(100vh - 24px));
   padding: 8px 0 8px 6px;
   border-radius: 10px;
   pointer-events: auto;
   overflow: hidden;
+  opacity: 0.72;
   transition:
+    opacity 0.2s ease,
     background-color 0.2s ease,
     box-shadow 0.2s ease,
     padding 0.2s ease;
+}
+
+.message-outline-container.is-active .message-outline-body {
+  opacity: 1;
 }
 
 .message-outline-body:hover {
