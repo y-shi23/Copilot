@@ -107,7 +107,7 @@ const handleClose = () => {
       </el-input>
     </div>
 
-    <div class="model-dropdown-wrapper app-dropdown-surface custom-scrollbar">
+    <div class="model-dropdown-wrapper custom-scrollbar">
       <div v-if="groupedModelList.length === 0" class="model-empty">暂无匹配模型</div>
 
       <div v-for="group in groupedModelList" :key="group.provider" class="provider-group">
