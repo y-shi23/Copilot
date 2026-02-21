@@ -362,6 +362,31 @@
       "default": "デフォルト",
       "leaveEmpty": "空の場合はデフォルト値を使用",
       "response": "応答結果:"
+    },
+    "runtime": {
+      "entry": "ランタイム",
+      "title": "MCP ランタイム環境",
+      "fallbackHint": "システムに npx/uv/uvx がない場合、MCP は内蔵 Bun/UV に自動フォールバックします。",
+      "platform": "プラットフォーム",
+      "binDir": "インストール先",
+      "openDir": "フォルダーを開く",
+      "refresh": "状態を更新",
+      "installed": "インストール済み",
+      "notInstalled": "未インストール",
+      "notFound": "未検出",
+      "systemNpx": "システム npx",
+      "systemUv": "システム uv",
+      "systemUvx": "システム uvx",
+      "builtinBun": "内蔵 Bun",
+      "builtinUv": "内蔵 UV",
+      "builtinUvx": "内蔵 uvx",
+      "installBun": "Bun をインストール",
+      "installUv": "UV をインストール",
+      "installAll": "Bun + UV を一括インストール",
+      "installSuccess": "ランタイムのインストールが完了しました",
+      "installFailed": "ランタイムのインストールに失敗しました",
+      "loadFailed": "ランタイム状態の取得に失敗しました",
+      "apiUnavailable": "このビルドではランタイムインストール API を利用できません"
     }
   },
   "skills": {

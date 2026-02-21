@@ -362,6 +362,31 @@
       "default": "Default",
       "leaveEmpty": "Leave empty for default",
       "response": "Response Result:"
+    },
+    "runtime": {
+      "entry": "Runtime",
+      "title": "MCP Runtime Environment",
+      "fallbackHint": "When npx/uv/uvx is missing from system PATH, MCP will automatically fall back to built-in Bun/UV.",
+      "platform": "Platform",
+      "binDir": "Install Directory",
+      "openDir": "Open Directory",
+      "refresh": "Refresh Status",
+      "installed": "Installed",
+      "notInstalled": "Not Installed",
+      "notFound": "Not Found",
+      "systemNpx": "System npx",
+      "systemUv": "System uv",
+      "systemUvx": "System uvx",
+      "builtinBun": "Built-in Bun",
+      "builtinUv": "Built-in UV",
+      "builtinUvx": "Built-in uvx",
+      "installBun": "Install Bun",
+      "installUv": "Install UV",
+      "installAll": "Install Bun + UV",
+      "installSuccess": "Runtime installation completed",
+      "installFailed": "Runtime installation failed",
+      "loadFailed": "Failed to load runtime status",
+      "apiUnavailable": "Runtime installation API is unavailable in this build"
     }
   },
   "skills": {

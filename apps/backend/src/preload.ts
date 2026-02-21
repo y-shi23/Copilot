@@ -76,6 +76,8 @@ const invokeMcpTool = (...args) => getMcpRuntime().invokeMcpTool(...args);
 const closeMcpClient = (...args) => getMcpRuntime().closeMcpClient(...args);
 const connectAndFetchTools = (...args) => getMcpRuntime().connectAndFetchTools(...args);
 const connectAndInvokeTool = (...args) => getMcpRuntime().connectAndInvokeTool(...args);
+const getMcpRuntimeStatus = (...args) => getMcpRuntime().getMcpRuntimeStatus(...args);
+const installMcpRuntime = (...args) => getMcpRuntime().installMcpRuntime(...args);
 
 const listSkills = (...args) => getSkillRuntime().listSkills(...args);
 const getSkillDetails = (...args) => getSkillRuntime().getSkillDetails(...args);
@@ -191,6 +193,24 @@ window.api = {
   },
   invokeMcpTool,
   closeMcpClient,
+  getMcpRuntimeStatus: async () => {
+    try {
+      const data = await getMcpRuntimeStatus();
+      return { success: true, data };
+    } catch (error) {
+      console.error('[Preload] getMcpRuntimeStatus error:', error);
+      return { success: false, error: String(error?.message || error) };
+    }
+  },
+  installMcpRuntime: async (target = 'all') => {
+    try {
+      const data = await installMcpRuntime(target);
+      return { success: true, data };
+    } catch (error) {
+      console.error('[Preload] installMcpRuntime error:', error);
+      return { success: false, error: String(error?.message || error) };
+    }
+  },
   isFileTypeSupported,
   parseFileObject,
   copyLocalPath: async (src, dest) => {

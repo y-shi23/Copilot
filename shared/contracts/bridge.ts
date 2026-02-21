@@ -75,6 +75,24 @@ export interface ConversationTitleResult {
   error?: string;
 }
 
+export interface RuntimeStatus {
+  binDir: string;
+  bunInstalled: boolean;
+  uvInstalled: boolean;
+  uvxInstalled: boolean;
+  systemNpxPath: string;
+  systemUvPath: string;
+  systemUvxPath: string;
+  platform: string;
+  arch: string;
+}
+
+export interface RuntimeApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
 export interface MainWindowApi {
   getConfig: () => Promise<ConfigPayload> | ConfigPayload;
   updateConfig: AnyFn;
@@ -107,6 +125,8 @@ export interface MainWindowApi {
   testInvokeMcpTool: AnyFn;
   invokeMcpTool: AnyFn;
   closeMcpClient: AnyFn;
+  getMcpRuntimeStatus?: () => Promise<RuntimeApiResponse<RuntimeStatus>>;
+  installMcpRuntime?: (target: 'bun' | 'uv' | 'all') => Promise<RuntimeApiResponse<RuntimeStatus>>;
   isFileTypeSupported: AnyFn;
   parseFileObject: AnyFn;
   copyLocalPath: AnyFn;

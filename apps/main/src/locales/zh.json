@@ -362,6 +362,31 @@
       "default": "默认",
       "leaveEmpty": "留空使用默认值",
       "response": "响应结果:"
+    },
+    "runtime": {
+      "entry": "运行时环境",
+      "title": "MCP 运行时环境",
+      "fallbackHint": "当系统缺少 npx/uv/uvx 时，MCP 将自动回退到内置 Bun/UV。",
+      "platform": "平台",
+      "binDir": "安装目录",
+      "openDir": "打开目录",
+      "refresh": "刷新状态",
+      "installed": "已安装",
+      "notInstalled": "未安装",
+      "notFound": "未检测到",
+      "systemNpx": "系统 npx",
+      "systemUv": "系统 uv",
+      "systemUvx": "系统 uvx",
+      "builtinBun": "内置 Bun",
+      "builtinUv": "内置 UV",
+      "builtinUvx": "内置 uvx",
+      "installBun": "安装 Bun",
+      "installUv": "安装 UV",
+      "installAll": "一键安装 Bun + UV",
+      "installSuccess": "运行时安装完成",
+      "installFailed": "运行时安装失败",
+      "loadFailed": "读取运行时状态失败",
+      "apiUnavailable": "当前版本暂不支持运行时安装接口"
     }
   },
   "skills": {

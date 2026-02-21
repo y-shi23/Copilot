@@ -17,6 +17,7 @@ import {
   ChevronRight as CaretRight,
   ChevronDown as CaretBottom,
   Zap,
+  Download,
   ChevronRight,
 } from 'lucide-vue-next';
 const { t } = useI18n();
@@ -59,6 +60,106 @@ const currentTestToolName = ref('');
 const testFormData = ref({});
 const testRunning = ref(false);
 const testOutput = ref('');
+
+// MCP 运行时相关状态
+const showRuntimeDialog = ref(false);
+const runtimeStatusLoading = ref(false);
+const runtimeInstallingTarget = ref('');
+const runtimeStatus = reactive({
+  binDir: '',
+  bunInstalled: false,
+  uvInstalled: false,
+  uvxInstalled: false,
+  systemNpxPath: '',
+  systemUvPath: '',
+  systemUvxPath: '',
+  platform: '',
+  arch: '',
+});
+
+const canOpenRuntimeBinDir = computed(
+  () => !!runtimeStatus.binDir && typeof window.api?.shellOpenPath === 'function',
+);
+
+const hasRuntimeInstallApi = () => typeof window.api?.installMcpRuntime === 'function';
+
+const formatRuntimePath = (value) => value || t('mcp.runtime.notFound');
+
+const applyRuntimeStatus = (nextStatus = {}) => {
+  runtimeStatus.binDir = nextStatus.binDir || '';
+  runtimeStatus.bunInstalled = !!nextStatus.bunInstalled;
+  runtimeStatus.uvInstalled = !!nextStatus.uvInstalled;
+  runtimeStatus.uvxInstalled = !!nextStatus.uvxInstalled;
+  runtimeStatus.systemNpxPath = nextStatus.systemNpxPath || '';
+  runtimeStatus.systemUvPath = nextStatus.systemUvPath || '';
+  runtimeStatus.systemUvxPath = nextStatus.systemUvxPath || '';
+  runtimeStatus.platform = nextStatus.platform || '';
+  runtimeStatus.arch = nextStatus.arch || '';
+};
+
+async function fetchRuntimeStatus(options = {}) {
+  const { silent = false } = options;
+  if (typeof window.api?.getMcpRuntimeStatus !== 'function') {
+    if (!silent) {
+      ElMessage.error(t('mcp.runtime.loadFailed'));
+    }
+    return;
+  }
+
+  runtimeStatusLoading.value = true;
+  try {
+    const result = await window.api.getMcpRuntimeStatus();
+    if (result?.success && result.data) {
+      applyRuntimeStatus(result.data);
+      return;
+    }
+    throw new Error(result?.error || t('mcp.runtime.loadFailed'));
+  } catch (error) {
+    if (!silent) {
+      ElMessage.error(`${t('mcp.runtime.loadFailed')}: ${error.message || error}`);
+    }
+  } finally {
+    runtimeStatusLoading.value = false;
+  }
+}
+
+function openRuntimeDialog() {
+  showRuntimeDialog.value = true;
+  fetchRuntimeStatus();
+}
+
+function openRuntimeBinDir() {
+  if (!canOpenRuntimeBinDir.value) return;
+  window.api.shellOpenPath(runtimeStatus.binDir);
+}
+
+async function installRuntime(target) {
+  if (!hasRuntimeInstallApi()) {
+    ElMessage.error(t('mcp.runtime.apiUnavailable'));
+    return;
+  }
+  if (runtimeInstallingTarget.value) return;
+
+  runtimeInstallingTarget.value = target;
+  try {
+    const result = await window.api.installMcpRuntime(target);
+    if (!result?.success) {
+      throw new Error(result?.error || t('mcp.runtime.installFailed'));
+    }
+
+    if (result.data) {
+      applyRuntimeStatus(result.data);
+    } else {
+      await fetchRuntimeStatus({ silent: true });
+    }
+
+    ElMessage.success(t('mcp.runtime.installSuccess'));
+  } catch (error) {
+    ElMessage.error(`${t('mcp.runtime.installFailed')}: ${error.message || error}`);
+  } finally {
+    runtimeInstallingTarget.value = '';
+  }
+}
 
 // 计算当前选中工具的 Schema
 const currentTestToolSchema = computed(() => {
@@ -778,6 +879,9 @@ async function triggerConnectionTest(server) {
       <el-button class="action-btn" @click="prepareAddServer" :icon="Plus" type="primary">
         {{ t('mcp.addServer') }}
       </el-button>
+      <el-button class="action-btn" @click="openRuntimeDialog" :icon="Download">
+        {{ t('mcp.runtime.entry') }}
+      </el-button>
       <el-button class="action-btn" @click="prepareEditJson" :icon="Edit">
         {{ t('mcp.editJson') }}
       </el-button>
@@ -937,6 +1041,143 @@ async function triggerConnectionTest(server) {
       <template #footer>
         <el-button @click="showJsonDialog = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" @click="saveJson">{{ t('common.confirm') }}</el-button>
+      </template>
+    </AppDialogCard>
+
+    <!-- 运行时安装弹窗 -->
+    <AppDialogCard
+      v-model="showRuntimeDialog"
+      :title="t('mcp.runtime.title')"
+      width="720px"
+      variant="compact"
+    >
+      <div class="runtime-dialog-content">
+        <el-alert
+          :title="t('mcp.runtime.fallbackHint')"
+          type="info"
+          show-icon
+          :closable="false"
+          style="margin-bottom: 16px"
+        />
+
+        <div class="runtime-summary">
+          <div class="runtime-summary-item">
+            <span class="runtime-summary-label">{{ t('mcp.runtime.platform') }}:</span>
+            <span class="runtime-summary-value">
+              {{ runtimeStatus.platform || '-' }}/{{ runtimeStatus.arch || '-' }}
+            </span>
+          </div>
+          <div class="runtime-summary-item">
+            <span class="runtime-summary-label">{{ t('mcp.runtime.binDir') }}:</span>
+            <span class="runtime-path">{{ runtimeStatus.binDir || '-' }}</span>
+          </div>
+        </div>
+
+        <div class="runtime-cards">
+          <div class="runtime-card">
+            <div class="runtime-card-header">
+              <span class="runtime-card-title">Bun</span>
+              <el-tag :type="runtimeStatus.bunInstalled ? 'success' : 'info'" size="small">
+                {{
+                  runtimeStatus.bunInstalled
+                    ? t('mcp.runtime.installed')
+                    : t('mcp.runtime.notInstalled')
+                }}
+              </el-tag>
+            </div>
+            <div class="runtime-card-row">
+              <span class="runtime-card-label">{{ t('mcp.runtime.systemNpx') }}</span>
+              <span class="runtime-path">{{ formatRuntimePath(runtimeStatus.systemNpxPath) }}</span>
+            </div>
+            <div class="runtime-card-row">
+              <span class="runtime-card-label">{{ t('mcp.runtime.builtinBun') }}</span>
+              <span class="runtime-card-value">{{
+                runtimeStatus.bunInstalled
+                  ? t('mcp.runtime.installed')
+                  : t('mcp.runtime.notInstalled')
+              }}</span>
+            </div>
+            <el-button
+              size="small"
+              type="primary"
+              plain
+              :loading="runtimeInstallingTarget === 'bun'"
+              :disabled="!hasRuntimeInstallApi() || !!runtimeInstallingTarget"
+              @click="installRuntime('bun')"
+            >
+              {{ t('mcp.runtime.installBun') }}
+            </el-button>
+          </div>
+
+          <div class="runtime-card">
+            <div class="runtime-card-header">
+              <span class="runtime-card-title">UV</span>
+              <el-tag :type="runtimeStatus.uvInstalled ? 'success' : 'info'" size="small">
+                {{
+                  runtimeStatus.uvInstalled
+                    ? t('mcp.runtime.installed')
+                    : t('mcp.runtime.notInstalled')
+                }}
+              </el-tag>
+            </div>
+            <div class="runtime-card-row">
+              <span class="runtime-card-label">{{ t('mcp.runtime.systemUv') }}</span>
+              <span class="runtime-path">{{ formatRuntimePath(runtimeStatus.systemUvPath) }}</span>
+            </div>
+            <div class="runtime-card-row">
+              <span class="runtime-card-label">{{ t('mcp.runtime.systemUvx') }}</span>
+              <span class="runtime-path">{{ formatRuntimePath(runtimeStatus.systemUvxPath) }}</span>
+            </div>
+            <div class="runtime-card-row">
+              <span class="runtime-card-label">{{ t('mcp.runtime.builtinUv') }}</span>
+              <span class="runtime-card-value">{{
+                runtimeStatus.uvInstalled
+                  ? t('mcp.runtime.installed')
+                  : t('mcp.runtime.notInstalled')
+              }}</span>
+            </div>
+            <div class="runtime-card-row">
+              <span class="runtime-card-label">{{ t('mcp.runtime.builtinUvx') }}</span>
+              <span class="runtime-card-value">{{
+                runtimeStatus.uvxInstalled
+                  ? t('mcp.runtime.installed')
+                  : t('mcp.runtime.notInstalled')
+              }}</span>
+            </div>
+            <el-button
+              size="small"
+              type="primary"
+              plain
+              :loading="runtimeInstallingTarget === 'uv'"
+              :disabled="!hasRuntimeInstallApi() || !!runtimeInstallingTarget"
+              @click="installRuntime('uv')"
+            >
+              {{ t('mcp.runtime.installUv') }}
+            </el-button>
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <el-button @click="openRuntimeBinDir" :disabled="!canOpenRuntimeBinDir">
+          {{ t('mcp.runtime.openDir') }}
+        </el-button>
+        <el-button
+          :icon="Refresh"
+          :loading="runtimeStatusLoading"
+          :disabled="!!runtimeInstallingTarget"
+          @click="fetchRuntimeStatus"
+        >
+          {{ t('mcp.runtime.refresh') }}
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="runtimeInstallingTarget === 'all'"
+          :disabled="!hasRuntimeInstallApi() || !!runtimeInstallingTarget"
+          @click="installRuntime('all')"
+        >
+          {{ t('mcp.runtime.installAll') }}
+        </el-button>
       </template>
     </AppDialogCard>
 
@@ -1464,6 +1705,90 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
   flex-grow: 0;
   min-width: 0;
   font-weight: 500;
+}
+
+.runtime-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.runtime-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+}
+
+.runtime-summary-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.runtime-summary-label {
+  min-width: 88px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.runtime-summary-value {
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.runtime-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.runtime-card {
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.runtime-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.runtime-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.runtime-card-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.runtime-card-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.runtime-card-value {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.runtime-path {
+  font-family: ui-monospace, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--text-primary);
+  word-break: break-all;
 }
 
 .advanced-collapse {

@@ -362,6 +362,31 @@
       "default": "По умолч.",
       "leaveEmpty": "Оставьте пустым для значения по умолчанию",
       "response": "Результат:"
+    },
+    "runtime": {
+      "entry": "Среда runtime",
+      "title": "Среда выполнения MCP",
+      "fallbackHint": "Если в системе отсутствуют npx/uv/uvx, MCP автоматически переключится на встроенные Bun/UV.",
+      "platform": "Платформа",
+      "binDir": "Каталог установки",
+      "openDir": "Открыть каталог",
+      "refresh": "Обновить статус",
+      "installed": "Установлено",
+      "notInstalled": "Не установлено",
+      "notFound": "Не найдено",
+      "systemNpx": "Системный npx",
+      "systemUv": "Системный uv",
+      "systemUvx": "Системный uvx",
+      "builtinBun": "Встроенный Bun",
+      "builtinUv": "Встроенный UV",
+      "builtinUvx": "Встроенный uvx",
+      "installBun": "Установить Bun",
+      "installUv": "Установить UV",
+      "installAll": "Установить Bun + UV",
+      "installSuccess": "Установка runtime завершена",
+      "installFailed": "Не удалось установить runtime",
+      "loadFailed": "Не удалось загрузить статус runtime",
+      "apiUnavailable": "API установки runtime недоступен в этой сборке"
     }
   },
   "skills": {
