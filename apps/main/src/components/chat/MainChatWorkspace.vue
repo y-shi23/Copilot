@@ -121,9 +121,10 @@ const nonSystemMessages = computed(() =>
 const showNewChatAnimation = computed(
   () => hasSessionInitialized.value && !loading.value && nonSystemMessages.value.length === 0,
 );
-const chatInputShellTop = ref(0);
+const chatInputShellTop = ref(-9999);
 const chatInputShellHeight = ref(0);
-const newChatAnimationTop = ref(0);
+const newChatAnimationTop = ref(-9999);
+const isLayoutInitialized = ref(false);
 const mainAreaWrapperStyle = computed(() => ({
   '--chat-input-shell-top': `${Math.max(chatInputShellTop.value, 0)}px`,
   '--chat-input-shell-height': `${Math.max(chatInputShellHeight.value, 0)}px`,
@@ -271,6 +272,9 @@ const updateNewChatLayoutMetrics = () => {
   if (!showNewChatAnimation.value) {
     chatInputShellTop.value = normalInputTop;
     newChatAnimationTop.value = Math.max((wrapperHeight - animationHeight) / 2, 0);
+    if (!isLayoutInitialized.value) {
+      isLayoutInitialized.value = true;
+    }
     return;
   }
 
@@ -278,6 +282,9 @@ const updateNewChatLayoutMetrics = () => {
   const stackTop = Math.max((wrapperHeight - stackedHeight) / 2, 0);
   newChatAnimationTop.value = stackTop;
   chatInputShellTop.value = stackTop + animationHeight + NEW_CHAT_STACK_GAP;
+  if (!isLayoutInitialized.value) {
+    isLayoutInitialized.value = true;
+  }
 };
 
 const reconnectLayoutResizeObserver = () => {
@@ -1092,7 +1099,7 @@ const handleOpenSearch = () => {
         <div
           ref="chatInputShellRef"
           class="chat-input-shell"
-          :class="{ 'is-centered': showNewChatAnimation }"
+          :class="{ 'is-centered': showNewChatAnimation, 'has-messages': !showNewChatAnimation }"
         >
           <ChatInput
             ref="chatInputRef"
@@ -1238,10 +1245,15 @@ const handleOpenSearch = () => {
   position: absolute;
   left: 0;
   right: 0;
-  top: var(--chat-input-shell-top);
+  bottom: 0;
   z-index: 35;
+  will-change: transform;
+}
+
+.chat-input-shell.is-centered {
+  bottom: auto;
+  top: var(--chat-input-shell-top);
   transition: top 380ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: top;
 }
 
 .new-chat-animation-shell {
