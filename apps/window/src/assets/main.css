@@ -269,11 +269,6 @@ html.dark .circle-action-btn-sm:hover {
   background-color: #1e1e1e !important;
 }
 
-.circle-action-btn-sm:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--bg-accent) 55%, transparent);
-  outline-offset: 1px;
-}
-
 .rounded-action-btn {
   width: 32px !important;
   height: 32px !important;

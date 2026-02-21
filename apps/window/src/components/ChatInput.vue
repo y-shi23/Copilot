@@ -2151,16 +2151,12 @@ html.dark .chat-input-area-vertical {
   color: var(--text-secondary) !important;
 }
 
-.chat-input-area-vertical .input-icon-btn.circle-action-btn:not(.message-send-btn):hover,
-.chat-input-area-vertical .input-icon-btn.circle-action-btn:not(.message-send-btn):focus-visible {
+.chat-input-area-vertical .input-icon-btn.circle-action-btn:not(.message-send-btn):hover {
   background-color: #ebebef !important;
   color: var(--text-primary) !important;
 }
 
-html.dark .chat-input-area-vertical .input-icon-btn.circle-action-btn:not(.message-send-btn):hover,
-html.dark
-  .chat-input-area-vertical
-  .input-icon-btn.circle-action-btn:not(.message-send-btn):focus-visible {
+html.dark .chat-input-area-vertical .input-icon-btn.circle-action-btn:not(.message-send-btn):hover {
   background-color: #1e1e1e !important;
 }
 
@@ -2170,7 +2166,6 @@ html.dark
 
 .chat-input-area-vertical .action-buttons-left .el-button.is-active-special {
   color: var(--text-accent) !important;
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-accent) 24%, transparent) inset;
 }
 
 .chat-input-area-vertical .send-action-btn {
@@ -2188,14 +2183,12 @@ html.dark .chat-input-area-vertical .message-send-btn {
   color: #000000;
 }
 
-.chat-input-area-vertical .action-buttons-right .message-send-btn:hover,
-.chat-input-area-vertical .action-buttons-right .message-send-btn:focus-visible {
+.chat-input-area-vertical .action-buttons-right .message-send-btn:hover {
   background-color: #1a1a1a;
   color: #ffffff;
 }
 
-html.dark .chat-input-area-vertical .action-buttons-right .message-send-btn:hover,
-html.dark .chat-input-area-vertical .action-buttons-right .message-send-btn:focus-visible {
+html.dark .chat-input-area-vertical .action-buttons-right .message-send-btn:hover {
   background-color: #e5e5e5;
   color: #000000;
 }

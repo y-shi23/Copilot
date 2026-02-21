@@ -984,10 +984,6 @@ async function handleExportSkills() {
   box-shadow: 0 0 0 1px var(--border-primary) inset !important;
 }
 
-.path-bar-container :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--text-accent) inset !important;
-}
-
 .empty-state {
   display: flex;
   justify-content: center;
@@ -1295,12 +1291,6 @@ async function handleExportSkills() {
   background-color: var(--bg-tertiary);
   transition: border-color 0.2s;
   box-sizing: border-box;
-}
-
-/* 聚焦时高亮容器边框 */
-.textarea-scrollbar-wrapper:focus-within {
-  border-color: var(--el-color-primary);
-  box-shadow: 0 0 0 1px var(--el-color-primary) inset;
 }
 
 /* 右侧全高修饰符 */

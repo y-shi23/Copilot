@@ -1789,10 +1789,6 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
   box-shadow: 0 0 0 1px var(--border-primary) inset !important;
 }
 
-.search-bar-container :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--text-accent) inset !important;
-}
-
 .prompts-header {
   display: flex;
   align-items: center;
@@ -2421,11 +2417,6 @@ html.dark .canvas-wrapper {
   border-radius: var(--radius-md);
   background-color: var(--bg-tertiary);
   transition: all 0.2s;
-}
-
-.prompt-textarea-scrollbar:focus-within {
-  border-color: var(--text-accent);
-  box-shadow: 0 0 0 1px var(--text-accent) inset;
 }
 
 .prompt-textarea-scrollbar :deep(.el-textarea__inner) {

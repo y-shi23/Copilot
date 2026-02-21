@@ -917,11 +917,6 @@ const deleteVoice = (voiceToDelete) => {
     box-shadow 0.2s ease;
 }
 
-.path-input-wrapper:focus-within {
-  border-color: var(--bg-accent);
-  box-shadow: 0 0 0 2px rgba(51, 156, 255, 0.15);
-}
-
 .path-input {
   flex: 1;
   min-width: 0;

@@ -1270,10 +1270,6 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
   box-shadow: 0 0 0 1px var(--border-primary) inset !important;
 }
 
-.search-bar-container :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--text-accent) inset !important;
-}
-
 .empty-state {
   display: flex;
   justify-content: center;
@@ -1577,10 +1573,6 @@ html.dark .advanced-collapse :deep(.el-collapse-item__wrap) {
   transition: border-color 0.2s;
 }
 
-.json-editor-scrollbar:has(:focus-within) {
-  border-color: var(--el-color-primary);
-}
-
 .json-editor-scrollbar :deep(.el-textarea__inner) {
   background-color: transparent;
   border: none;
@@ -1598,10 +1590,6 @@ html.dark .advanced-collapse :deep(.el-collapse-item__wrap) {
   box-shadow: none !important;
 }
 
-.item-scrollbar :deep(.el-input__wrapper.is-focus) {
-  box-shadow: none !important;
-}
-
 .refresh-fab-button {
   margin-left: auto;
 }
@@ -1612,10 +1600,6 @@ html.dark .advanced-collapse :deep(.el-collapse-item__wrap) {
   border: 1px solid var(--el-border-color);
   background-color: var(--el-fill-color-blank);
   transition: border-color 0.2s;
-}
-
-.item-scrollbar:has(:focus-within) {
-  border-color: var(--el-color-primary);
 }
 
 .item-scrollbar :deep(.el-textarea__inner) {

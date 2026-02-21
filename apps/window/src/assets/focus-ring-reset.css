@@ -1,0 +1,27 @@
+:root {
+  --el-input-focus-border-color: var(--el-border-color);
+  --el-select-input-focus-border-color: var(--el-border-color);
+  --el-input-focus-border: var(--el-border-color);
+}
+
+html.dark {
+  --el-input-focus-border-color: var(--el-border-color);
+  --el-select-input-focus-border-color: var(--el-border-color);
+  --el-input-focus-border: var(--el-border-color);
+}
+
+:where(
+  .el-input__wrapper.is-focus,
+  .el-input.is-active .el-input__wrapper,
+  .el-textarea__inner:focus,
+  .el-select__wrapper.is-focused,
+  .el-select__wrapper.is-disabled.is-focus
+) {
+  box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
+  outline: none !important;
+}
+
+:where(button, [role='button'], a, input, textarea, select, [tabindex]):focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}

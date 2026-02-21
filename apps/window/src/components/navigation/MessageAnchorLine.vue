@@ -306,7 +306,6 @@ const isActiveMessage = (message: NavigationMessage) =>
 }
 
 .message-anchor-item.active .message-anchor-avatar {
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--el-color-primary) 35%, transparent);
 }
 
 .message-anchor-content {
@@ -369,7 +368,6 @@ const isActiveMessage = (message: NavigationMessage) =>
 
 .bottom-anchor.is-highlight .bottom-anchor-icon {
   background: color-mix(in srgb, var(--el-color-primary) 24%, transparent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--el-color-primary) 20%, transparent);
 }
 
 .bottom-content .anchor-content-title {

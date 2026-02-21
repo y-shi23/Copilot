@@ -1,6 +1,7 @@
 // @ts-nocheck
 import './assets/main.css';
 import '@window/assets/dialog-card.css';
+import '@window/assets/focus-ring-reset.css';
 
 import { createApp } from 'vue';
 import ElementPlus from 'element-plus';

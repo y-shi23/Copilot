@@ -190,11 +190,6 @@ const logoTransformStyle = computed(() => ({
   transform: none;
 }
 
-.model-pill:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--text-accent) 45%, transparent);
-  outline-offset: 1px;
-}
-
 .model-pill.is-disabled {
   opacity: 0.7;
   cursor: not-allowed;

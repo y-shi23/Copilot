@@ -1542,8 +1542,7 @@ onBeforeUnmount(() => {
   background-color: rgba(255, 255, 255, 0.62);
 }
 
-.assistant-sidebar-draggable.is-assistant-dragging .assistant-row:hover,
-.assistant-sidebar-draggable.is-assistant-dragging .assistant-row:focus-visible {
+.assistant-sidebar-draggable.is-assistant-dragging .assistant-row:hover {
   color: var(--text-secondary);
   background-color: transparent;
 }
@@ -1569,11 +1568,6 @@ onBeforeUnmount(() => {
   box-shadow:
     0 8px 24px -4px rgba(0, 0, 0, 0.5),
     0 2px 6px -1px rgba(0, 0, 0, 0.25) !important;
-}
-
-.assistant-row:focus-visible {
-  color: var(--text-primary);
-  background-color: rgba(255, 255, 255, 0.62);
 }
 
 .assistant-folder {
@@ -1636,15 +1630,6 @@ onBeforeUnmount(() => {
 .assistant-new-session-btn:hover {
   color: var(--text-primary);
   background-color: color-mix(in srgb, var(--bg-tertiary) 84%, transparent);
-}
-
-.assistant-new-session-btn:focus-visible {
-  opacity: 1;
-  pointer-events: auto;
-  color: var(--text-primary);
-  background-color: color-mix(in srgb, var(--bg-tertiary) 84%, transparent);
-  outline: 2px solid color-mix(in srgb, var(--text-accent) 45%, transparent);
-  outline-offset: 1px;
 }
 
 .assistant-sessions {
@@ -1865,11 +1850,6 @@ html:not(.dark) .session-context-item:hover {
   box-shadow: none;
 }
 
-.sidebar-resize-handle:focus-visible::before {
-  background-color: color-mix(in srgb, var(--text-accent) 74%, transparent);
-  box-shadow: none;
-}
-
 .workspace-main {
   padding: 0;
   margin: 0;
@@ -1997,8 +1977,7 @@ html.dark .assistant-row:hover {
   background-color: rgba(255, 255, 255, 0.08);
 }
 
-html.dark .assistant-sidebar-draggable.is-assistant-dragging .assistant-row:hover,
-html.dark .assistant-sidebar-draggable.is-assistant-dragging .assistant-row:focus-visible {
+html.dark .assistant-sidebar-draggable.is-assistant-dragging .assistant-row:hover {
   color: #bfbcb8;
   background-color: transparent;
 }

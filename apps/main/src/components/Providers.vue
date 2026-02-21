@@ -2203,10 +2203,6 @@ watch(contextMenuVisible, (val) => {
   box-shadow: 0 0 0 1px var(--border-primary) inset !important;
 }
 
-.dialog-search-bar-container :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--text-accent) inset !important;
-}
-
 .label-with-badge {
   position: relative;
   display: inline-flex;
