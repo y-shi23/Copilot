@@ -3,6 +3,7 @@
 import { ref, reactive, computed, inject, onMounted, nextTick, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox, ElScrollbar, ElAlert } from 'element-plus';
+import AppDialogCard from '@window/components/ui/AppDialogCard.vue';
 import {
   Plus,
   Trash2 as Delete,
@@ -791,13 +792,12 @@ async function triggerConnectionTest(server) {
     </div>
 
     <!-- 编辑弹窗 (保持不变) -->
-    <el-dialog
+    <AppDialogCard
       v-model="showEditDialog"
       :title="isNewServer ? t('mcp.addServerTitle') : t('mcp.editServerTitle')"
       width="700px"
-      :close-on-click-modal="false"
-      append-to-body
-      class="mcp-edit-dialog"
+      variant="compact"
+      dialog-class="mcp-edit-dialog"
     >
       <el-form :model="editingServer" label-position="top" @submit.prevent="saveServer">
         <el-row :gutter="20">
@@ -914,16 +914,15 @@ async function triggerConnectionTest(server) {
         <el-button @click="showEditDialog = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" @click="saveServer">{{ t('common.confirm') }}</el-button>
       </template>
-    </el-dialog>
+    </AppDialogCard>
 
     <!-- JSON 编辑弹窗 (保持不变) -->
-    <el-dialog
+    <AppDialogCard
       v-model="showJsonDialog"
       :title="t('mcp.jsonDialog.title')"
       width="700px"
-      :close-on-click-modal="false"
-      custom-class="mcp-json-dialog"
-      append-to-body
+      variant="compact"
+      dialog-class="mcp-json-dialog"
     >
       <el-alert
         :title="t('mcp.jsonDialog.description')"
@@ -939,14 +938,15 @@ async function triggerConnectionTest(server) {
         <el-button @click="showJsonDialog = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" @click="saveJson">{{ t('common.confirm') }}</el-button>
       </template>
-    </el-dialog>
+    </AppDialogCard>
 
     <!-- 测试结果弹窗 -->
-    <el-dialog
+    <AppDialogCard
       v-model="showTestResultDialog"
       width="650px"
-      append-to-body
-      class="test-result-dialog"
+      variant="compact"
+      :close-on-click-modal="true"
+      dialog-class="test-result-dialog"
     >
       <template #header>
         <div class="test-dialog-header" style="align-items: center">
@@ -1202,7 +1202,7 @@ async function triggerConnectionTest(server) {
       <template #footer>
         <el-button @click="showTestResultDialog = false">{{ t('common.close') }}</el-button>
       </template>
-    </el-dialog>
+    </AppDialogCard>
   </div>
 </template>
 

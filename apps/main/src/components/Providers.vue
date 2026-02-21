@@ -20,6 +20,7 @@ import {
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
 import draggable from 'vuedraggable';
+import AppDialogCard from '@window/components/ui/AppDialogCard.vue';
 
 const { t } = useI18n();
 
@@ -1507,12 +1508,11 @@ watch(contextMenuVisible, (val) => {
     </div>
 
     <!-- Dialogs -->
-    <el-dialog
+    <AppDialogCard
       v-model="addProvider_page"
       :title="t('providers.addProviderDialogTitle')"
       width="500px"
-      :close-on-click-modal="false"
-      append-to-body
+      variant="compact"
     >
       <el-form
         :model="addprovider_form"
@@ -1533,14 +1533,13 @@ watch(contextMenuVisible, (val) => {
           t('common.confirm')
         }}</el-button>
       </template>
-    </el-dialog>
+    </AppDialogCard>
 
-    <el-dialog
+    <AppDialogCard
       v-model="change_provider_name_page"
       :title="t('providers.changeProviderNameDialogTitle')"
       width="500px"
-      :close-on-click-modal="false"
-      append-to-body
+      variant="compact"
     >
       <el-form
         :model="change_provider_name_form"
@@ -1557,14 +1556,13 @@ watch(contextMenuVisible, (val) => {
           t('common.confirm')
         }}</el-button>
       </template>
-    </el-dialog>
+    </AppDialogCard>
 
-    <el-dialog
+    <AppDialogCard
       v-model="addModel_page"
       :title="t('providers.addModelDialogTitle')"
       width="500px"
-      :close-on-click-modal="false"
-      append-to-body
+      variant="compact"
     >
       <el-form :model="addModel_form" @submit.prevent="add_model_function" label-position="top">
         <el-form-item :label="t('providers.modelNameIdLabel')" required>
@@ -1579,16 +1577,15 @@ watch(contextMenuVisible, (val) => {
         <el-button @click="addModel_page = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" @click="add_model_function">{{ t('common.confirm') }}</el-button>
       </template>
-    </el-dialog>
+    </AppDialogCard>
 
-    <el-dialog
+    <AppDialogCard
       v-model="getModel_page"
       :title="t('providers.availableModelsDialogTitle')"
       width="700px"
       top="10vh"
-      :close-on-click-modal="false"
-      append-to-body
-      class="available-models-dialog"
+      variant="compact"
+      dialog-class="available-models-dialog"
     >
       <div class="dialog-search-bar-container">
         <el-input
@@ -1671,14 +1668,13 @@ watch(contextMenuVisible, (val) => {
           <el-button @click="getModel_page = false">{{ t('common.close') }}</el-button>
         </div>
       </template>
-    </el-dialog>
+    </AppDialogCard>
 
-    <el-dialog
+    <AppDialogCard
       v-model="modelCapabilityDialogVisible"
       :title="t('providers.modelCapabilityDialogTitle')"
       width="500px"
-      :close-on-click-modal="false"
-      append-to-body
+      variant="compact"
     >
       <div class="model-capability-dialog-model">{{ modelCapabilityDialogForm.modelId }}</div>
       <div class="model-capability-dialog-tip">{{ t('providers.modelCapabilityDialogTip') }}</div>
@@ -1709,7 +1705,7 @@ watch(contextMenuVisible, (val) => {
           t('common.confirm')
         }}</el-button>
       </template>
-    </el-dialog>
+    </AppDialogCard>
 
     <teleport to="body">
       <div
@@ -2190,14 +2186,6 @@ watch(contextMenuVisible, (val) => {
   background-color: var(--border-primary);
 }
 
-:deep(.el-dialog__header) {
-  padding: 5px !important;
-}
-
-:deep(.el-dialog__body) {
-  padding: 15px 20px 10px 20px !important;
-}
-
 :deep(.available-models-dialog .dialog-error-alert) {
   margin-bottom: 15px !important;
 }
@@ -2217,10 +2205,6 @@ watch(contextMenuVisible, (val) => {
 
 .dialog-search-bar-container :deep(.el-input__wrapper.is-focus) {
   box-shadow: 0 0 0 1px var(--text-accent) inset !important;
-}
-
-:deep(.el-dialog__footer) {
-  padding: 5px;
 }
 
 .label-with-badge {

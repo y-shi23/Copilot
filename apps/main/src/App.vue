@@ -30,6 +30,7 @@ import {
 } from 'lucide-vue-next';
 import { ElBadge, ElMessage, ElMessageBox } from 'element-plus';
 import { useAssistantSessionIndex } from './composables/useAssistantSessionIndex';
+import AppDialogCard from '@window/components/ui/AppDialogCard.vue';
 import MarkdownRenderer from '@window/components/markdown/MarkdownRenderer.vue';
 
 const MainChatWorkspace = defineAsyncComponent(
@@ -1301,13 +1302,14 @@ onBeforeUnmount(() => {
         </div>
       </teleport>
 
-      <el-dialog
+      <AppDialogCard
         v-model="showDocDialog"
         :title="t('doc.title')"
         width="80%"
+        variant="standard"
         :lock-scroll="false"
-        class="doc-dialog"
-        append-to-body
+        :close-on-click-modal="true"
+        dialog-class="doc-dialog"
       >
         <div class="doc-container">
           <div class="doc-sidebar">
@@ -1338,7 +1340,7 @@ onBeforeUnmount(() => {
             </el-scrollbar>
           </div>
         </div>
-      </el-dialog>
+      </AppDialogCard>
     </el-container>
   </div>
 </template>

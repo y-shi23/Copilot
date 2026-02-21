@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ElDialog, ElInput, ElButton } from 'element-plus';
+import { ElInput, ElButton } from 'element-plus';
+import AppDialogCard from './ui/AppDialogCard.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -32,22 +33,19 @@ const handleKeydown = (event: KeyboardEvent) => {
 </script>
 
 <template>
-  <el-dialog
+  <AppDialogCard
     v-model="dialogVisible"
     title=""
-    custom-class="system-prompt-dialog"
     width="min(480px, 88vw)"
+    variant="compact"
+    hide-header
+    dialog-class="system-prompt-dialog"
     :show-close="false"
     :lock-scroll="false"
-    :append-to-body="true"
     center
     :close-on-click-modal="true"
     :close-on-press-escape="true"
   >
-    <template #header>
-      <div class="dialog-hidden-header"></div>
-    </template>
-
     <div class="prompt-dialog-body">
       <div class="prompt-input-wrapper">
         <el-input
@@ -68,30 +66,8 @@ const handleKeydown = (event: KeyboardEvent) => {
         <el-button type="primary" @click="emit('save')">保存</el-button>
       </div>
     </template>
-  </el-dialog>
+  </AppDialogCard>
 </template>
-
-<style>
-.system-prompt-dialog {
-  border-radius: var(--radius-xl) !important;
-  margin: auto !important;
-}
-
-.system-prompt-dialog .el-dialog__header {
-  display: none !important;
-  padding: 0 !important;
-}
-
-.system-prompt-dialog .el-dialog__body {
-  padding: 14px 18px 10px !important;
-  background: transparent;
-}
-
-.system-prompt-dialog .el-dialog__footer {
-  padding: 4px 18px 14px !important;
-  background: transparent;
-}
-</style>
 
 <style scoped>
 .prompt-dialog-body {

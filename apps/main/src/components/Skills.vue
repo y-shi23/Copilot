@@ -3,6 +3,7 @@
 import { ref, reactive, onMounted, computed, inject, watch, nextTick } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import AppDialogCard from '@window/components/ui/AppDialogCard.vue';
 import {
   FolderOpen as FolderOpened,
   RefreshCw as Refresh,
@@ -688,12 +689,11 @@ async function handleExportSkills() {
     </div>
 
     <!-- 编辑弹窗 -->
-    <el-dialog
+    <AppDialogCard
       v-model="showEditDialog"
       width="650px"
-      :close-on-click-modal="false"
-      class="skill-edit-dialog"
-      append-to-body
+      variant="compact"
+      dialog-class="skill-edit-dialog"
     >
       <template #header>
         <div
@@ -896,13 +896,12 @@ async function handleExportSkills() {
         <el-button @click="showEditDialog = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" @click="saveEditDialog">{{ t('common.save') }}</el-button>
       </template>
-    </el-dialog>
-    <el-dialog
+    </AppDialogCard>
+    <AppDialogCard
       v-model="showExportDialog"
       :title="t('skills.export.title')"
       width="500px"
-      :close-on-click-modal="false"
-      append-to-body
+      variant="compact"
     >
       <div class="export-dialog-content">
         <p style="margin-top: 0; color: var(--el-text-color-secondary); font-size: 13px">
@@ -947,7 +946,7 @@ async function handleExportSkills() {
           {{ t('skills.export.confirmBtn') }}
         </el-button>
       </template>
-    </el-dialog>
+    </AppDialogCard>
   </div>
 </template>
 

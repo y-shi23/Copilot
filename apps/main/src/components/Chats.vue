@@ -10,6 +10,7 @@ import {
   BrushCleaning,
 } from 'lucide-vue-next';
 import { ElMessage, ElMessageBox } from 'element-plus';
+import AppDialogCard from '@window/components/ui/AppDialogCard.vue';
 
 const { t } = useI18n();
 
@@ -302,7 +303,13 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <el-dialog v-model="showCleanDialog" title="按时间清理会话" width="520px" append-to-body>
+    <AppDialogCard
+      v-model="showCleanDialog"
+      title="按时间清理会话"
+      width="520px"
+      variant="compact"
+      :close-on-click-modal="true"
+    >
       <div class="clean-dialog">
         <el-radio-group v-model="cleanDaysOption">
           <el-radio :value="7">7 天前</el-radio>
@@ -328,7 +335,7 @@ onUnmounted(() => {
           >开始清理</el-button
         >
       </template>
-    </el-dialog>
+    </AppDialogCard>
   </div>
 </template>
 

@@ -1,14 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import {
-  ElAvatar,
-  ElButtonGroup,
-  ElCheckbox,
-  ElDialog,
-  ElSwitch,
-  ElTag,
-  ElTooltip,
-} from 'element-plus';
+import { ElAvatar, ElButtonGroup, ElCheckbox, ElSwitch, ElTag, ElTooltip } from 'element-plus';
 import {
   ChevronRight,
   CircleQuestionMark as CircleHelp,
@@ -16,6 +8,7 @@ import {
   Wrench,
   Zap,
 } from 'lucide-vue-next';
+import AppDialogCard from './ui/AppDialogCard.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -68,13 +61,12 @@ const autoApproveModel = computed({
 </script>
 
 <template>
-  <el-dialog
+  <AppDialogCard
     v-model="visible"
     width="700px"
     title="MCP 工具"
-    custom-class="mcp-dialog mcp-edit-dialog chat-tools-dialog"
-    :close-on-click-modal="false"
-    append-to-body
+    variant="tools"
+    dialog-class="mcp-dialog mcp-edit-dialog chat-tools-dialog"
     @close="emit('dialog-close')"
   >
     <div class="mcp-dialog-content">
@@ -251,5 +243,5 @@ const autoApproveModel = computed({
         </div>
       </div>
     </template>
-  </el-dialog>
+  </AppDialogCard>
 </template>

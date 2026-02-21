@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { ElAvatar, ElButtonGroup, ElCheckbox, ElDialog, ElTooltip } from 'element-plus';
+import { ElAvatar, ElButtonGroup, ElCheckbox, ElTooltip } from 'element-plus';
 import { Cpu, Folder, Search, TriangleAlert } from 'lucide-vue-next';
+import AppDialogCard from './ui/AppDialogCard.vue';
 
 const props = defineProps<{
   modelValue: boolean;
@@ -39,13 +40,12 @@ const searchModel = computed({
 </script>
 
 <template>
-  <el-dialog
+  <AppDialogCard
     v-model="visible"
     width="700px"
     title="Skill 技能库"
-    custom-class="mcp-dialog mcp-edit-dialog chat-tools-dialog"
-    :close-on-click-modal="false"
-    append-to-body
+    variant="tools"
+    dialog-class="mcp-dialog mcp-edit-dialog chat-tools-dialog"
   >
     <div class="mcp-dialog-content">
       <div class="mcp-dialog-toolbar">
@@ -151,5 +151,5 @@ const searchModel = computed({
         <el-button type="primary" @click="emit('confirm')">确定</el-button>
       </div>
     </template>
-  </el-dialog>
+  </AppDialogCard>
 </template>

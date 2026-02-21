@@ -1,5 +1,6 @@
 // @ts-nocheck
 import './assets/main.css';
+import '@window/assets/dialog-card.css';
 
 import { createApp } from 'vue';
 import GlobalQuickLauncher from './components/GlobalQuickLauncher.vue';

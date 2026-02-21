@@ -1,5 +1,6 @@
 // @ts-nocheck
 import './assets/main.css';
+import './assets/dialog-card.css';
 
 import { createApp } from 'vue';
 import App from './App.vue';

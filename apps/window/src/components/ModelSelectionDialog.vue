@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // -nocheck
 import { ref, computed } from 'vue';
-import { ElDialog, ElButton, ElInput } from 'element-plus';
+import { ElButton, ElInput } from 'element-plus';
 import { Search } from 'lucide-vue-next';
 import { handleModelLogoError, resolveModelLogoUrl } from '../utils/modelLogos';
+import AppDialogCard from './ui/AppDialogCard.vue';
 
 const props = defineProps({
   modelValue: Boolean,
@@ -15,6 +16,15 @@ const emit = defineEmits(['update:modelValue', 'select', 'save-model']);
 
 const searchQuery = ref('');
 const searchInputRef = ref(null);
+const dialogVisible = computed({
+  get: () => props.modelValue,
+  set: (value: boolean) => {
+    if (!value) {
+      searchQuery.value = '';
+    }
+    emit('update:modelValue', value);
+  },
+});
 
 const handleOpened = () => {
   if (searchInputRef.value) {
@@ -69,24 +79,21 @@ const onModelClick = (model) => {
 };
 
 const handleClose = () => {
-  searchQuery.value = '';
-  emit('update:modelValue', false);
+  dialogVisible.value = false;
 };
 </script>
 
 <template>
-  <el-dialog
-    :model-value="modelValue"
-    @update:model-value="handleClose"
+  <AppDialogCard
+    v-model="dialogVisible"
     width="min(640px, 88vw)"
-    custom-class="model-dialog no-header-dialog"
+    variant="standard"
+    hide-header
+    dialog-class="model-dialog"
+    :close-on-click-modal="true"
     @opened="handleOpened"
     :show-close="false"
   >
-    <template #header>
-      <div class="dialog-hidden-header"></div>
-    </template>
-
     <div class="model-search-container">
       <el-input
         ref="searchInputRef"
@@ -136,7 +143,7 @@ const handleClose = () => {
     <template #footer>
       <el-button @click="handleClose">关闭</el-button>
     </template>
-  </el-dialog>
+  </AppDialogCard>
 </template>
 
 <style scoped>

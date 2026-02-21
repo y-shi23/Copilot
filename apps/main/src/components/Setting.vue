@@ -904,18 +904,6 @@ const deleteVoice = (voiceToDelete) => {
   border-right: 1px solid var(--border-primary);
 }
 
-:deep(.backup-manager-dialog .el-dialog__header) {
-  padding: 5px !important;
-}
-
-:deep(.backup-manager-dialog .el-dialog__body) {
-  padding: 15px 20px 10px 20px !important;
-}
-
-:deep(.backup-manager-dialog .el-dialog__footer) {
-  padding: 5px;
-}
-
 .path-input-wrapper {
   display: flex;
   align-items: center;
