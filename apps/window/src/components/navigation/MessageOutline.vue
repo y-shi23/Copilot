@@ -36,8 +36,7 @@ const shouldShow = computed(
 );
 
 const containerRef = ref<HTMLElement | null>(null);
-const centerTopPx = ref(0);
-const isCenterActive = ref(true);
+const isActive = ref(true);
 
 let scrollHost: HTMLElement | null = null;
 let scrollTarget: EventTarget | null = null;
@@ -66,41 +65,28 @@ const getViewportCenterY = () => {
   return window.innerHeight / 2;
 };
 
-const computeCenterTop = () => {
-  if (scrollHost) {
-    centerTopPx.value = Math.max(0, scrollHost.getBoundingClientRect().height / 2);
-    return;
-  }
-  centerTopPx.value = Math.max(0, window.innerHeight / 2);
-};
-
 const computeActiveState = () => {
   if (!containerRef.value) {
-    isCenterActive.value = true;
+    isActive.value = true;
     return;
   }
 
   const messageElement = containerRef.value.closest('.chat-message') as HTMLElement | null;
   if (!messageElement) {
-    isCenterActive.value = true;
+    isActive.value = true;
     return;
   }
 
   const rect = messageElement.getBoundingClientRect();
   const centerY = getViewportCenterY();
-  isCenterActive.value = rect.top <= centerY && rect.bottom >= centerY;
-};
-
-const syncLayoutState = () => {
-  computeCenterTop();
-  computeActiveState();
+  isActive.value = rect.top <= centerY && rect.bottom >= centerY;
 };
 
 const scheduleLayoutSync = () => {
   if (frameId) return;
   frameId = window.requestAnimationFrame(() => {
     frameId = 0;
-    syncLayoutState();
+    computeActiveState();
   });
 };
 
@@ -144,7 +130,7 @@ const scrollToHeading = (id: string) => {
 onMounted(async () => {
   await nextTick();
   bindViewportListeners();
-  syncLayoutState();
+  computeActiveState();
 });
 
 onBeforeUnmount(() => {
@@ -169,9 +155,9 @@ watch(
     v-if="shouldShow"
     ref="containerRef"
     class="message-outline-container"
-    :class="{ 'is-active': isCenterActive }"
+    :class="{ 'is-active': isActive }"
   >
-    <div class="message-outline-body" :style="{ '--outline-center-top': `${centerTopPx}px` }">
+    <div class="message-outline-body">
       <button
         v-for="heading in headings"
         :key="heading.id"
@@ -205,8 +191,7 @@ watch(
 
 .message-outline-body {
   position: sticky;
-  top: var(--outline-center-top, 50%);
-  transform: translateY(-50%);
+  top: 60px;
   display: inline-flex;
   flex-direction: column;
   gap: 4px;

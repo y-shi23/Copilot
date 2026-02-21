@@ -458,13 +458,15 @@ const assistantTimelineSegments = computed(() => {
   });
 
   const liveReasoningContent = normalizeReasoningText(props.message?.reasoning_content);
-  const hasLiveReasoning = props.message?.status === 'thinking' && liveReasoningContent.length > 0;
-  if (hasLiveReasoning) {
+  const hasApiReasoning = segments.some((segment: any) => segment.type === 'reasoning');
+
+  if (liveReasoningContent.length > 0 && !hasApiReasoning) {
+    const isThinking = props.message?.status === 'thinking';
     segments.push({
       id: 'reasoning-live',
       type: 'reasoning',
       content: liveReasoningContent,
-      status: 'thinking',
+      status: isThinking ? 'thinking' : 'end',
       reasoningStartedAt: props.message?.reasoningStartedAt ?? null,
       reasoningFinishedAt: props.message?.reasoningFinishedAt ?? null,
     });
