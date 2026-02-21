@@ -106,7 +106,6 @@ const autoApproveModel = computed({
               <div class="mcp-server-header-row">
                 <el-checkbox
                   :model-value="props.tempSessionMcpServerIds.includes(server.id)"
-                  size="large"
                   @change="() => emit('toggle-selection', server.id)"
                   @click.stop
                   class="header-checkbox"

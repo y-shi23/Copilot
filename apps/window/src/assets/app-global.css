@@ -184,15 +184,21 @@ html.mac-native-vibrancy #app {
   align-items: center;
   gap: 8px;
   width: 100%;
+  line-height: 1;
 }
 
 .header-checkbox {
   margin-right: 2px;
+  display: flex;
+  align-items: center;
 }
 
 .mcp-server-icon {
   background-color: var(--el-fill-color-light);
   color: var(--el-text-color-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .mcp-server-name {
@@ -204,6 +210,7 @@ html.mac-native-vibrancy #app {
   text-overflow: ellipsis;
   display: inline-flex;
   align-items: center;
+  line-height: 1;
 }
 
 .mcp-tool-count {
@@ -219,12 +226,14 @@ html.mac-native-vibrancy #app {
   align-items: center;
   gap: 6px;
   flex-shrink: 0;
+  line-height: 1;
 }
 
 .mcp-server-tags {
   display: flex;
   flex-wrap: nowrap;
   gap: 4px;
+  align-items: center;
 }
 
 .mcp-server-tags .el-tag {
@@ -236,10 +245,11 @@ html.mac-native-vibrancy #app {
   display: flex;
   align-items: center;
   gap: 10px;
+  line-height: 1;
 }
 
 .mcp-tools-toggle {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
   font-size: 12px;
@@ -250,6 +260,7 @@ html.mac-native-vibrancy #app {
   background-color: var(--el-fill-color-lighter);
   border-radius: 999px;
   transition: all 0.16s ease;
+  line-height: 1;
 }
 
 .mcp-tools-toggle:hover {
