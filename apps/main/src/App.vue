@@ -1499,6 +1499,14 @@ onBeforeUnmount(() => {
   min-height: 0;
   overflow-y: auto;
   padding: 2px 2px 4px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.assistant-sidebar::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
 }
 
 .assistant-sidebar-draggable {
