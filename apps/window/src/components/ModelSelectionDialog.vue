@@ -132,19 +132,25 @@ const onModelClick = (model) => {
   </AppDialogCard>
 </template>
 
+<style>
+/* Global (non-scoped) styles for model-dialog because el-dialog uses append-to-body */
+.app-dialog-card.model-dialog .el-dialog__body {
+  padding: 0 !important;
+}
+</style>
+
 <style scoped>
 .model-dialog-content {
   display: flex;
   flex-direction: column;
   max-height: 60vh;
   overflow-y: auto;
-  margin: -12px -18px;
 }
 
 .model-search-area {
   display: flex;
   align-items: center;
-  padding: 12px 14px;
+  padding: 10px 14px;
   background-color: var(--bg-secondary);
   position: sticky;
   top: 0;
