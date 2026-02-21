@@ -1,22 +1,70 @@
+.el-overlay.app-dialog-overlay {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+.el-overlay.app-dialog-overlay .el-overlay-dialog {
+  overflow: hidden !important;
+  overscroll-behavior: contain;
+}
+
 .app-dialog-card.el-dialog {
   border-radius: 16px !important;
   border: 1px solid var(--el-border-color-light) !important;
   overflow: hidden;
   box-shadow: var(--el-box-shadow) !important;
+  max-height: min(90vh, calc(100vh - 20px));
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-height: 680px) {
+  .el-overlay.app-dialog-overlay .el-overlay-dialog {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+  }
+
+  .app-dialog-card.el-dialog {
+    margin: 0 !important;
+    top: auto !important;
+    transform: none !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100vh - 16px) !important;
+  }
 }
 
 .app-dialog-card .el-dialog__header {
   border-bottom: 1px solid var(--el-border-color-lighter);
   margin-right: 0 !important;
   padding: 14px 18px !important;
+  flex: 0 0 auto;
 }
 
 .app-dialog-card .el-dialog__body {
   padding: 12px 18px !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .app-dialog-card .el-dialog__footer {
   padding: 8px 18px 14px !important;
+  flex: 0 0 auto;
+}
+
+html.app-dialog-open,
+body.app-dialog-open {
+  overflow: hidden !important;
+}
+
+body.app-dialog-open .window-root,
+body.app-dialog-open .workspace-content,
+body.app-dialog-open .app-container,
+body.app-dialog-open .common-layout {
+  overflow: hidden !important;
 }
 
 .app-dialog-card--compact .el-dialog__header {

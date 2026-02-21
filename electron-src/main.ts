@@ -897,8 +897,8 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1180,
     height: 820,
-    minWidth: 1000,
-    minHeight: 680,
+    minWidth: 800,
+    minHeight: 600,
     show: false,
     backgroundColor: isMac ? '#00000000' : '#f7f7f5',
     autoHideMenuBar: true,
