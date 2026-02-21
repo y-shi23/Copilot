@@ -4,6 +4,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { extractMarkdownHeadings, type HeadingItem } from '../../utils/markdown/headingIds';
 
 type MessageStyle = 'horizontal' | 'vertical' | 'fold' | 'grid' | '';
+type OutlinePosition = 'before' | 'active' | 'after';
 
 interface Props {
   messageId: string | number;
@@ -36,7 +37,8 @@ const shouldShow = computed(
 );
 
 const containerRef = ref<HTMLElement | null>(null);
-const isActive = ref(true);
+const outlinePosition = ref<OutlinePosition>('after');
+const isActive = computed(() => outlinePosition.value === 'active');
 
 let scrollHost: HTMLElement | null = null;
 let scrollTarget: EventTarget | null = null;
@@ -67,19 +69,27 @@ const getViewportCenterY = () => {
 
 const computeActiveState = () => {
   if (!containerRef.value) {
-    isActive.value = true;
+    outlinePosition.value = 'active';
     return;
   }
 
   const messageElement = containerRef.value.closest('.chat-message') as HTMLElement | null;
   if (!messageElement) {
-    isActive.value = true;
+    outlinePosition.value = 'active';
     return;
   }
 
   const rect = messageElement.getBoundingClientRect();
   const centerY = getViewportCenterY();
-  isActive.value = rect.top <= centerY && rect.bottom >= centerY;
+  if (rect.bottom <= centerY) {
+    outlinePosition.value = 'before';
+    return;
+  }
+  if (rect.top >= centerY) {
+    outlinePosition.value = 'after';
+    return;
+  }
+  outlinePosition.value = 'active';
 };
 
 const scheduleLayoutSync = () => {
@@ -155,7 +165,7 @@ watch(
     v-if="shouldShow"
     ref="containerRef"
     class="message-outline-container"
-    :class="{ 'is-active': isActive }"
+    :class="[`is-${outlinePosition}`, { 'is-active': isActive }]"
   >
     <div class="message-outline-body">
       <button
@@ -181,27 +191,29 @@ watch(
 <style scoped>
 .message-outline-container {
   position: absolute;
-  left: 0;
+  left: -38px;
   top: 0;
   bottom: 0;
   width: 32px;
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
 }
 
 .message-outline-body {
   position: sticky;
-  top: 60px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   flex-direction: column;
   gap: 4px;
   max-height: min(72vh, calc(100vh - 24px));
   padding: 8px 0 8px 6px;
   border-radius: 10px;
-  pointer-events: auto;
+  pointer-events: none;
   overflow: hidden;
-  opacity: 0.72;
+  opacity: 0;
   transition:
+    transform 160ms ease,
     opacity 0.2s ease,
     background-color 0.2s ease,
     box-shadow 0.2s ease,
@@ -210,6 +222,16 @@ watch(
 
 .message-outline-container.is-active .message-outline-body {
   opacity: 1;
+  pointer-events: auto;
+  transform: translateY(-50%);
+}
+
+.message-outline-container.is-before .message-outline-body {
+  transform: translateY(calc(-50% - 8px));
+}
+
+.message-outline-container.is-after .message-outline-body {
+  transform: translateY(calc(-50% + 8px));
 }
 
 .message-outline-body:hover {

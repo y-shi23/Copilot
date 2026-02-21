@@ -885,11 +885,7 @@ onBeforeUnmount(() => {
             </div>
           </template>
 
-          <div
-            v-if="!isEditing"
-            class="markdown-wrapper"
-            :class="{ collapsed: isCollapsed, 'has-message-outline': shouldShowOutline }"
-          >
+          <div v-if="!isEditing" class="markdown-wrapper" :class="{ collapsed: isCollapsed }">
             <MessageOutline
               :message-id="message.id"
               :markdown="renderedMarkdownContent"
@@ -1027,7 +1023,7 @@ onBeforeUnmount(() => {
   margin: 12px 0 0;
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
+  overflow: visible;
   padding: 0;
 }
 
@@ -1176,6 +1172,7 @@ html.dark .chat-message .user-bubble {
     align-items: stretch;
     width: 100%;
     max-width: 100%;
+    overflow: visible;
   }
 
   :deep(.el-bubble-content-wrapper .el-bubble-header) {
@@ -1189,6 +1186,7 @@ html.dark .chat-message .user-bubble {
     padding: 0;
     box-shadow: none;
     width: 100%;
+    overflow: visible;
   }
 
   :deep(.el-bubble-content-wrapper .el-bubble-arrow),
@@ -1252,16 +1250,13 @@ html.dark .chat-message .ai-bubble {
   width: 100%;
   min-width: 0;
   position: relative;
+  overflow: visible;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
 
   .message-content-container {
     width: 100%;
     min-width: 0;
-  }
-
-  &.has-message-outline .message-content-container {
-    padding-left: 36px;
   }
 
   :deep(.elx-xmarkdown-container) {
