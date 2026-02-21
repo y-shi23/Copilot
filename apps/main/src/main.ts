@@ -1,11 +1,11 @@
 // @ts-nocheck
+import 'element-plus/dist/index.css';
 import './assets/main.css';
 import '@window/assets/dialog-card.css';
 import '@window/assets/focus-ring-reset.css';
 
 import { createApp } from 'vue';
 import ElementPlus from 'element-plus';
-import 'element-plus/dist/index.css';
 import App from './App.vue';
 import { createI18n } from 'vue-i18n';
 
