@@ -912,7 +912,11 @@ async function triggerConnectionTest(server) {
           </el-col>
           <el-col :span="6">
             <el-form-item :label="t('mcp.typeLabel')">
-              <el-select v-model="normalizedEditingServerType" style="width: 100%">
+              <el-select
+                v-model="normalizedEditingServerType"
+                style="width: 100%"
+                popper-class="settings-select-popper"
+              >
                 <el-option :label="t('mcp.typeOptions.sse')" value="sse" />
                 <el-option :label="t('mcp.typeOptions.http')" value="http" />
                 <el-option :label="t('mcp.typeOptions.stdio')" value="stdio" />

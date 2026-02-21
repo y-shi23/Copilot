@@ -5,6 +5,8 @@ import { extractMarkdownHeadings, type HeadingItem } from '../../utils/markdown/
 
 type MessageStyle = 'horizontal' | 'vertical' | 'fold' | 'grid' | '';
 type OutlinePosition = 'before' | 'active' | 'after';
+const INPUT_RESIZE_CLASS = 'chat-input-resizing';
+const INPUT_RESIZE_END_EVENT = 'chat-input-resize-end';
 
 interface Props {
   messageId: string | number;
@@ -39,6 +41,10 @@ const shouldShow = computed(
 const containerRef = ref<HTMLElement | null>(null);
 const outlinePosition = ref<OutlinePosition>('after');
 const isActive = computed(() => outlinePosition.value === 'active');
+const stickyTopPx = ref<number | null>(null);
+const outlineBodyStyle = computed(() => ({
+  top: stickyTopPx.value === null ? '50%' : `${stickyTopPx.value}px`,
+}));
 
 let scrollHost: HTMLElement | null = null;
 let scrollTarget: EventTarget | null = null;
@@ -59,12 +65,28 @@ const dotWidth = (level: number) => {
 
 const textOffset = (level: number) => Math.max(0, level - minHeadingLevel.value) * 8;
 
+const isInputResizing = () =>
+  typeof document !== 'undefined' &&
+  (document.documentElement?.classList.contains(INPUT_RESIZE_CLASS) ||
+    document.body?.classList.contains(INPUT_RESIZE_CLASS));
+
 const getViewportCenterY = () => {
-  if (scrollHost) {
-    const rect = scrollHost.getBoundingClientRect();
-    return rect.top + rect.height / 2;
-  }
   return window.innerHeight / 2;
+};
+
+const syncStickyTop = () => {
+  const centerY = window.innerHeight / 2;
+  if (!scrollHost) {
+    stickyTopPx.value = Math.round(centerY);
+    return;
+  }
+
+  const rect = scrollHost.getBoundingClientRect();
+  const minTop = 12;
+  const maxTop = Math.max(minTop, rect.height - 12);
+  const relativeTop = centerY - rect.top;
+  const clampedTop = Math.min(maxTop, Math.max(minTop, relativeTop));
+  stickyTopPx.value = Math.round(clampedTop);
 };
 
 const computeActiveState = () => {
@@ -96,11 +118,18 @@ const scheduleLayoutSync = () => {
   if (frameId) return;
   frameId = window.requestAnimationFrame(() => {
     frameId = 0;
+    if (isInputResizing()) return;
+    syncStickyTop();
     computeActiveState();
   });
 };
 
 const handleViewportChange = () => {
+  if (isInputResizing()) return;
+  scheduleLayoutSync();
+};
+
+const handleInputResizeEnd = () => {
   scheduleLayoutSync();
 };
 
@@ -109,6 +138,7 @@ const bindViewportListeners = () => {
   scrollTarget = scrollHost || window;
   scrollTarget.addEventListener('scroll', handleViewportChange, { passive: true });
   window.addEventListener('resize', handleViewportChange, { passive: true });
+  window.addEventListener(INPUT_RESIZE_END_EVENT, handleInputResizeEnd);
 };
 
 const unbindViewportListeners = () => {
@@ -118,6 +148,7 @@ const unbindViewportListeners = () => {
   scrollTarget = null;
   scrollHost = null;
   window.removeEventListener('resize', handleViewportChange);
+  window.removeEventListener(INPUT_RESIZE_END_EVENT, handleInputResizeEnd);
 };
 
 const scrollToHeading = (id: string) => {
@@ -140,7 +171,7 @@ const scrollToHeading = (id: string) => {
 onMounted(async () => {
   await nextTick();
   bindViewportListeners();
-  computeActiveState();
+  scheduleLayoutSync();
 });
 
 onBeforeUnmount(() => {
@@ -167,7 +198,7 @@ watch(
     class="message-outline-container"
     :class="[`is-${outlinePosition}`, { 'is-active': isActive }]"
   >
-    <div class="message-outline-body">
+    <div class="message-outline-body" :style="outlineBodyStyle">
       <button
         v-for="heading in headings"
         :key="heading.id"

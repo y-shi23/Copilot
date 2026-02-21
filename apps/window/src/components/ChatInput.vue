@@ -75,6 +75,8 @@ const getDefaultInputTextHeight = () =>
 const DEFAULT_INPUT_TEXT_HEIGHT = getDefaultInputTextHeight();
 const MIN_INPUT_TEXT_HEIGHT = 28;
 const COMPACT_INPUT_TEXT_HEIGHT = 34;
+const INPUT_RESIZE_CLASS = 'chat-input-resizing';
+const INPUT_RESIZE_END_EVENT = 'chat-input-resize-end';
 const inputTextHeight = ref(DEFAULT_INPUT_TEXT_HEIGHT);
 const isInputResizing = ref(false);
 let resizeStartY = 0;
@@ -498,17 +500,26 @@ const handleInputResizeMove = (event) => {
   event.preventDefault();
 };
 
+const setInputResizeClass = (enabled) => {
+  if (typeof document === 'undefined') return;
+  document.documentElement?.classList.toggle(INPUT_RESIZE_CLASS, enabled);
+  document.body?.classList.toggle(INPUT_RESIZE_CLASS, enabled);
+};
+
 const stopInputResize = () => {
   if (!isInputResizing.value) return;
   isInputResizing.value = false;
   window.removeEventListener('pointermove', handleInputResizeMove);
   window.removeEventListener('pointerup', stopInputResize);
   window.removeEventListener('pointercancel', stopInputResize);
+  setInputResizeClass(false);
+  window.dispatchEvent(new Event(INPUT_RESIZE_END_EVENT));
 };
 
 const startInputResize = (event) => {
   if (isRecording.value) return;
   isInputResizing.value = true;
+  setInputResizeClass(true);
   resizeStartY = event.clientY;
   resizeStartHeight = inputTextHeight.value;
   window.addEventListener('pointermove', handleInputResizeMove, { passive: false });
@@ -716,6 +727,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   stopInputResize();
+  setInputResizeClass(false);
   window.removeEventListener('dragenter', handleDragEnter);
   window.removeEventListener('dragleave', handleDragLeave);
   window.removeEventListener('dragover', handleWindowDragOver);
