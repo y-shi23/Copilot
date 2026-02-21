@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // -nocheck
 import { ref, computed } from 'vue';
-import { ElButton, ElInput } from 'element-plus';
+import { ElInput } from 'element-plus';
 import { Search } from 'lucide-vue-next';
 import { handleModelLogoError, resolveModelLogoUrl } from '../utils/modelLogos';
 import AppDialogCard from './ui/AppDialogCard.vue';
@@ -77,10 +77,6 @@ const onModelClick = (model) => {
     emit('select', model.value);
   }
 };
-
-const handleClose = () => {
-  dialogVisible.value = false;
-};
 </script>
 
 <template>
@@ -94,34 +90,32 @@ const handleClose = () => {
     @opened="handleOpened"
     :show-close="false"
   >
-    <div class="model-search-container">
-      <el-input
-        ref="searchInputRef"
-        v-model="searchQuery"
-        placeholder="搜索服务商或模型名称..."
-        clearable
-      >
-        <template #prefix>
-          <Search :size="14" />
-        </template>
-      </el-input>
-    </div>
+    <div class="model-dialog-content custom-scrollbar">
+      <div class="model-search-area">
+        <Search :size="16" class="search-icon" />
+        <input
+          ref="searchInputRef"
+          v-model="searchQuery"
+          type="text"
+          class="model-search-input"
+          placeholder="搜索服务商或模型名称..."
+        />
+      </div>
 
-    <div class="model-dropdown-wrapper custom-scrollbar">
-      <div v-if="groupedModelList.length === 0" class="model-empty">暂无匹配模型</div>
+      <div class="model-list-area">
+        <div v-if="groupedModelList.length === 0" class="model-empty">暂无匹配模型</div>
 
-      <div v-for="group in groupedModelList" :key="group.provider" class="provider-group">
-        <div class="provider-title">{{ group.provider || '未命名服务商' }}</div>
+        <div v-for="group in groupedModelList" :key="group.provider" class="provider-group">
+          <div class="provider-title">{{ group.provider || '未命名服务商' }}</div>
 
-        <button
-          v-for="model in group.models"
-          :key="model.value"
-          type="button"
-          class="app-dropdown-item model-option model-tag"
-          :class="{ 'is-selected': model.value === currentModel }"
-          @click="onModelClick(model)"
-        >
-          <div class="model-main">
+          <button
+            v-for="model in group.models"
+            :key="model.value"
+            type="button"
+            class="model-tag"
+            :class="{ 'is-selected': model.value === currentModel }"
+            @click="onModelClick(model)"
+          >
             <img
               class="model-logo"
               :src="model.logoUrl"
@@ -130,76 +124,100 @@ const handleClose = () => {
               @error="handleModelLogoError"
             />
             <span class="model-name">{{ model.modelName }}</span>
-          </div>
-          <div class="model-actions">
-            <span class="model-hint">{{
-              model.value === currentModel ? '当前模型（点击保存默认）' : '点击切换'
-            }}</span>
-          </div>
-        </button>
+            <span v-if="model.value === currentModel" class="model-current-badge">当前</span>
+          </button>
+        </div>
       </div>
     </div>
-
-    <template #footer>
-      <el-button @click="handleClose">关闭</el-button>
-    </template>
   </AppDialogCard>
 </template>
 
 <style scoped>
-.model-search-container {
-  padding: 0 0 12px;
+.model-dialog-content {
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  overflow-y: auto;
+  margin: -12px -18px;
 }
 
-.model-dropdown-wrapper {
-  max-height: 54vh;
-  overflow-y: auto;
+.model-search-area {
+  display: flex;
+  align-items: center;
+  padding: 12px 14px;
+  background-color: var(--bg-secondary);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.search-icon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  margin-right: 10px;
+}
+
+.model-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.model-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.model-list-area {
+  padding: 8px 14px 14px;
 }
 
 .model-empty {
   color: var(--text-tertiary);
   text-align: center;
-  padding: 16px 8px;
+  padding: 24px 8px;
   font-size: 13px;
 }
 
 .provider-group + .provider-group {
-  margin-top: 8px;
-  padding-top: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--border-secondary);
 }
 
 .provider-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text-secondary);
-  padding: 2px 10px 6px;
-}
-
-.model-option {
-  min-height: 40px;
-  height: auto;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  line-height: 1.2;
-  padding: 0 10px 0 12px;
+  color: var(--text-tertiary);
+  padding: 4px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .model-tag {
   width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
   border-radius: 9999px;
   border: 1px solid var(--border-primary);
   background-color: var(--bg-tertiary);
   margin-bottom: 6px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
-.model-main {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
+.model-tag:last-child {
+  margin-bottom: 0;
+}
+
+.model-tag:hover {
+  background-color: color-mix(in srgb, var(--bg-tertiary) 82%, var(--bg-secondary));
 }
 
 .model-logo {
@@ -212,35 +230,27 @@ const handleClose = () => {
 }
 
 .model-name {
-  color: var(--text-primary) !important;
+  color: var(--text-primary);
   font-weight: 500;
   font-size: 13px;
-  text-align: left !important;
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
 }
 
-.model-actions {
-  display: flex;
-  align-items: center;
+.model-current-badge {
+  font-size: 11px;
+  color: var(--text-accent);
+  background-color: color-mix(in srgb, var(--text-accent) 12%, transparent);
+  padding: 2px 8px;
+  border-radius: 10px;
   flex-shrink: 0;
 }
 
-.model-hint {
-  color: var(--text-tertiary);
-  font-size: 11px;
-  text-align: right;
-  white-space: nowrap;
-}
-
-.model-option.is-selected {
+.model-tag.is-selected {
   border-color: color-mix(in srgb, var(--text-accent) 38%, var(--border-primary));
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--text-accent) 14%, transparent);
-}
-
-.model-option.model-tag:hover {
-  background-color: color-mix(in srgb, var(--bg-tertiary) 82%, var(--bg-secondary));
 }
 </style>
