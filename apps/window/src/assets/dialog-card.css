@@ -13,9 +13,22 @@
   border: 1px solid var(--el-border-color-light) !important;
   overflow: hidden;
   box-shadow: var(--el-box-shadow) !important;
+  background-color: #fbfbfb !important;
   max-height: min(90vh, calc(100vh - 20px));
   display: flex;
   flex-direction: column;
+}
+
+html.dark .app-dialog-card.el-dialog {
+  background-color: #282828 !important;
+}
+
+.app-container.has-bg .app-dialog-card.el-dialog {
+  background-color: #fbfbfb !important;
+}
+
+html.dark .app-container.has-bg .app-dialog-card.el-dialog {
+  background-color: #282828 !important;
 }
 
 @media (max-height: 680px) {
