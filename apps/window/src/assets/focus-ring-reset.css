@@ -25,3 +25,24 @@ html.dark {
   outline: none !important;
   box-shadow: none !important;
 }
+
+html,
+body,
+#app {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+:where(
+  input,
+  textarea,
+  [contenteditable='true'],
+  [contenteditable=''],
+  .chat-message .message-content-container,
+  .chat-message .message-content-container *,
+  .chat-message .deep-thinking-card,
+  .chat-message .deep-thinking-card *
+) {
+  -webkit-user-select: text;
+  user-select: text;
+}
