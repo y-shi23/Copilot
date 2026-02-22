@@ -1,5 +1,7 @@
 // @ts-nocheck
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
+
+import { pickActiveOutlineMessageId } from '../utils/activeOutlineMessage';
 
 export function useChatViewport(options: any) {
   const {
@@ -16,11 +18,13 @@ export function useChatViewport(options: any) {
   const showScrollToBottomButton = ref(false);
   const isForcingScroll = ref(false);
   const focusedMessageIndex = ref(null);
+  const activeOutlineMessageId = ref(null);
   const isSticky = ref(true);
   const messageRefs = new Map();
 
   let chatObserver: MutationObserver | null = null;
   let observerFlushFrame = 0;
+  let activeOutlineFrame = 0;
   let shouldFlushStickyScroll = false;
 
   const setMessageRef = (el: any, id: any) => {
@@ -29,6 +33,7 @@ export function useChatViewport(options: any) {
     } else {
       messageRefs.delete(id);
     }
+    scheduleActiveOutlineUpdate();
   };
 
   const getMessageComponentByIndex = (index: number) => {
@@ -51,6 +56,46 @@ export function useChatViewport(options: any) {
     const msg = chatShow.value[focusedMessageIndex.value];
     return msg ? msg.id : null;
   });
+
+  const updateActiveOutlineMessage = () => {
+    const container = chatContainerRef.value?.$el;
+    if (!container) {
+      activeOutlineMessageId.value = null;
+      return;
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const centerY = containerRect.top + containerRect.height / 2;
+    const candidates = [];
+
+    for (let index = 0; index < chatShow.value.length; index += 1) {
+      const message = chatShow.value[index];
+      if (String(message?.role || '').toLowerCase() !== 'assistant') continue;
+
+      const component = getMessageComponentById(message?.id);
+      const element = component?.$el;
+      if (!element || element.nodeType !== 1) continue;
+
+      const rect = element.getBoundingClientRect();
+      candidates.push({
+        id: message.id,
+        role: message.role,
+        top: rect.top,
+        bottom: rect.bottom,
+        order: index,
+      });
+    }
+
+    activeOutlineMessageId.value = pickActiveOutlineMessageId(candidates, centerY);
+  };
+
+  const scheduleActiveOutlineUpdate = () => {
+    if (activeOutlineFrame) return;
+    activeOutlineFrame = window.requestAnimationFrame(() => {
+      activeOutlineFrame = 0;
+      updateActiveOutlineMessage();
+    });
+  };
 
   const scrollToBottom = async (behavior = 'auto') => {
     await nextTick();
@@ -125,6 +170,8 @@ export function useChatViewport(options: any) {
       showScrollToBottomButton.value = true;
       findFocusedMessageIndex();
     }
+
+    scheduleActiveOutlineUpdate();
   };
 
   const scheduleCodeBlockEnhancement = () => {
@@ -141,6 +188,7 @@ export function useChatViewport(options: any) {
     }
 
     shouldFlushStickyScroll = false;
+    scheduleActiveOutlineUpdate();
   };
 
   const handleMarkdownImageClick = (event: any) => {
@@ -181,9 +229,15 @@ export function useChatViewport(options: any) {
       subtree: true,
       characterData: true,
     });
+
+    scheduleActiveOutlineUpdate();
   };
 
   const detachChatDomObserver = () => {
+    if (activeOutlineFrame) {
+      window.cancelAnimationFrame(activeOutlineFrame);
+      activeOutlineFrame = 0;
+    }
     if (observerFlushFrame) {
       window.cancelAnimationFrame(observerFlushFrame);
       observerFlushFrame = 0;
@@ -213,14 +267,26 @@ export function useChatViewport(options: any) {
       if (index !== -1) {
         focusedMessageIndex.value = index;
       }
+      scheduleActiveOutlineUpdate();
     }
   };
+
+  watch(
+    () => chatShow.value.length,
+    () => {
+      void nextTick().then(() => {
+        scheduleActiveOutlineUpdate();
+      });
+    },
+    { flush: 'post' },
+  );
 
   return {
     isAtBottom,
     showScrollToBottomButton,
     isForcingScroll,
     focusedMessageIndex,
+    activeOutlineMessageId,
     isSticky,
     messageRefs,
     setMessageRef,

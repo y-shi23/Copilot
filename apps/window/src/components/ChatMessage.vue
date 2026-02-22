@@ -45,6 +45,7 @@ const props = defineProps({
   isDarkMode: Boolean,
   isAutoApprove: Boolean,
   showMessageOutline: Boolean,
+  isOutlineActive: Boolean,
 });
 
 const emit = defineEmits([
@@ -522,7 +523,10 @@ const headingIdPrefix = computed(() => `heading-${String(props.message?.id ?? pr
 const assistantMessageStyle = computed(() => String(props.message?.multiModelMessageStyle || ''));
 
 const shouldShowOutline = computed(
-  () => Boolean(props.showMessageOutline) && String(props.message?.role || '') === 'assistant',
+  () =>
+    Boolean(props.showMessageOutline) &&
+    Boolean(props.isOutlineActive) &&
+    String(props.message?.role || '') === 'assistant',
 );
 
 const onCopy = () => {
@@ -887,8 +891,7 @@ onBeforeUnmount(() => {
 
           <div v-if="!isEditing" class="markdown-wrapper" :class="{ collapsed: isCollapsed }">
             <MessageOutline
-              :message-id="message.id"
-              :markdown="renderedMarkdownContent"
+              v-if="shouldShowOutline"
               :enabled="shouldShowOutline"
               :message-style="assistantMessageStyle"
             />
@@ -1247,7 +1250,6 @@ html.dark .chat-message .ai-bubble {
 }
 
 .markdown-wrapper {
-  --message-outline-left-offset: 38px;
   width: 100%;
   min-width: 0;
   position: relative;
@@ -1704,12 +1706,6 @@ html.dark .chat-message .ai-bubble {
     overflow: hidden;
     -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
     mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
-  }
-}
-
-@media (max-width: 900px) {
-  .markdown-wrapper {
-    --message-outline-left-offset: 28px;
   }
 }
 

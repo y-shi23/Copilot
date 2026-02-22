@@ -203,10 +203,10 @@ const {
   isAtBottom,
   showScrollToBottomButton,
   focusedMessageIndex,
+  activeOutlineMessageId,
   isSticky,
   messageRefs,
   setMessageRef,
-  getMessageComponentByIndex,
   getMessageComponentById,
   focusedMessageId,
   scrollToBottom,
@@ -245,7 +245,7 @@ const handleToggleAutoApprove = (val) => {
   isAutoApproveTools.value = val;
 
   if (val) {
-    pendingToolApprovals.value.forEach((resolve, id) => {
+    pendingToolApprovals.value.forEach((resolve) => {
       resolve(true);
     });
     pendingToolApprovals.value.clear();
@@ -877,6 +877,7 @@ const handleOpenSearch = () => {
             :is-collapsed="isCollapsed(index)"
             :is-dark-mode="currentConfig.isDarkMode"
             :show-message-outline="currentConfig.showMessageOutline !== false"
+            :is-outline-active="String(activeOutlineMessageId ?? '') === String(message.id)"
             @delete-message="handleDeleteMessage"
             @copy-text="handleCopyText"
             @re-ask="handleReAsk"

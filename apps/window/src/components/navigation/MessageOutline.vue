@@ -1,71 +1,49 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-import { extractMarkdownHeadings, type HeadingItem } from '../../utils/markdown/headingIds';
 import {
-  buildViewportMetrics,
   pickActiveHeading,
-  resolveOutlinePosition,
   type HeadingIntersectionState,
-  type OutlinePosition,
-  type ViewportMetrics,
 } from '../../utils/messageOutlineViewport';
 
 type MessageStyle = 'horizontal' | 'vertical' | 'fold' | 'grid' | '';
-const INPUT_RESIZE_CLASS = 'chat-input-resizing';
-const INPUT_RESIZE_END_EVENT = 'chat-input-resize-end';
-const STICKY_EDGE_PADDING_PX = 12;
-const HEADING_OBSERVER_ROOT_MARGIN = '-10% 0px -80% 0px';
-const HEADING_OBSERVER_THRESHOLD = 0;
-const ACTIVE_STATE_HYSTERESIS_PX = 6;
 
 interface Props {
-  messageId: string | number;
-  markdown: string;
   enabled?: boolean;
   messageStyle?: MessageStyle;
 }
+
+interface OutlineHeading {
+  id: string;
+  level: number;
+  text: string;
+}
+
+const HEADING_SELECTOR = 'h1[id],h2[id],h3[id],h4[id],h5[id],h6[id]';
+const HEADING_OBSERVER_ROOT_MARGIN = '-10% 0px -80% 0px';
+const HEADING_OBSERVER_THRESHOLD = 0;
 
 const props = withDefaults(defineProps<Props>(), {
   enabled: true,
   messageStyle: '',
 });
 
-const headingIdPrefix = computed(() => `heading-${String(props.messageId)}`);
+const containerRef = ref<HTMLElement | null>(null);
+const headings = ref<OutlineHeading[]>([]);
+const activeHeadingId = ref<string | null>(null);
 
-const headings = computed<HeadingItem[]>(() => {
-  if (!props.enabled) return [];
-  return extractMarkdownHeadings(props.markdown || '', {
-    idPrefix: headingIdPrefix.value,
-  });
-});
+const shouldRender = computed(() => props.enabled && props.messageStyle !== 'grid');
+const shouldShowBody = computed(() => shouldRender.value && headings.value.length > 0);
 
 const minHeadingLevel = computed(() => {
   if (headings.value.length === 0) return 1;
   return headings.value.reduce((minLevel, item) => Math.min(minLevel, item.level), 6);
 });
 
-const shouldShow = computed(
-  () => props.enabled && props.messageStyle !== 'grid' && headings.value.length > 0,
-);
-
-const containerRef = ref<HTMLElement | null>(null);
-const outlinePosition = ref<OutlinePosition>('after');
-const isActive = computed(() => outlinePosition.value === 'active');
-const stickyTopPx = ref<number | null>(null);
-const activeHeadingId = ref<string | null>(null);
-const outlineBodyStyle = computed(() => ({
-  top: stickyTopPx.value === null ? '50%' : `${stickyTopPx.value}px`,
-}));
-
-let scrollHost: HTMLElement | null = null;
-let scrollTarget: EventTarget | null = null;
-let frameId = 0;
 let headingObserver: IntersectionObserver | null = null;
-let observerSetupTicket = 0;
-let pendingLayoutSync: 'state' | 'full' = 'full';
+let mutationObserver: MutationObserver | null = null;
+let refreshFrame = 0;
 const headingStates = new Map<string, Omit<HeadingIntersectionState, 'id'>>();
-const headingSignature = computed(() => headings.value.map((heading) => heading.id).join('|'));
 
 const escapeSelector = (value: string) => {
   if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
@@ -82,98 +60,17 @@ const dotWidth = (level: number) => {
 
 const textOffset = (level: number) => Math.max(0, level - minHeadingLevel.value) * 8;
 
-const isInputResizing = () =>
-  typeof document !== 'undefined' &&
-  (document.documentElement?.classList.contains(INPUT_RESIZE_CLASS) ||
-    document.body?.classList.contains(INPUT_RESIZE_CLASS));
+const resolveMessageElement = () =>
+  (containerRef.value?.closest('.chat-message') as HTMLElement | null) || null;
+
+const resolveContentElement = () =>
+  (resolveMessageElement()?.querySelector('.message-content-container') as HTMLElement | null) ||
+  null;
 
 const resolveScrollHost = () =>
   (containerRef.value?.closest('.chat-main') as HTMLElement | null) || null;
 
-const getViewportMetrics = (): ViewportMetrics => {
-  const host = scrollHost || resolveScrollHost();
-  if (host) {
-    scrollHost = host;
-    const rect = host.getBoundingClientRect();
-    return buildViewportMetrics(rect.top, rect.bottom);
-  }
-  return buildViewportMetrics(0, window.innerHeight);
-};
-
-const syncStickyTop = () => {
-  const viewport = getViewportMetrics();
-  const minTop = STICKY_EDGE_PADDING_PX;
-  const maxTop = Math.max(minTop, viewport.height - STICKY_EDGE_PADDING_PX);
-  const relativeTop = viewport.centerY - viewport.top;
-  const clampedTop = Math.min(maxTop, Math.max(minTop, relativeTop));
-  stickyTopPx.value = Math.round(clampedTop);
-};
-
-const computeActiveState = () => {
-  if (!containerRef.value) {
-    outlinePosition.value = 'active';
-    return;
-  }
-
-  const messageElement = containerRef.value.closest('.chat-message') as HTMLElement | null;
-  if (!messageElement) {
-    outlinePosition.value = 'active';
-    return;
-  }
-
-  const rect = messageElement.getBoundingClientRect();
-  const viewport = getViewportMetrics();
-  if (outlinePosition.value === 'active') {
-    if (rect.bottom <= viewport.centerY - ACTIVE_STATE_HYSTERESIS_PX) {
-      outlinePosition.value = 'before';
-      return;
-    }
-    if (rect.top >= viewport.centerY + ACTIVE_STATE_HYSTERESIS_PX) {
-      outlinePosition.value = 'after';
-      return;
-    }
-    outlinePosition.value = 'active';
-    return;
-  }
-
-  outlinePosition.value = resolveOutlinePosition(rect, viewport);
-};
-
-const scheduleLayoutSync = (mode: 'state' | 'full') => {
-  if (mode === 'full') {
-    pendingLayoutSync = 'full';
-  } else if (pendingLayoutSync !== 'full') {
-    pendingLayoutSync = 'state';
-  }
-
-  if (frameId) return;
-  frameId = window.requestAnimationFrame(() => {
-    frameId = 0;
-    if (isInputResizing()) return;
-    if (pendingLayoutSync === 'full') {
-      syncStickyTop();
-    }
-    computeActiveState();
-    pendingLayoutSync = 'state';
-  });
-};
-
-const handleScroll = () => {
-  if (isInputResizing()) return;
-  scheduleLayoutSync('state');
-};
-
-const handleViewportResize = () => {
-  if (isInputResizing()) return;
-  scheduleLayoutSync('full');
-};
-
-const handleInputResizeEnd = () => {
-  scheduleLayoutSync('full');
-};
-
 const clearHeadingObserver = () => {
-  observerSetupTicket += 1;
   if (headingObserver) {
     headingObserver.disconnect();
     headingObserver = null;
@@ -181,11 +78,32 @@ const clearHeadingObserver = () => {
   headingStates.clear();
 };
 
+const clearMutationObserver = () => {
+  if (mutationObserver) {
+    mutationObserver.disconnect();
+    mutationObserver = null;
+  }
+};
+
+const clearScheduledRefresh = () => {
+  if (refreshFrame) {
+    window.cancelAnimationFrame(refreshFrame);
+    refreshFrame = 0;
+  }
+};
+
+const cleanupOutlineTracking = () => {
+  clearScheduledRefresh();
+  clearHeadingObserver();
+  clearMutationObserver();
+};
+
 const recomputeActiveHeading = () => {
+  const defaultId = headings.value[0]?.id ?? null;
   const fallbackId =
     activeHeadingId.value && headings.value.some((heading) => heading.id === activeHeadingId.value)
       ? activeHeadingId.value
-      : null;
+      : defaultId;
 
   const candidates: HeadingIntersectionState[] = headings.value.map((heading, index) => {
     const state = headingStates.get(heading.id);
@@ -200,42 +118,48 @@ const recomputeActiveHeading = () => {
   activeHeadingId.value = pickActiveHeading(candidates, fallbackId);
 };
 
-const setupHeadingObserver = async () => {
-  const ticket = observerSetupTicket + 1;
-  clearHeadingObserver();
-  observerSetupTicket = ticket;
-  activeHeadingId.value = null;
-  if (!shouldShow.value) return;
-
-  await nextTick();
-  if (ticket !== observerSetupTicket) return;
-  await new Promise<void>((resolve) => {
-    window.requestAnimationFrame(() => resolve());
-  });
-  if (ticket !== observerSetupTicket) return;
-
-  const observerRoot = scrollHost || resolveScrollHost();
-  if (observerRoot) {
-    scrollHost = observerRoot;
+const collectHeadingElements = (): HTMLElement[] => {
+  const content = resolveContentElement();
+  if (!content) {
+    headings.value = [];
+    activeHeadingId.value = null;
+    return [];
   }
 
-  const messageElement = document.getElementById(`message-${String(props.messageId)}`);
-  if (!messageElement) return;
+  const headingElements = Array.from(content.querySelectorAll<HTMLElement>(HEADING_SELECTOR));
+  const nextHeadings: OutlineHeading[] = [];
+  const validElements: HTMLElement[] = [];
 
-  const observedElements: HTMLElement[] = [];
-  headings.value.forEach((heading, index) => {
-    const element = messageElement.querySelector<HTMLElement>(`#${escapeSelector(heading.id)}`);
-    if (!element) return;
-    headingStates.set(heading.id, {
-      isIntersecting: false,
-      top: Number.POSITIVE_INFINITY,
-      order: index,
-    });
-    observedElements.push(element);
+  headingElements.forEach((element) => {
+    const id = String(element.id || '').trim();
+    if (!id) return;
+
+    const levelToken = element.tagName.replace(/^H/i, '');
+    const levelValue = Number.parseInt(levelToken, 10);
+    const level = Number.isFinite(levelValue) ? Math.min(6, Math.max(1, levelValue)) : 6;
+    const text =
+      String(element.textContent || '')
+        .replace(/\s+/g, ' ')
+        .trim() || id;
+
+    nextHeadings.push({ id, level, text });
+    validElements.push(element);
   });
 
-  if (observedElements.length === 0) return;
+  headings.value = nextHeadings;
+  if (!nextHeadings.some((heading) => heading.id === activeHeadingId.value)) {
+    activeHeadingId.value = null;
+  }
 
+  return validElements;
+};
+
+const bindHeadingObserver = (elements: HTMLElement[]) => {
+  clearHeadingObserver();
+
+  if (!shouldRender.value || elements.length === 0) return;
+
+  const root = resolveScrollHost();
   headingObserver = new IntersectionObserver(
     (entries) => {
       entries.forEach((entry) => {
@@ -255,40 +179,73 @@ const setupHeadingObserver = async () => {
       recomputeActiveHeading();
     },
     {
-      root: observerRoot,
+      root,
       rootMargin: HEADING_OBSERVER_ROOT_MARGIN,
       threshold: HEADING_OBSERVER_THRESHOLD,
     },
   );
 
-  observedElements.forEach((element) => {
+  elements.forEach((element, index) => {
+    const id = String(element.id || '').trim();
+    if (!id) return;
+
+    headingStates.set(id, {
+      isIntersecting: false,
+      top: Number.POSITIVE_INFINITY,
+      order: index,
+    });
     headingObserver?.observe(element);
+  });
+
+  recomputeActiveHeading();
+};
+
+const refreshOutlineFromDom = () => {
+  if (!shouldRender.value) {
+    headings.value = [];
+    activeHeadingId.value = null;
+    clearHeadingObserver();
+    return;
+  }
+
+  const headingElements = collectHeadingElements();
+  bindHeadingObserver(headingElements);
+};
+
+const scheduleOutlineRefresh = () => {
+  if (refreshFrame) return;
+
+  refreshFrame = window.requestAnimationFrame(() => {
+    refreshFrame = 0;
+    refreshOutlineFromDom();
   });
 };
 
-const bindViewportListeners = () => {
-  scrollHost = resolveScrollHost();
-  scrollTarget = scrollHost || window;
-  scrollTarget.addEventListener('scroll', handleScroll, { passive: true });
-  window.addEventListener('resize', handleViewportResize, { passive: true });
-  window.addEventListener(INPUT_RESIZE_END_EVENT, handleInputResizeEnd);
-};
+const bindMutationObserver = () => {
+  clearMutationObserver();
+  if (!shouldRender.value) return;
 
-const unbindViewportListeners = () => {
-  if (scrollTarget) {
-    scrollTarget.removeEventListener('scroll', handleScroll);
-  }
-  scrollTarget = null;
-  scrollHost = null;
-  window.removeEventListener('resize', handleViewportResize);
-  window.removeEventListener(INPUT_RESIZE_END_EVENT, handleInputResizeEnd);
+  const content = resolveContentElement();
+  if (!content) return;
+
+  mutationObserver = new MutationObserver(() => {
+    scheduleOutlineRefresh();
+  });
+
+  mutationObserver.observe(content, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributes: true,
+    attributeFilter: ['id'],
+  });
 };
 
 const scrollToHeading = (id: string) => {
-  const messageElement = document.getElementById(`message-${String(props.messageId)}`);
-  if (!messageElement) return;
+  const content = resolveContentElement();
+  if (!content) return;
 
-  const target = messageElement.querySelector<HTMLElement>(`#${escapeSelector(id)}`);
+  const target = content.querySelector<HTMLElement>(`#${escapeSelector(id)}`);
   if (!target) return;
 
   activeHeadingId.value = id;
@@ -303,7 +260,7 @@ const scrollToHeading = (id: string) => {
     return;
   }
 
-  const host = scrollHost || resolveScrollHost();
+  const host = resolveScrollHost();
   if (!host) {
     target.scrollIntoView({
       behavior: 'smooth',
@@ -324,38 +281,27 @@ const scrollToHeading = (id: string) => {
 
 onMounted(async () => {
   await nextTick();
-  bindViewportListeners();
-  scheduleLayoutSync('full');
-  void setupHeadingObserver();
+  scheduleOutlineRefresh();
+  bindMutationObserver();
 });
 
 onBeforeUnmount(() => {
-  if (frameId) {
-    window.cancelAnimationFrame(frameId);
-    frameId = 0;
-  }
-  clearHeadingObserver();
-  unbindViewportListeners();
+  cleanupOutlineTracking();
 });
 
 watch(
-  () => [props.enabled, props.messageStyle, props.markdown, headingSignature.value],
+  () => [props.enabled, props.messageStyle],
   async () => {
     await nextTick();
-    scheduleLayoutSync('full');
-    void setupHeadingObserver();
+    scheduleOutlineRefresh();
+    bindMutationObserver();
   },
 );
 </script>
 
 <template>
-  <div
-    v-if="shouldShow"
-    ref="containerRef"
-    class="message-outline-container"
-    :class="[`is-${outlinePosition}`, { 'is-active': isActive }]"
-  >
-    <div class="message-outline-body" :style="outlineBodyStyle">
+  <div v-if="shouldRender" ref="containerRef" class="message-outline-container">
+    <div v-if="shouldShowBody" class="message-outline-body">
       <button
         v-for="heading in headings"
         :key="heading.id"
@@ -380,7 +326,7 @@ watch(
 <style scoped>
 .message-outline-container {
   position: absolute;
-  left: calc(-1 * var(--message-outline-left-offset, 38px));
+  left: -38px;
   top: 0;
   bottom: 0;
   width: 32px;
@@ -398,29 +344,8 @@ watch(
   max-height: min(72vh, calc(100vh - 24px));
   padding: 8px 0 8px 6px;
   border-radius: 10px;
-  pointer-events: none;
-  overflow: hidden;
-  opacity: 0;
-  transition:
-    transform 160ms ease,
-    opacity 0.2s ease,
-    background-color 0.2s ease,
-    box-shadow 0.2s ease,
-    padding 0.2s ease;
-}
-
-.message-outline-container.is-active .message-outline-body {
-  opacity: 1;
   pointer-events: auto;
-  transform: translateY(-50%);
-}
-
-.message-outline-container.is-before .message-outline-body {
-  transform: translateY(calc(-50% - 8px));
-}
-
-.message-outline-container.is-after .message-outline-body {
-  transform: translateY(calc(-50% + 8px));
+  overflow: hidden;
 }
 
 .message-outline-body:hover {
@@ -490,5 +415,11 @@ watch(
 
 .message-outline-item.is-active .message-outline-text {
   color: var(--el-color-primary);
+}
+
+@media (max-width: 900px) {
+  .message-outline-container {
+    left: -28px;
+  }
 }
 </style>

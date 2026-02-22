@@ -224,10 +224,10 @@ const {
   isAtBottom,
   showScrollToBottomButton,
   focusedMessageIndex,
+  activeOutlineMessageId,
   isSticky,
   messageRefs,
   setMessageRef,
-  getMessageComponentByIndex,
   getMessageComponentById,
   focusedMessageId,
   scrollToBottom,
@@ -1061,6 +1061,7 @@ const handleOpenSearch = () => {
             :is-collapsed="isCollapsed(index)"
             :is-dark-mode="currentConfig.isDarkMode"
             :show-message-outline="currentConfig.showMessageOutline !== false"
+            :is-outline-active="String(activeOutlineMessageId ?? '') === String(message.id)"
             @delete-message="handleDeleteMessage"
             @copy-text="handleCopyText"
             @re-ask="handleReAsk"
