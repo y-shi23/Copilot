@@ -97,6 +97,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: smoke-linux-${{ github.sha }}
-          path: release/**
+          path: |
+            release/*.AppImage
+            release/*.deb
           retention-days: 7
           if-no-files-found: error
