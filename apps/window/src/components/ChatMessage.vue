@@ -1247,6 +1247,7 @@ html.dark .chat-message .ai-bubble {
 }
 
 .markdown-wrapper {
+  --message-outline-left-offset: 38px;
   width: 100%;
   min-width: 0;
   position: relative;
@@ -1703,6 +1704,12 @@ html.dark .chat-message .ai-bubble {
     overflow: hidden;
     -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
     mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  }
+}
+
+@media (max-width: 900px) {
+  .markdown-wrapper {
+    --message-outline-left-offset: 28px;
   }
 }
 
