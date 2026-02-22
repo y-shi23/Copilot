@@ -570,15 +570,6 @@ onBeforeUnmount(() => {
   <div :id="`message-${message.id}`" class="chat-message" v-if="message.role !== 'system'">
     <!-- 用户消息 -->
     <div v-if="message.role === 'user'" class="message-wrapper user-wrapper">
-      <div class="message-meta-header user-meta-header">
-        <img
-          :src="userAvatar"
-          alt="User Avatar"
-          @click="onAvatarClick('user', $event)"
-          class="chat-avatar-top user-avatar"
-        />
-      </div>
-
       <Bubble class="user-bubble" placement="end" shape="corner" maxWidth="100%">
         <template #content>
           <div v-if="!isEditing" class="markdown-wrapper" :class="{ collapsed: isCollapsed }">
@@ -1136,14 +1127,16 @@ onBeforeUnmount(() => {
 }
 
 .chat-message .user-bubble {
+  :deep(.el-bubble-content-wrapper) {
+    border-radius: 16px !important;
+  }
+
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    border-radius: 24px;
-    background-color: var(--el-bg-color-userbubble);
-    border: 1px solid var(--el-border-color-lighter);
-    padding-top: 10px;
-    padding-bottom: 10px;
+    border-radius: 16px !important;
+    background-color: #f3f3f3 !important;
+    border: none !important;
+    padding: 10px 18px;
     margin-bottom: 0;
-    padding-right: 14px;
     box-shadow: none;
   }
 
@@ -1154,8 +1147,8 @@ onBeforeUnmount(() => {
 
 html.dark .chat-message .user-bubble {
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    background: var(--el-bg-color-userbubble);
-    border: 1px solid var(--el-border-color-lighter);
+    background: #242424 !important;
+    border: none !important;
   }
 }
 
