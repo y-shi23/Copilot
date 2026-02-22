@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // -nocheck
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   RefreshCw as Refresh,
@@ -17,19 +17,55 @@ const { t } = useI18n();
 const conversations = ref([]);
 const isTableLoading = ref(false);
 const selectedRows = ref([]);
-const currentPage = ref(1);
-const pageSize = ref(20);
+const tableContainerRef = ref<HTMLElement | null>(null);
+const tableBodyScrollEl = ref<HTMLElement | null>(null);
+const INITIAL_VISIBLE_COUNT = 100;
+const LOAD_MORE_STEP = 100;
+const visibleCount = ref(INITIAL_VISIBLE_COUNT);
 
 const showCleanDialog = ref(false);
 const cleanDaysOption = ref(30);
 const cleanCustomDays = ref(60);
 const isCleaning = ref(false);
 
-const paginatedRows = computed(() => {
-  const start = (currentPage.value - 1) * pageSize.value;
-  const end = start + pageSize.value;
-  return conversations.value.slice(start, end);
-});
+const visibleRows = computed(() => conversations.value.slice(0, visibleCount.value));
+
+const hasMoreRows = computed(() => visibleCount.value < conversations.value.length);
+
+const resetVisibleRows = () => {
+  visibleCount.value = Math.min(INITIAL_VISIBLE_COUNT, conversations.value.length || 0);
+};
+
+const loadMoreRows = () => {
+  if (!hasMoreRows.value) return;
+  visibleCount.value = Math.min(visibleCount.value + LOAD_MORE_STEP, conversations.value.length);
+};
+
+const onTableBodyScroll = () => {
+  const scroller = tableBodyScrollEl.value;
+  if (!scroller) return;
+  const distanceToBottom = scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight;
+  if (distanceToBottom <= 120) {
+    loadMoreRows();
+  }
+};
+
+const bindTableBodyScroll = () => {
+  const nextScroller = tableContainerRef.value?.querySelector(
+    '.el-table__body-wrapper',
+  ) as HTMLElement | null;
+
+  if (tableBodyScrollEl.value === nextScroller) return;
+
+  if (tableBodyScrollEl.value) {
+    tableBodyScrollEl.value.removeEventListener('scroll', onTableBodyScroll);
+  }
+
+  tableBodyScrollEl.value = nextScroller;
+  if (tableBodyScrollEl.value) {
+    tableBodyScrollEl.value.addEventListener('scroll', onTableBodyScroll, { passive: true });
+  }
+};
 
 const formatDate = (dateString: string) => {
   if (!dateString) return '-';
@@ -52,13 +88,14 @@ const fetchConversations = async () => {
   try {
     const rows = await window.api.listConversations({ includeDeleted: false });
     conversations.value = Array.isArray(rows) ? rows : [];
-    if ((currentPage.value - 1) * pageSize.value >= conversations.value.length) {
-      currentPage.value = 1;
-    }
+    resetVisibleRows();
+    await nextTick();
+    bindTableBodyScroll();
   } catch (error: any) {
     console.error('[Chats] Failed to fetch conversations:', error);
     ElMessage.error(`读取会话失败: ${error?.message || error}`);
     conversations.value = [];
+    resetVisibleRows();
   } finally {
     isTableLoading.value = false;
   }
@@ -192,6 +229,9 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  if (tableBodyScrollEl.value) {
+    tableBodyScrollEl.value.removeEventListener('scroll', onTableBodyScroll);
+  }
   window.removeEventListener('focus', onWindowFocus);
 });
 </script>
@@ -229,9 +269,9 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <div class="table-container">
+      <div class="table-container" ref="tableContainerRef">
         <el-table
-          :data="paginatedRows"
+          :data="visibleRows"
           v-loading="isTableLoading"
           @selection-change="handleSelectionChange"
           class="history-table"
@@ -254,7 +294,14 @@ onUnmounted(() => {
           <el-table-column prop="size" label="大小" width="100" align="center" sortable>
             <template #default="scope">{{ formatBytes(scope.row.size) }}</template>
           </el-table-column>
-          <el-table-column label="操作" width="120" align="center" fixed="right">
+          <el-table-column
+            label="操作"
+            width="120"
+            align="center"
+            fixed="right"
+            class-name="actions-column-cell"
+            label-class-name="actions-column-header"
+          >
             <template #default="scope">
               <div class="row-action-group">
                 <el-tooltip content="打开会话" placement="top">
@@ -288,18 +335,6 @@ onUnmounted(() => {
             </template>
           </el-table-column>
         </el-table>
-      </div>
-
-      <div class="pagination-wrapper">
-        <el-pagination
-          v-model:current-page="currentPage"
-          v-model:page-size="pageSize"
-          :page-sizes="[20, 50, 100]"
-          :total="conversations.length"
-          layout="total, sizes, prev, pager, next, jumper"
-          background
-          size="small"
-        />
       </div>
     </div>
 
@@ -392,20 +427,40 @@ onUnmounted(() => {
 }
 
 .table-container :deep(.el-table__body-wrapper) {
-  overflow-x: hidden;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 .table-container :deep(.el-table__header-wrapper) {
-  overflow-x: hidden;
+  overflow-x: hidden !important;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.table-container :deep(.el-table__body-wrapper::-webkit-scrollbar:horizontal) {
+  height: 0;
+}
+
+.table-container :deep(.el-table__header-wrapper::-webkit-scrollbar) {
+  display: none;
+}
+
+.table-container :deep(.el-scrollbar__bar.is-horizontal) {
+  display: none !important;
 }
 
 .table-container :deep(.el-table__fixed-right) {
   right: 0 !important;
-  background: transparent;
+  background-color: var(--workspace-surface-bg, var(--bg-primary));
 }
 
 .table-container :deep(.el-table__fixed-right::before) {
   display: none;
+}
+
+.table-container :deep(.el-table__fixed-right-patch) {
+  background-color: var(--workspace-surface-bg, var(--bg-primary)) !important;
 }
 
 .table-container :deep(.el-table th.el-table__cell) {
@@ -420,6 +475,16 @@ onUnmounted(() => {
   background-color: var(--bg-tertiary);
 }
 
+.table-container :deep(.el-table .actions-column-header.el-table-fixed-column--right),
+.table-container :deep(.el-table .actions-column-cell.el-table-fixed-column--right) {
+  background-color: var(--workspace-surface-bg, var(--bg-primary)) !important;
+}
+
+.table-container
+  :deep(.el-table tbody tr:hover > td.actions-column-cell.el-table-fixed-column--right) {
+  background-color: var(--bg-tertiary) !important;
+}
+
 .row-action-group {
   display: inline-flex;
   align-items: center;
@@ -428,13 +493,6 @@ onUnmounted(() => {
 
 .row-action-btn {
   padding: 4px;
-}
-
-.pagination-wrapper {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 8px;
-  flex-shrink: 0;
 }
 
 .clean-dialog {
