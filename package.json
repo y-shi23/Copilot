@@ -32,9 +32,9 @@
     "ci": "pnpm ci:quality && pnpm build",
     "pack": "pnpm build && electron-builder --dir",
     "dist": "pnpm build && electron-builder",
-    "dist:win": "pnpm build && electron-builder --win nsis portable --publish never",
-    "dist:mac": "pnpm build && electron-builder --mac dmg zip --publish never",
-    "dist:linux": "pnpm build && electron-builder --linux AppImage deb --publish never",
+    "dist:win": "pnpm build && electron-builder --win nsis --publish never",
+    "dist:mac": "pnpm build && electron-builder --mac dmg --publish never",
+    "dist:linux": "pnpm build && electron-builder --linux AppImage --publish never",
     "dist:all:ci": "pnpm build && electron-builder --publish never"
   },
   "devDependencies": {

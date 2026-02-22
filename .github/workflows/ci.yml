@@ -99,6 +99,5 @@ jobs:
           name: smoke-linux-${{ github.sha }}
           path: |
             release/*.AppImage
-            release/*.deb
           retention-days: 7
           if-no-files-found: error

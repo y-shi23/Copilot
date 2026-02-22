@@ -31,19 +31,17 @@ jobs:
             platform: win
             dist_script: dist:win
             artifact_paths: |
-              release/*.exe
+              release/*Setup*.exe
           - os: macos-14
             platform: mac
             dist_script: dist:mac
             artifact_paths: |
               release/*.dmg
-              release/*.zip
           - os: ubuntu-22.04
             platform: linux
             dist_script: dist:linux
             artifact_paths: |
               release/*.AppImage
-              release/*.deb
     steps:
       - name: Checkout
         uses: actions/checkout@v4
