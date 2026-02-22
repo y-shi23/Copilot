@@ -1,0 +1,73 @@
+:root {
+  --el-input-focus-border-color: var(--el-border-color);
+  --el-select-input-focus-border-color: var(--el-border-color);
+  --el-input-focus-border: var(--el-border-color);
+  --el-input-focus-color: var(--el-border-color);
+  --el-input-tag-input-focus-border-color: var(--el-border-color);
+}
+
+html.dark {
+  --el-input-focus-border-color: var(--el-border-color);
+  --el-select-input-focus-border-color: var(--el-border-color);
+  --el-input-focus-border: var(--el-border-color);
+  --el-input-focus-color: var(--el-border-color);
+  --el-input-tag-input-focus-border-color: var(--el-border-color);
+}
+
+:where(.el-input, .el-textarea, .el-select, .el-cascader, .el-input-tag, .el-tree-select) {
+  --el-input-focus-border-color: var(--el-border-color);
+  --el-select-input-focus-border-color: var(--el-border-color);
+  --el-input-focus-border: var(--el-border-color);
+  --el-input-focus-color: var(--el-border-color);
+  --el-input-tag-input-focus-border-color: var(--el-border-color);
+}
+
+:where(
+  .el-input__wrapper.is-focus,
+  .el-input.is-active .el-input__wrapper,
+  .el-textarea__inner:focus,
+  .el-select__wrapper.is-focused,
+  .el-select__wrapper.is-disabled.is-focus,
+  .el-input-number:focus-within,
+  .el-cascader .el-input.is-focus .el-input__wrapper,
+  .el-input-tag.is-focused
+) {
+  box-shadow: 0 0 0 1px var(--el-border-color) inset !important;
+  outline: none !important;
+}
+
+:where(
+  .el-radio__original:focus-visible + .el-radio__inner,
+  .el-radio-button__original-radio:focus-visible + .el-radio-button__inner,
+  .el-checkbox__original:focus-visible + .el-checkbox__inner,
+  .el-radio:focus:not(:focus-visible):not(.is-focus):not(:active):not(.is-disabled) .el-radio__inner
+) {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+:where(button, [role='button'], a, input, textarea, select, [tabindex]):focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+html,
+body,
+#app {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+:where(
+  input,
+  textarea,
+  [contenteditable='true'],
+  [contenteditable=''],
+  .chat-message .message-content-container,
+  .chat-message .message-content-container *,
+  .chat-message .deep-thinking-card,
+  .chat-message .deep-thinking-card *
+) {
+  -webkit-user-select: text;
+  user-select: text;
+}

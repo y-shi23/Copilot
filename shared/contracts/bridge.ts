@@ -2,6 +2,97 @@ import type { ConfigPayload, JsonValue } from './config';
 
 export type AnyFn = (...args: any[]) => any;
 
+export interface DeepSeekProxyResult {
+  ok: boolean;
+  baseUrl?: string;
+  port?: number;
+  error?: string;
+}
+
+export interface DeepSeekLoginResult {
+  ok: boolean;
+  userToken?: string;
+  cancelled?: boolean;
+  error?: string;
+}
+
+export interface StorageConversationListItem {
+  conversationId: string;
+  assistantCode: string;
+  conversationName: string;
+  preview: string;
+  size: number;
+  createdAt?: string;
+  updatedAt?: string;
+  lastmod?: string;
+  deletedAt?: string | null;
+}
+
+export interface StorageConversationPayload {
+  conversationId?: string;
+  conversationName?: string;
+  assistantCode?: string;
+  sessionData?: Record<string, any>;
+  sessionJson?: string;
+  preview?: string;
+}
+
+export interface StorageHealthInfo {
+  mode: 'sqlite-only' | 'hybrid-offline' | 'hybrid-online';
+  postgresConfigured: boolean;
+  postgresConnected: boolean;
+  postgresTarget: string;
+  queueSize: number;
+  lastSyncAt: string;
+  lastError: string;
+}
+
+export interface StorageSyncResult {
+  ok: boolean;
+  skipped?: boolean;
+  reason?: string;
+  pushed?: number;
+  pulled?: number;
+  applied?: number;
+  staleSkipped?: number;
+  processed?: number;
+  failed?: number;
+  error?: string;
+}
+
+export interface ConversationTitlePayload {
+  sessionData: Record<string, any>;
+  language?: string;
+  modelKey?: string;
+  fallbackModelKey?: string;
+}
+
+export interface ConversationTitleResult {
+  ok: boolean;
+  title: string;
+  usedModelKey?: string;
+  reason?: string;
+  error?: string;
+}
+
+export interface RuntimeStatus {
+  binDir: string;
+  bunInstalled: boolean;
+  uvInstalled: boolean;
+  uvxInstalled: boolean;
+  systemNpxPath: string;
+  systemUvPath: string;
+  systemUvxPath: string;
+  platform: string;
+  arch: string;
+}
+
+export interface RuntimeApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
 export interface MainWindowApi {
   getConfig: () => Promise<ConfigPayload> | ConfigPayload;
   updateConfig: AnyFn;
@@ -34,6 +125,8 @@ export interface MainWindowApi {
   testInvokeMcpTool: AnyFn;
   invokeMcpTool: AnyFn;
   closeMcpClient: AnyFn;
+  getMcpRuntimeStatus?: () => Promise<RuntimeApiResponse<RuntimeStatus>>;
+  installMcpRuntime?: (target: 'bun' | 'uv' | 'all') => Promise<RuntimeApiResponse<RuntimeStatus>>;
   isFileTypeSupported: AnyFn;
   parseFileObject: AnyFn;
   copyLocalPath: AnyFn;
@@ -52,12 +145,41 @@ export interface MainWindowApi {
   toggleAlwaysOnTop?: AnyFn;
   onAlwaysOnTopChanged?: AnyFn;
   onConfigUpdated?: AnyFn;
+  onConversationsChanged?: (callback: (payload: Record<string, any>) => void) => () => void;
   getCachedBackgroundImage?: AnyFn;
   cacheBackgroundImage?: AnyFn;
   toggleSkillForkMode?: AnyFn;
   shellOpenPath?: AnyFn;
   typeText?: AnyFn;
   closeWindow?: AnyFn;
+  ensureDeepSeekProxy?: () => Promise<DeepSeekProxyResult>;
+  loginDeepSeek?: () => Promise<DeepSeekLoginResult>;
+  listConversations?: (filter?: Record<string, any>) => Promise<StorageConversationListItem[]>;
+  getConversation?: (conversationId: string) => Promise<{
+    conversationId: string;
+    assistantCode: string;
+    conversationName: string;
+    preview: string;
+    size: number;
+    createdAt?: string;
+    updatedAt?: string;
+    lastmod?: string;
+    deletedAt?: string | null;
+    sessionData?: Record<string, any> | null;
+  } | null>;
+  upsertConversation?: (payload: StorageConversationPayload) => Promise<Record<string, any>>;
+  renameConversation?: (
+    conversationId: string,
+    conversationName: string,
+  ) => Promise<Record<string, any>>;
+  deleteConversations?: (ids: string[]) => Promise<Record<string, any>>;
+  cleanConversations?: (days: number) => Promise<Record<string, any>>;
+  getStorageHealth?: () => Promise<StorageHealthInfo>;
+  testPostgresConnection?: (connectionString: string) => Promise<{ ok: boolean; error?: string }>;
+  triggerStorageSync?: () => Promise<StorageSyncResult>;
+  generateConversationTitle?: (
+    payload: ConversationTitlePayload,
+  ) => Promise<ConversationTitleResult>;
 }
 
 export interface WindowPreloadBridge {

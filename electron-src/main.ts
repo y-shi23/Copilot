@@ -7,16 +7,23 @@ const {
   ipcMain,
   Notification,
   screen,
+  session,
   nativeTheme,
 } = require('electron');
 const fs = require('fs');
+const net = require('net');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const {
+  StorageService,
+  testPostgresConnection,
+} = require('../apps/backend/src/storage_service.ts');
 
 const managedWindows = new Map();
 let mainWindow = null;
 let launcherWindow = null;
 let launcherHotkey = null;
+let storageService = null;
 let isQuitting = false;
 const DEV_MAIN_URL = String(process.env.ANYWHERE_DEV_MAIN_URL || '').trim();
 const DEV_PRELOAD_PATH = String(process.env.ANYWHERE_DEV_PRELOAD_PATH || '').trim();
@@ -31,6 +38,111 @@ const SUPPORTED_PROMPT_TYPES = new Set(['general', 'over', 'img', 'files']);
 const LAUNCHER_WIDTH = 640;
 const LAUNCHER_HEIGHT = 56;
 const LAUNCHER_MAX_HEIGHT = 440;
+const DEEPSEEK_PROXY_HOST = '127.0.0.1';
+const DEEPSEEK_PROXY_PREFERRED_PORT = 5001;
+const DEEPSEEK_PROXY_READY_TIMEOUT_MS = 12000;
+const DEEPSEEK_LOGIN_URL = 'https://chat.deepseek.com';
+const DEEPSEEK_LOGIN_PARTITION = 'persist:deepseek-login';
+const DEEPSEEK_LOGIN_ACCEPT_LANGUAGE = 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7';
+const STORAGE_CONVERSATIONS_CHANGED_CHANNEL = 'storage:conversations-changed';
+
+const deepSeekProxyState = {
+  started: false,
+  baseUrl: '',
+  port: 0,
+  startPromise: null,
+  lastError: '',
+  moduleEntryPath: '',
+};
+
+let deepSeekLoginPromise = null;
+let deepSeekLoginHeadersPatched = false;
+
+function extractDeepSeekUserToken(rawToken) {
+  const source = String(rawToken || '').trim();
+  if (!source) return '';
+
+  try {
+    const parsed = JSON.parse(source);
+    if (typeof parsed === 'string') {
+      return extractDeepSeekUserToken(parsed);
+    }
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      const value = parsed.value;
+      if (typeof value === 'string') {
+        return value.trim();
+      }
+      if (value !== undefined && value !== null) {
+        return String(value).trim();
+      }
+    }
+  } catch (_error) {
+    // keep raw source
+  }
+
+  return source;
+}
+
+function getDeepSeekLoginUserAgent() {
+  let platformSection = 'X11; Linux x86_64';
+  if (process.platform === 'darwin') {
+    platformSection = 'Macintosh; Intel Mac OS X 10_15_7';
+  } else if (process.platform === 'win32') {
+    platformSection = 'Windows NT 10.0; Win64; x64';
+  }
+  const chromeVersion = String(process.versions.chrome || '124.0.0.0');
+  return `Mozilla/5.0 (${platformSection}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion} Safari/537.36`;
+}
+
+function getDeepSeekSecChUaPlatform() {
+  if (process.platform === 'darwin') return '"macOS"';
+  if (process.platform === 'win32') return '"Windows"';
+  return '"Linux"';
+}
+
+function setHeaderCaseInsensitive(headers, name, value) {
+  const existingKey = Object.keys(headers).find(
+    (key) => String(key).toLowerCase() === name.toLowerCase(),
+  );
+  if (existingKey && existingKey !== name) {
+    delete headers[existingKey];
+  }
+  headers[name] = value;
+}
+
+function deleteHeaderCaseInsensitive(headers, name) {
+  const existingKey = Object.keys(headers).find(
+    (key) => String(key).toLowerCase() === name.toLowerCase(),
+  );
+  if (existingKey) {
+    delete headers[existingKey];
+  }
+}
+
+function installDeepSeekLoginHeaderPatch(targetSession, userAgent) {
+  if (deepSeekLoginHeadersPatched) return;
+  deepSeekLoginHeadersPatched = true;
+
+  targetSession.webRequest.onBeforeSendHeaders(
+    { urls: ['https://chat.deepseek.com/*'] },
+    (details, callback) => {
+      const requestHeaders = { ...(details.requestHeaders || {}) };
+
+      setHeaderCaseInsensitive(requestHeaders, 'User-Agent', userAgent);
+      setHeaderCaseInsensitive(requestHeaders, 'Accept-Language', DEEPSEEK_LOGIN_ACCEPT_LANGUAGE);
+      setHeaderCaseInsensitive(
+        requestHeaders,
+        'Sec-CH-UA',
+        '"Not A(Brand";v="99", "Google Chrome";v="124", "Chromium";v="124"',
+      );
+      setHeaderCaseInsensitive(requestHeaders, 'Sec-CH-UA-Mobile', '?0');
+      setHeaderCaseInsensitive(requestHeaders, 'Sec-CH-UA-Platform', getDeepSeekSecChUaPlatform());
+      deleteHeaderCaseInsensitive(requestHeaders, 'X-Requested-With');
+
+      callback({ cancel: false, requestHeaders });
+    },
+  );
+}
 
 function resolveAppFile(...parts) {
   return path.join(app.getAppPath(), ...parts);
@@ -41,6 +153,10 @@ function resolveMainPreloadPath() {
   return path.isAbsolute(DEV_PRELOAD_PATH)
     ? DEV_PRELOAD_PATH
     : path.resolve(app.getAppPath(), DEV_PRELOAD_PATH);
+}
+
+function resolveDeepSeekLoginPreloadPath() {
+  return resolveAppFile('electron', 'deepseek_login_preload.js');
 }
 
 function resolveMainEntryUrl() {
@@ -120,9 +236,82 @@ function readShimDocuments() {
   }
 }
 
-function readStoredLauncherSettings() {
+function getStorageServiceInstance() {
+  if (!storageService || !storageService.isReady()) {
+    throw new Error('Storage service is not initialized.');
+  }
+  return storageService;
+}
+
+async function ensureStorageServiceReady() {
+  if (storageService && storageService.isReady()) return storageService;
+
+  if (!storageService) {
+    storageService = new StorageService({
+      dataRoot: getShimDataRoot(),
+      legacyDocsPath: getShimDocumentsPath(),
+      onSyncSummary: (summary = {}) => {
+        if (summary?.ok && Number(summary?.applied || 0) > 0) {
+          notifyConversationsChanged({
+            source: 'sync-pull',
+            pulled: Number(summary.pulled || 0),
+            applied: Number(summary.applied || 0),
+            staleSkipped: Number(summary.staleSkipped || 0),
+          });
+        }
+      },
+    });
+  }
+
+  await storageService.init();
+  return storageService;
+}
+
+function notifyConversationsChanged(payload = {}) {
+  const message = {
+    at: new Date().toISOString(),
+    ...payload,
+  };
+
+  const targets = [];
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    targets.push(mainWindow.webContents);
+  }
+
+  managedWindows.forEach((win) => {
+    if (win && !win.isDestroyed()) {
+      targets.push(win.webContents);
+    }
+  });
+
+  const seen = new Set();
+  targets.forEach((webContents) => {
+    if (!webContents || webContents.isDestroyed()) return;
+    if (seen.has(webContents.id)) return;
+    seen.add(webContents.id);
+    webContents.send(STORAGE_CONVERSATIONS_CHANGED_CHANNEL, message);
+  });
+}
+
+function readStoredDocData(docId) {
+  try {
+    if (storageService && storageService.isReady()) {
+      const doc = storageService.docGetSync(docId);
+      if (doc && doc.data && typeof doc.data === 'object') {
+        return doc.data;
+      }
+    }
+  } catch (error) {
+    console.warn(`[Storage] Failed to read doc "${docId}" from storage service:`, error);
+  }
+
   const docs = readShimDocuments();
-  const sharedConfig = docs?.config?.data?.config || {};
+  const docData = docs?.[docId]?.data;
+  return docData && typeof docData === 'object' ? docData : {};
+}
+
+function readStoredLauncherSettings() {
+  const sharedConfig = readStoredDocData('config')?.config || {};
 
   const launcherEnabled =
     sharedConfig.launcherEnabled === undefined
@@ -137,8 +326,7 @@ function readStoredLauncherSettings() {
 }
 
 function readStoredThemeSettings() {
-  const docs = readShimDocuments();
-  return docs?.config?.data?.config || {};
+  return readStoredDocData('config')?.config || {};
 }
 
 function resolveThemeSource(settings = {}) {
@@ -167,8 +355,7 @@ function applyNativeThemeSource(settings = {}) {
 }
 
 function readStoredPrompts() {
-  const docs = readShimDocuments();
-  const promptsData = docs?.prompts?.data;
+  const promptsData = readStoredDocData('prompts');
   if (!promptsData || typeof promptsData !== 'object') return [];
 
   return Object.entries(promptsData)
@@ -406,6 +593,303 @@ function registerLauncherHotkey(rawSettings = {}) {
   };
 }
 
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getDeepSeekProxyDataDir() {
+  const dir = path.join(app.getPath('userData'), 'deepseek-api');
+  fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function isPortAvailable(port, host = DEEPSEEK_PROXY_HOST) {
+  return new Promise((resolve) => {
+    const server = net.createServer();
+    server.unref();
+
+    server.once('error', () => {
+      resolve(false);
+    });
+
+    server.once('listening', () => {
+      server.close(() => resolve(true));
+    });
+
+    try {
+      server.listen(port, host);
+    } catch (_error) {
+      resolve(false);
+    }
+  });
+}
+
+function getFreePort(host = DEEPSEEK_PROXY_HOST) {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+
+    server.once('error', (error) => {
+      reject(error);
+    });
+
+    server.once('listening', () => {
+      const addressInfo = server.address();
+      const port = addressInfo && typeof addressInfo === 'object' ? addressInfo.port : 0;
+      server.close(() => {
+        if (port > 0) {
+          resolve(port);
+        } else {
+          reject(new Error('Failed to allocate free port.'));
+        }
+      });
+    });
+
+    server.listen(0, host);
+  });
+}
+
+function resolveDeepSeekModuleEntryPath() {
+  if (deepSeekProxyState.moduleEntryPath) {
+    return deepSeekProxyState.moduleEntryPath;
+  }
+
+  const packageJsonPath = require.resolve('@ziuchen/deepseek-api/package.json');
+  const packageDir = path.dirname(packageJsonPath);
+  const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  const mainEntry =
+    typeof packageJson.main === 'string' && packageJson.main.trim() ? packageJson.main.trim() : '';
+
+  const candidates = [
+    path.join(packageDir, 'dist', 'index.mjs'),
+    mainEntry ? path.join(packageDir, mainEntry) : '',
+    path.join(packageDir, 'dist', 'index.js'),
+  ].filter(Boolean);
+
+  const entryPath = candidates.find((candidate) => fs.existsSync(candidate));
+  if (!entryPath) {
+    throw new Error('Unable to resolve @ziuchen/deepseek-api entry file.');
+  }
+  deepSeekProxyState.moduleEntryPath = entryPath;
+  return entryPath;
+}
+
+async function isDeepSeekProxyReady(baseOrigin) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 1500);
+  try {
+    const response = await fetch(`${baseOrigin}/v1/models`, {
+      method: 'GET',
+      signal: controller.signal,
+    });
+    return response.ok;
+  } catch (_error) {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function waitForDeepSeekProxyReady(baseOrigin, timeoutMs = DEEPSEEK_PROXY_READY_TIMEOUT_MS) {
+  const startedAt = Date.now();
+  while (Date.now() - startedAt < timeoutMs) {
+    if (await isDeepSeekProxyReady(baseOrigin)) {
+      return true;
+    }
+    await delay(250);
+  }
+  return false;
+}
+
+async function startDeepSeekProxy() {
+  const preferredAvailable = await isPortAvailable(DEEPSEEK_PROXY_PREFERRED_PORT);
+  const selectedPort = preferredAvailable
+    ? DEEPSEEK_PROXY_PREFERRED_PORT
+    : await getFreePort(DEEPSEEK_PROXY_HOST);
+  const baseOrigin = `http://${DEEPSEEK_PROXY_HOST}:${selectedPort}`;
+
+  process.env.LISTEN_HOST = DEEPSEEK_PROXY_HOST;
+  process.env.LISTEN_PORT = String(selectedPort);
+  process.env.DATA_DIR = getDeepSeekProxyDataDir();
+
+  const entryPath = resolveDeepSeekModuleEntryPath();
+  await import(pathToFileURL(entryPath).toString());
+
+  const isReady = await waitForDeepSeekProxyReady(baseOrigin);
+  if (!isReady) {
+    throw new Error('DeepSeek proxy did not become ready in time.');
+  }
+
+  deepSeekProxyState.started = true;
+  deepSeekProxyState.baseUrl = `${baseOrigin}/v1`;
+  deepSeekProxyState.port = selectedPort;
+  deepSeekProxyState.lastError = '';
+
+  return {
+    ok: true,
+    baseUrl: deepSeekProxyState.baseUrl,
+    port: deepSeekProxyState.port,
+  };
+}
+
+async function ensureDeepSeekProxy() {
+  if (deepSeekProxyState.started && deepSeekProxyState.baseUrl) {
+    return {
+      ok: true,
+      baseUrl: deepSeekProxyState.baseUrl,
+      port: deepSeekProxyState.port,
+    };
+  }
+
+  if (deepSeekProxyState.startPromise) {
+    return deepSeekProxyState.startPromise;
+  }
+
+  deepSeekProxyState.startPromise = (async () => {
+    try {
+      return await startDeepSeekProxy();
+    } catch (error) {
+      const errorText = String(error?.message || error);
+      deepSeekProxyState.started = false;
+      deepSeekProxyState.baseUrl = '';
+      deepSeekProxyState.port = 0;
+      deepSeekProxyState.lastError = errorText;
+      return {
+        ok: false,
+        error: errorText,
+      };
+    } finally {
+      deepSeekProxyState.startPromise = null;
+    }
+  })();
+
+  return deepSeekProxyState.startPromise;
+}
+
+function createDeepSeekLoginWindow(owner) {
+  const userAgent = getDeepSeekLoginUserAgent();
+  const loginSession = session.fromPartition(DEEPSEEK_LOGIN_PARTITION);
+  installDeepSeekLoginHeaderPatch(loginSession, userAgent);
+  const loginPreloadPath = resolveDeepSeekLoginPreloadPath();
+  const loginWindow = new BrowserWindow({
+    width: 440,
+    height: 760,
+    minWidth: 400,
+    minHeight: 640,
+    show: true,
+    autoHideMenuBar: true,
+    parent: owner,
+    modal: false,
+    title: 'DeepSeek Login',
+    webPreferences: {
+      preload: fs.existsSync(loginPreloadPath) ? loginPreloadPath : undefined,
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+      partition: DEEPSEEK_LOGIN_PARTITION,
+    },
+  });
+  loginWindow.webContents.setUserAgent(userAgent);
+  loginWindow.loadURL(DEEPSEEK_LOGIN_URL, { userAgent });
+  return loginWindow;
+}
+
+function loginDeepSeek(owner) {
+  if (deepSeekLoginPromise) {
+    return deepSeekLoginPromise;
+  }
+
+  deepSeekLoginPromise = new Promise((resolve) => {
+    const loginWindow = createDeepSeekLoginWindow(owner);
+    let settled = false;
+    let pollTimer = null;
+    let latestToken = '';
+    let allowClose = false;
+    let closeGuardInProgress = false;
+
+    const cleanup = () => {
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
+    };
+
+    const settle = (payload) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(payload);
+      if (!loginWindow.isDestroyed()) {
+        loginWindow.close();
+      }
+    };
+
+    const tryReadUserToken = async () => {
+      if (settled || loginWindow.isDestroyed()) return;
+      try {
+        const rawToken = await loginWindow.webContents.executeJavaScript(
+          `(() => {
+            try {
+              const raw = localStorage.getItem('userToken');
+              return typeof raw === 'string' ? raw.trim() : '';
+            } catch (_error) {
+              return '';
+            }
+          })()`,
+          true,
+        );
+        const parsedToken = extractDeepSeekUserToken(rawToken);
+        if (parsedToken) {
+          latestToken = parsedToken;
+        }
+      } catch (_error) {
+        // ignore and keep polling
+      }
+    };
+
+    pollTimer = setInterval(() => {
+      tryReadUserToken().catch(() => {});
+    }, 1200);
+
+    loginWindow.webContents.on('did-finish-load', () => {
+      tryReadUserToken().catch(() => {});
+    });
+
+    loginWindow.on('close', (event) => {
+      if (allowClose || settled) return;
+      event.preventDefault();
+      if (closeGuardInProgress) return;
+      closeGuardInProgress = true;
+
+      tryReadUserToken()
+        .catch(() => {})
+        .finally(() => {
+          allowClose = true;
+          closeGuardInProgress = false;
+          if (!loginWindow.isDestroyed()) {
+            loginWindow.close();
+          }
+        });
+    });
+
+    loginWindow.on('closed', () => {
+      if (!settled) {
+        if (latestToken) {
+          settle({ ok: true, userToken: latestToken });
+        } else {
+          settled = true;
+          cleanup();
+          resolve({ ok: false, cancelled: true });
+        }
+      }
+    });
+  }).finally(() => {
+    deepSeekLoginPromise = null;
+  });
+
+  return deepSeekLoginPromise;
+}
+
 function createMainWindow() {
   const preloadPath = resolveMainPreloadPath();
   const isMac = process.platform === 'darwin';
@@ -413,8 +897,8 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 1180,
     height: 820,
-    minWidth: 1000,
-    minHeight: 680,
+    minWidth: 800,
+    minHeight: 600,
     show: false,
     backgroundColor: isMac ? '#00000000' : '#f7f7f5',
     autoHideMenuBar: true,
@@ -481,6 +965,8 @@ function ensureBuildArtifacts() {
   }
 
   const requiredPaths = [
+    resolveAppFile('electron', 'launcher_preload.js'),
+    resolveAppFile('electron', 'deepseek_login_preload.js'),
     resolveAppFile('runtime', 'main', 'index.html'),
     resolveAppFile('runtime', 'main', 'launcher.html'),
     resolveAppFile('runtime', 'preload.js'),
@@ -726,6 +1212,131 @@ ipcMain.on('utools:send-to-parent', (event, payload = {}) => {
   mainWindow.webContents.send(channel, data);
 });
 
+ipcMain.on('storage:doc-get-sync', (event, docId) => {
+  try {
+    const service = getStorageServiceInstance();
+    event.returnValue = service.docGetSync(docId);
+  } catch (error) {
+    console.error('[Storage] storage:doc-get-sync failed:', error);
+    event.returnValue = null;
+  }
+});
+
+ipcMain.on('storage:doc-put-sync', (event, doc) => {
+  try {
+    const service = getStorageServiceInstance();
+    event.returnValue = service.docPutSync(doc);
+  } catch (error) {
+    console.error('[Storage] storage:doc-put-sync failed:', error);
+    event.returnValue = {
+      ok: false,
+      error: true,
+      name: 'storage_error',
+      message: String(error?.message || error),
+    };
+  }
+});
+
+ipcMain.on('storage:doc-remove-sync', (event, docId) => {
+  try {
+    const service = getStorageServiceInstance();
+    event.returnValue = service.docRemoveSync(docId);
+  } catch (error) {
+    console.error('[Storage] storage:doc-remove-sync failed:', error);
+    event.returnValue = {
+      ok: false,
+      error: true,
+      name: 'storage_error',
+      message: String(error?.message || error),
+    };
+  }
+});
+
+ipcMain.handle('storage:conversation-list', async (_event, filter = {}) => {
+  const service = await ensureStorageServiceReady();
+  return service.listConversations(filter || {});
+});
+
+ipcMain.handle('storage:conversation-get', async (_event, conversationId) => {
+  const service = await ensureStorageServiceReady();
+  return service.getConversation(conversationId);
+});
+
+ipcMain.handle('storage:conversation-upsert', async (_event, payload = {}) => {
+  const service = await ensureStorageServiceReady();
+  const result = service.upsertConversation(payload || {});
+  if (result?.ok && result?.unchanged !== true) {
+    notifyConversationsChanged({
+      source: 'conversation-upsert',
+      conversationId: result.conversationId || '',
+      assistantCode: result.assistantCode || '',
+    });
+  }
+  return result;
+});
+
+ipcMain.handle('storage:conversation-rename', async (_event, payload = {}) => {
+  const service = await ensureStorageServiceReady();
+  const conversationId = payload?.conversationId;
+  const conversationName = payload?.conversationName;
+  const result = service.renameConversation(conversationId, conversationName);
+  if (result?.ok) {
+    notifyConversationsChanged({
+      source: 'conversation-rename',
+      conversationId: result.conversationId || '',
+      conversationName: result.conversationName || '',
+    });
+  }
+  return result;
+});
+
+ipcMain.handle('storage:conversation-delete', async (_event, ids = []) => {
+  const service = await ensureStorageServiceReady();
+  const result = service.deleteConversations(Array.isArray(ids) ? ids : []);
+  if (result?.ok && Number(result?.deletedCount || 0) > 0) {
+    notifyConversationsChanged({
+      source: 'conversation-delete',
+      deletedCount: Number(result.deletedCount || 0),
+    });
+  }
+  return result;
+});
+
+ipcMain.handle('storage:conversation-clean', async (_event, days = 30) => {
+  const service = await ensureStorageServiceReady();
+  const result = service.cleanConversations(days);
+  if (result?.ok && Number(result?.deletedCount || 0) > 0) {
+    notifyConversationsChanged({
+      source: 'conversation-clean',
+      deletedCount: Number(result.deletedCount || 0),
+    });
+  }
+  return result;
+});
+
+ipcMain.handle('storage:health-get', async () => {
+  const service = await ensureStorageServiceReady();
+  return service.getStorageHealth();
+});
+
+ipcMain.handle('storage:postgres-test', async (_event, connectionString) => {
+  return testPostgresConnection(connectionString);
+});
+
+ipcMain.handle('storage:sync-now', async () => {
+  const service = await ensureStorageServiceReady();
+  return service.syncNow();
+});
+
+ipcMain.handle('deepseek:ensure-proxy', async () => {
+  return ensureDeepSeekProxy();
+});
+
+ipcMain.handle('deepseek:login', async (event) => {
+  const owner = BrowserWindow.fromWebContents(event.sender) || mainWindow || undefined;
+  return loginDeepSeek(owner);
+});
+
 ipcMain.handle('launcher:get-prompts', () => {
   return readStoredPrompts();
 });
@@ -810,8 +1421,24 @@ ipcMain.on('launcher:execute', (_event, action = {}) => {
   });
 });
 
-app.whenReady().then(() => {
+app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled');
+app.commandLine.appendSwitch('lang', 'zh-CN');
+
+app.whenReady().then(async () => {
   ensureBuildArtifacts();
+
+  try {
+    await ensureStorageServiceReady();
+  } catch (error) {
+    const message = String(error?.message || error);
+    dialog.showErrorBox(
+      'Sanft Storage Initialization Failed',
+      `Failed to initialize local storage.\n\n${message}`,
+    );
+    app.quit();
+    return;
+  }
+
   applyNativeThemeSource(readStoredThemeSettings());
   createMainWindow();
 
@@ -841,4 +1468,9 @@ app.on('before-quit', () => {
 
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
+  if (storageService) {
+    storageService.dispose().catch((error) => {
+      console.warn('[Storage] Dispose failed during quit:', error);
+    });
+  }
 });

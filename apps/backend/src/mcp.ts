@@ -1,6 +1,11 @@
 // @ts-nocheck
 const { MultiServerMCPClient } = require('@langchain/mcp-adapters');
 const { getBuiltinTools, invokeBuiltinTool } = require('./mcp_builtin');
+const {
+  getMcpRuntimeStatus,
+  installMcpRuntime,
+  resolveMcpServerRuntimeConfig,
+} = require('./mcp_environment');
 
 const PERSISTENT_CONNECTION_LIMIT = 5; // uTools 限制最多5个持久连接
 const ON_DEMAND_CONCURRENCY_LIMIT = 5; // 非持久连接的并发限制
@@ -37,10 +42,11 @@ async function connectAndFetchTools(id, config) {
 
   try {
     const modifiedConfig = { ...config, transport: normalizeTransportType(config.transport) };
+    const runtimeResolvedConfig = await resolveMcpServerRuntimeConfig(modifiedConfig);
 
     // 创建客户端
     tempClient = new MultiServerMCPClient(
-      { [id]: { id, ...modifiedConfig } },
+      { [id]: { id, ...runtimeResolvedConfig } },
       { signal: controller.signal },
     );
 
@@ -264,7 +270,8 @@ async function initializeMcpClient(
       }
       try {
         const modifiedConfig = { ...config, transport: normalizeTransportType(config.transport) };
-        const client = new MultiServerMCPClient({ [id]: { id, ...modifiedConfig } });
+        const runtimeResolvedConfig = await resolveMcpServerRuntimeConfig(modifiedConfig);
+        const client = new MultiServerMCPClient({ [id]: { id, ...runtimeResolvedConfig } });
         const tools = await client.getTools();
 
         if (saveCacheCallback && typeof saveCacheCallback === 'function') {
@@ -376,9 +383,10 @@ async function invokeMcpTool(toolName, toolArgs, signal, context = null) {
     try {
       const modifiedConfig = { ...serverConfig };
       modifiedConfig.transport = normalizeTransportType(modifiedConfig.transport);
+      const runtimeResolvedConfig = await resolveMcpServerRuntimeConfig(modifiedConfig);
 
       tempClient = new MultiServerMCPClient(
-        { [serverConfig.id]: { id: serverConfig.id, ...modifiedConfig } },
+        { [serverConfig.id]: { id: serverConfig.id, ...runtimeResolvedConfig } },
         { signal: controller.signal },
       );
       const tools = await tempClient.getTools();
@@ -412,8 +420,9 @@ async function connectAndInvokeTool(id, config, toolName, toolArgs, context = nu
 
   try {
     const modifiedConfig = { ...config, transport: normalizeTransportType(config.transport) };
+    const runtimeResolvedConfig = await resolveMcpServerRuntimeConfig(modifiedConfig);
     tempClient = new MultiServerMCPClient(
-      { [id]: { id, ...modifiedConfig } },
+      { [id]: { id, ...runtimeResolvedConfig } },
       { signal: controller.signal },
     );
     const tools = await tempClient.getTools();
@@ -462,4 +471,6 @@ module.exports = {
   closeMcpClient,
   connectAndFetchTools, // 导出供测试
   connectAndInvokeTool, // 导出供测试
+  getMcpRuntimeStatus,
+  installMcpRuntime,
 };

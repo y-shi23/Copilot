@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // -nocheck
-import { computed, ref, nextTick, onBeforeUnmount } from 'vue';
-import { Bubble, Thinking, XMarkdown } from 'vue-element-plus-x';
+import { computed, ref, nextTick, onBeforeUnmount, watch } from 'vue';
+import { Bubble } from 'vue-element-plus-x';
 import {
   ElTooltip,
   ElButton,
@@ -23,11 +23,16 @@ import {
   FileText,
   Wrench,
   Square,
+  ArrowUp,
+  ArrowDown,
+  AlarmClockCheck,
 } from 'lucide-vue-next';
-import 'katex/dist/katex.min.css';
-import DOMPurify from 'dompurify';
 
+import DeepThinkingCard from './reasoning/DeepThinkingCard.vue';
+import MessageOutline from './navigation/MessageOutline.vue';
+import MarkdownRenderer from './markdown/MarkdownRenderer.vue';
 import { formatTimestamp, formatMessageText, sanitizeToolArgs } from '../utils/formatters';
+import { handleModelLogoError, resolveModelLogoUrl } from '../utils/modelLogos';
 
 const props = defineProps({
   message: Object,
@@ -39,6 +44,8 @@ const props = defineProps({
   isCollapsed: Boolean,
   isDarkMode: Boolean,
   isAutoApprove: Boolean,
+  showMessageOutline: Boolean,
+  isOutlineActive: Boolean,
 });
 
 const emit = defineEmits([
@@ -59,6 +66,7 @@ const editInputRef = ref(null);
 const isEditing = ref(false);
 const editedContent = ref('');
 const isCopied = ref(false);
+const reasoningExpandedMap = ref<Record<string, boolean>>({});
 
 let copyFeedbackTimer = null;
 const RENDER_CACHE_LIMIT = 500;
@@ -111,76 +119,6 @@ const formatToolArgs = (argsString) => {
   } catch (e) {
     return argsString;
   }
-};
-
-const preprocessKatex = (text) => {
-  if (!text) return '';
-  let processedText = text;
-
-  // 1. 替换非标准连字符
-  processedText = processedText.replace(/\u2013/g, '-').replace(/\u2014/g, '-');
-
-  // 2. 将 \[ ... \] 转换为 $$ ... $$ (块级公式)
-  processedText = processedText.replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$');
-
-  // 3. 将 \( ... \) 转换为 $ ... $ (行内公式)
-  processedText = processedText.replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$');
-
-  // 4. 将 {align} 和 {equation} 替换为 {aligned}
-  // KaTeX 在 $$...$$ 内部通常不支持 align 环境（它是顶级环境）。
-  // 使用 aligned 环境可以完美解决渲染问题，同时配合下方的 \tag 模拟显示。
-  processedText = processedText.replace(/\\begin\{align\*?\}/g, '\\begin{aligned}');
-  processedText = processedText.replace(/\\end\{align\*?\}/g, '\\end{aligned}');
-  processedText = processedText.replace(/\\begin\{equation\*?\}/g, '\\begin{aligned}');
-  processedText = processedText.replace(/\\end\{equation\*?\}/g, '\\end{aligned}');
-
-  // 5. 模拟 LaTeX \tag{} 显示
-  // 由于 aligned 环境不支持原生 \tag，或者 Markdown 渲染器会吞掉反斜杠，
-  // 将其替换为右侧间距 + 文本的形式： \qquad \text{(...)}
-  processedText = processedText.replace(/(?<!\\)\\tag\s*\{([^{}]+)\}/g, '\\qquad \\text{($1)}');
-
-  return processedText;
-};
-
-const processFilePaths = (text) => {
-  if (!text) return '';
-
-  // 辅助函数：生成链接 HTML
-  const createLink = (pathStr) => {
-    // 清洗末尾的标点符号 (如句号、逗号、括号)
-    const cleanPath = pathStr.replace(/[.,;:)\]。，；：]+$/, '').trim();
-
-    // 过滤过短的误判
-    if (cleanPath.length < 2) return pathStr;
-    // 排除单纯的根目录符号
-    if (cleanPath === '/' || cleanPath === '~' || cleanPath === '\\') return pathStr;
-
-    // 生成带 data-filepath 的链接，href 设为 void(0) 防止跳转
-    return `<a href="javascript:void(0)" data-filepath="${cleanPath}" class="local-file-link" title="点击打开文件: ${cleanPath}">${cleanPath}</a>`;
-  };
-
-  let processed = text;
-
-  // 1. 处理 Windows 路径 (盘符开头，如 C:\Users)
-  // (?<!["'=]) 避免匹配到 HTML 属性中的路径
-  processed = processed.replace(/(?<!["'=])([a-zA-Z]:\\[^:<>"|?*\n\r\t]+)/g, (match) => {
-    return createLink(match);
-  });
-
-  // 2. 处理 Unix/Linux/macOS 路径 (/ 或 ~ 开头)
-  // (?<!["'=:\w]) 避免匹配 URL (http://) 或 HTML 属性
-  // (^|[\s"'(>]) 确保路径出现在行首、空格、引号或括号之后
-  processed = processed.replace(
-    /(^|[\s"'(>])((?:\/|~)[^:<>"|?*\n\r\t\s]+)/g,
-    (match, prefix, pathStr) => {
-      // 二次校验：防止匹配 URL 的一部分 (如 https://example.com/foo)
-      // 如果 prefix 是空或者是空白符，通常是安全的。
-      // 如果是 > (HTML标签结束)，也是安全的。
-      return prefix + createLink(pathStr);
-    },
-  );
-
-  return processed;
 };
 
 const mermaidConfig = computed(() => ({
@@ -276,6 +214,136 @@ const isEditable = computed(() => {
   return false;
 });
 
+const assistantResponseMetrics = computed(() => {
+  if (props.message.role !== 'assistant') return null;
+  const metrics = props.message?.metrics;
+  if (!metrics || typeof metrics !== 'object') return null;
+
+  const toCount = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) && num >= 0 ? Math.round(num) : null;
+  };
+  const toMs = (value) => {
+    const num = Number(value);
+    return Number.isFinite(num) && num >= 0 ? num : null;
+  };
+
+  const completionTokens = toCount(metrics.completion_tokens);
+  const promptTokens = toCount(metrics.prompt_tokens);
+  const totalTokens = toCount(metrics.total_tokens);
+  if (completionTokens === null && promptTokens === null && totalTokens === null) return null;
+
+  const safePromptTokens = promptTokens ?? 0;
+  const safeCompletionTokens = completionTokens ?? 0;
+  const safeTotalTokens = totalTokens ?? safePromptTokens + safeCompletionTokens;
+  const timeFirstTokenMs = toMs(metrics.time_first_token_millsec);
+  const timeCompletionMs = toMs(metrics.time_completion_millsec);
+  const directTokenSpeed = Number(metrics.token_speed);
+  const fallbackTokenSpeed =
+    timeCompletionMs && safeCompletionTokens >= 0
+      ? safeCompletionTokens / (timeCompletionMs / 1000)
+      : null;
+  const tokenSpeed =
+    Number.isFinite(directTokenSpeed) && directTokenSpeed >= 0
+      ? directTokenSpeed
+      : fallbackTokenSpeed;
+
+  return {
+    completionTokens: safeCompletionTokens,
+    promptTokens: safePromptTokens,
+    totalTokens: safeTotalTokens,
+    timeFirstTokenMs,
+    tokenSpeed,
+    isEstimated: Boolean(metrics.is_estimated),
+  };
+});
+
+const assistantResponseTotalTokensDisplay = computed(() => {
+  const metrics = assistantResponseMetrics.value;
+  if (!metrics) return '';
+  return `${metrics.isEstimated ? '~' : ''}${metrics.totalTokens}Tokens`;
+});
+
+const assistantFirstTokenLatencyDisplay = computed(() => {
+  const metrics = assistantResponseMetrics.value;
+  if (!metrics || metrics.timeFirstTokenMs === null) return '-';
+  return `${Math.round(metrics.timeFirstTokenMs)} ms`;
+});
+
+const assistantTokenSpeedDisplay = computed(() => {
+  const metrics = assistantResponseMetrics.value;
+  if (!metrics || !Number.isFinite(metrics.tokenSpeed) || metrics.tokenSpeed < 0) return '-';
+  return `${metrics.tokenSpeed.toFixed(1)} Tokens/s`;
+});
+
+const assistantModelDisplayMeta = computed(() => {
+  const fallbackName = String(props.message?.aiName || 'AI').trim() || 'AI';
+  const modelKey = String(props.message?.modelKey || props.message?.model || '');
+  const modelLabel = String(props.message?.modelLabel || props.message?.aiName || '');
+
+  let providerName = '';
+  let providerId = '';
+  let modelNameFromLabel = '';
+  let modelNameFromKey = '';
+
+  if (modelLabel.includes('|')) {
+    const [provider = '', ...modelParts] = modelLabel.split('|');
+    providerName = provider.trim();
+    modelNameFromLabel = modelParts.join('|').trim();
+  }
+
+  if (modelKey.includes('|')) {
+    const [provider = '', ...modelParts] = modelKey.split('|');
+    providerId = provider.trim();
+    modelNameFromKey = modelParts.join('|').trim();
+  }
+
+  const modelName = modelNameFromKey || modelNameFromLabel || fallbackName;
+  const provider = providerName || providerId;
+
+  return {
+    modelName,
+    providerName: provider,
+    providerId,
+    providerInitial: provider ? provider.charAt(0).toUpperCase() : '',
+    hasModelIdentity: Boolean((modelNameFromKey || modelNameFromLabel) && provider),
+  };
+});
+
+const assistantAvatarMeta = computed(() => {
+  const fallbackAvatar = props.aiAvatar || 'ai.svg';
+  if (props.message?.role !== 'assistant') {
+    return { src: fallbackAvatar, isModelLogo: false };
+  }
+
+  if (!assistantModelDisplayMeta.value.hasModelIdentity) {
+    return { src: fallbackAvatar, isModelLogo: false };
+  }
+
+  if (!assistantModelDisplayMeta.value.modelName) {
+    return { src: fallbackAvatar, isModelLogo: false };
+  }
+
+  return {
+    src: resolveModelLogoUrl(assistantModelDisplayMeta.value.modelName, {
+      providerName: assistantModelDisplayMeta.value.providerName,
+      metadataProviderId: assistantModelDisplayMeta.value.providerId,
+    }),
+    isModelLogo: true,
+  };
+});
+
+const onAssistantAvatarError = (event) => {
+  if (assistantAvatarMeta.value.isModelLogo) {
+    handleModelLogoError(event);
+    return;
+  }
+  const img = event?.target;
+  if (!img || img.dataset.avatarFallbackApplied === '1') return;
+  img.dataset.avatarFallbackApplied = '1';
+  img.src = 'ai.svg';
+};
+
 const switchToEditMode = () => {
   editedContent.value = formatMessageText(props.message.content);
   isEditing.value = true;
@@ -318,109 +386,131 @@ const renderedMarkdownContent = computed(() => {
 
   const content = props.message.role ? props.message.content : props.message;
   const role = props.message.role ? props.message.role : 'user';
-  let formattedContent = formatMessageContent(content, role);
-  formattedContent = preprocessKatex(formattedContent);
-
-  const protectedMap = new Map();
-  let placeholderIndex = 0;
-  const addPlaceholder = (text) => {
-    const placeholder = `__PROTECTED_CONTENT_${placeholderIndex++}__`;
-    protectedMap.set(placeholder, text);
-    return placeholder;
-  };
-
-  // 1. HTML 转义辅助函数 (用于显示文本)
-  const escapeHtml = (unsafe) => {
-    return unsafe
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
-  };
-
-  // 2. 属性转义辅助函数 (本逻辑中已改用 encodeURIComponent，此函数暂留作备用)
-  const escapeAttr = (unsafe) => {
-    return unsafe.replace(/"/g, '&quot;');
-  };
-
-  // 3. 保护数学公式 (最高优先级)
-  let processedContent = formattedContent.replace(/(\$\$)([\s\S]*?)(\$\$)/g, (match) =>
-    addPlaceholder(match),
-  );
-  processedContent = processedContent.replace(/(\$)(?!\s)([^$\n]+?)(?<!\s)(\$)/g, (match) =>
-    addPlaceholder(match),
-  );
-
-  // 4. 保护块级代码 (```...```)
-  // [修改] 优化正则以支持带缩进的代码块（例如列表中的代码块）
-  // 原正则: /(^|\n)(```)([\s\S]*?)\2/g
-  // 新正则: /(^|\n)([ \t]*)(```)([\s\S]*?)\3/g  <- 增加了 ([ \t]*) 捕获缩进，并将反向引用改为 \3
-  processedContent = processedContent.replace(/(^|\n)([ \t]*)(```)([\s\S]*?)\3/g, (match) => {
-    return addPlaceholder(match);
-  });
-
-  // 5. 处理行内代码 (`...`) - 在此处检测文件路径并生成链接
-  processedContent = processedContent.replace(
-    /(^|[^\\])(`+)([\s\S]*?)\2/g,
-    (match, prefix, delimiter, inner) => {
-      const trimmedInner = inner.trim();
-
-      // 路径判定逻辑：
-      // 1. 包含 Windows 盘符 (C:\) 或 Unix 路径符 (/ 或 ~)
-      // 2. 不包含换行符
-      // 3. 长度大于 1
-      const isWinPath = /^[a-zA-Z]:\\/.test(trimmedInner);
-      const isUnixPath = /^[\/~]/.test(trimmedInner);
-      const hasNewline = trimmedInner.includes('\n');
-
-      if ((isWinPath || isUnixPath) && !hasNewline && trimmedInner.length > 1) {
-        // 清洗末尾标点
-        const cleanPath = trimmedInner.replace(/[.,;:)\]。，；：]+$/, '');
-
-        // 1. 将 <a> 包裹在 <code> 外面，避免 HTML 解析器截断或隐藏代码块内容。
-        // 2. 使用 encodeURIComponent 编码路径，解决空格和中文导致的属性解析错误。
-        // 3. 添加 style="text-decoration:none;" 防止下划线干扰代码块样式。
-        const linkHtml = `<a href="#" data-filepath="${encodeURIComponent(cleanPath)}" class="local-file-link" style="text-decoration:none;" title="点击打开文件"><code class="inline-code-tag">${escapeHtml(inner)}</code></a>`;
-        return prefix + addPlaceholder(linkHtml);
-      }
-
-      // 普通代码块，正常显示
-      const codeHtml = `<code class="inline-code-tag">${escapeHtml(inner)}</code>`;
-      return prefix + addPlaceholder(codeHtml);
-    },
-  );
-
-  // 6. 加粗处理
-  processedContent = processedContent.replace(
-    /(^|[^\\])\*\*([^\n]+?)\*\*/g,
-    '$1<strong>$2</strong>',
-  );
-
-  // 7. HTML 清洗
-  let sanitizedPart = DOMPurify.sanitize(processedContent, {
-    ADD_TAGS: ['video', 'audio', 'source'],
-    USE_PROFILES: { html: true, svg: true, svgFilters: true },
-    // 确保允许 data-filepath 和 onclick
-    ADD_ATTR: ['style', 'data-filepath', 'onclick', 'target', 'title'],
-  });
-
-  sanitizedPart = sanitizedPart.replace(/&gt;/g, '>');
-
-  // 8. 恢复受保护的内容
-  let finalContent = sanitizedPart.replace(/__PROTECTED_CONTENT_\d+__/g, (placeholder) => {
-    return protectedMap.get(placeholder) || placeholder;
-  });
-
-  // 9. 表格包裹
-  finalContent = finalContent
-    .replace(/<table/g, '<div class="table-scroll-wrapper"><table')
-    .replace(/<\/table>/g, '</table></div>');
-
-  const rendered = !finalContent && props.message.role === 'assistant' ? ' ' : finalContent || ' ';
+  const formattedContent = formatMessageContent(content, role);
+  const rendered =
+    !formattedContent && props.message.role === 'assistant' ? ' ' : formattedContent || ' ';
   setCachedRender(cacheKey, rendered);
   return rendered;
 });
+
+const normalizeReasoningText = (value: any) => String(value || '').trim();
+
+const assistantToolCallMap = computed(() => {
+  const map = new Map<string, any>();
+  const list = Array.isArray(props.message?.tool_calls) ? props.message.tool_calls : [];
+  list.forEach((toolCall: any) => {
+    const id = String(toolCall?.id || '').trim();
+    if (!id) return;
+    map.set(id, toolCall);
+  });
+  return map;
+});
+
+const assistantTimelineSegments = computed(() => {
+  if (String(props.message?.role || '') !== 'assistant') return [];
+
+  const apiSegments = Array.isArray(props.message?.meta?.apiMessages)
+    ? props.message.meta.apiMessages
+    : [];
+  const segments: any[] = [];
+
+  apiSegments.forEach((apiSegment: any, index: number) => {
+    const reasoningContent = normalizeReasoningText(apiSegment?.reasoning_content);
+    if (reasoningContent) {
+      segments.push({
+        id: `reasoning-${index}`,
+        type: 'reasoning',
+        content: reasoningContent,
+        status: 'end',
+        reasoningStartedAt: null,
+        reasoningFinishedAt: null,
+      });
+    }
+
+    const rawToolCalls = Array.isArray(apiSegment?.tool_calls) ? apiSegment.tool_calls : [];
+    if (rawToolCalls.length > 0) {
+      const toolCalls = rawToolCalls
+        .map((rawToolCall: any) => {
+          const id = String(rawToolCall?.id || '').trim();
+          if (!id) return null;
+
+          const currentToolCall = assistantToolCallMap.value.get(id);
+          if (currentToolCall) return currentToolCall;
+
+          const args = rawToolCall?.function?.arguments ?? rawToolCall?.args ?? '{}';
+          return {
+            id,
+            name: String(rawToolCall?.function?.name || rawToolCall?.name || 'unknown_tool'),
+            args: typeof args === 'string' ? args : JSON.stringify(args),
+            result: '',
+            approvalStatus: 'finished',
+          };
+        })
+        .filter(Boolean);
+
+      if (toolCalls.length > 0) {
+        segments.push({
+          id: `tool-calls-${index}`,
+          type: 'tool_calls',
+          toolCalls,
+        });
+      }
+    }
+  });
+
+  const liveReasoningContent = normalizeReasoningText(props.message?.reasoning_content);
+  const hasApiReasoning = segments.some((segment: any) => segment.type === 'reasoning');
+
+  if (liveReasoningContent.length > 0 && !hasApiReasoning) {
+    const isThinking = props.message?.status === 'thinking';
+    segments.push({
+      id: 'reasoning-live',
+      type: 'reasoning',
+      content: liveReasoningContent,
+      status: isThinking ? 'thinking' : 'end',
+      reasoningStartedAt: props.message?.reasoningStartedAt ?? null,
+      reasoningFinishedAt: props.message?.reasoningFinishedAt ?? null,
+    });
+  }
+
+  return segments;
+});
+
+const syncToggleMap = (
+  stateRef: any,
+  activeIds: string[],
+  getDefaultValue: (id: string) => boolean,
+) => {
+  const nextState: Record<string, boolean> = {};
+  activeIds.forEach((id) => {
+    if (Object.prototype.hasOwnProperty.call(stateRef.value, id)) {
+      nextState[id] = stateRef.value[id];
+      return;
+    }
+    nextState[id] = getDefaultValue(id);
+  });
+  stateRef.value = nextState;
+};
+
+watch(
+  assistantTimelineSegments,
+  (segments) => {
+    const reasoningIds = segments
+      .filter((segment: any) => segment.type === 'reasoning')
+      .map((segment: any) => String(segment.id));
+    syncToggleMap(reasoningExpandedMap, reasoningIds, () => false);
+  },
+  { immediate: true },
+);
+
+const isReasoningExpanded = (segmentId: string) => !!reasoningExpandedMap.value[String(segmentId)];
+const toggleReasoningExpanded = (segmentId: string) => {
+  const key = String(segmentId);
+  reasoningExpandedMap.value[key] = !reasoningExpandedMap.value[key];
+};
+// HMR compatibility: old template chunks may still call these during hot updates.
+const isToolSectionExpanded = (_segmentId: string) => true;
+const toggleToolSectionExpanded = (_segmentId: string) => {};
 
 const shouldShowCollapseButton = computed(() => {
   if (!props.isLastMessage) return true;
@@ -428,9 +518,20 @@ const shouldShowCollapseButton = computed(() => {
   return false;
 });
 
+const headingIdPrefix = computed(() => `heading-${String(props.message?.id ?? props.index ?? '')}`);
+
+const assistantMessageStyle = computed(() => String(props.message?.multiModelMessageStyle || ''));
+
+const shouldShowOutline = computed(
+  () =>
+    Boolean(props.showMessageOutline) &&
+    Boolean(props.isOutlineActive) &&
+    String(props.message?.role || '') === 'assistant',
+);
+
 const onCopy = () => {
   if (props.isLoading && props.isLastMessage) return;
-  emit('copy-text', formatMessageText(props.message.content), props.index);
+  emit('copy-text', formatMessageText(props.message.content), props.message.id);
 
   isCopied.value = true;
   if (copyFeedbackTimer !== null) {
@@ -441,9 +542,9 @@ const onCopy = () => {
     copyFeedbackTimer = null;
   }, 1300);
 };
-const onReAsk = () => emit('re-ask');
-const onDelete = () => emit('delete-message', props.index);
-const onToggleCollapse = (event) => emit('toggle-collapse', props.index, event);
+const onReAsk = () => emit('re-ask', props.message.id);
+const onDelete = () => emit('delete-message', props.message.id);
+const onToggleCollapse = (event) => emit('toggle-collapse', props.message.id, event);
 const onAvatarClick = (role, event) => emit('avatar-click', role, event);
 const truncateFilename = (filename, maxLength = 30) => {
   if (typeof filename !== 'string' || filename.length <= maxLength) return filename;
@@ -466,33 +567,22 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="chat-message" v-if="message.role !== 'system'">
+  <div :id="`message-${message.id}`" class="chat-message" v-if="message.role !== 'system'">
     <!-- 用户消息 -->
     <div v-if="message.role === 'user'" class="message-wrapper user-wrapper">
-      <div class="message-meta-header user-meta-header">
-        <span class="timestamp" v-if="message.timestamp">{{
-          formatTimestamp(message.timestamp)
-        }}</span>
-        <img
-          :src="userAvatar"
-          alt="User Avatar"
-          @click="onAvatarClick('user', $event)"
-          class="chat-avatar-top user-avatar"
-        />
-      </div>
-
       <Bubble class="user-bubble" placement="end" shape="corner" maxWidth="100%">
         <template #content>
           <div v-if="!isEditing" class="markdown-wrapper" :class="{ collapsed: isCollapsed }">
-            <XMarkdown
-              :markdown="renderedMarkdownContent"
-              :is-dark="isDarkMode"
-              :enable-latex="true"
-              :mermaid-config="mermaidConfig"
-              :default-theme-mode="isDarkMode ? 'dark' : 'light'"
-              :themes="{ light: 'github-light', dark: 'github-dark-default' }"
-              :allow-html="true"
-            />
+            <div class="message-content-container">
+              <MarkdownRenderer
+                :markdown="renderedMarkdownContent"
+                :is-dark="isDarkMode"
+                :enable-latex="true"
+                :mermaid-config="mermaidConfig"
+                :allow-html="true"
+                :heading-id-prefix="headingIdPrefix"
+              />
+            </div>
           </div>
           <div v-else class="editing-wrapper">
             <el-input
@@ -541,7 +631,7 @@ onBeforeUnmount(() => {
                   type="button"
                   title="编辑"
                   aria-label="编辑"
-                  @click="emit('edit-message-requested', index)"
+                  @click="emit('edit-message-requested', message.id)"
                 >
                   <Pencil class="footer-action-icon" />
                 </button>
@@ -559,7 +649,7 @@ onBeforeUnmount(() => {
                   />
                 </button>
                 <button
-                  v-if="isLastMessage"
+                  v-if="isLastMessage && message.role === 'assistant'"
                   class="footer-action-btn"
                   type="button"
                   title="重新生成"
@@ -608,14 +698,23 @@ onBeforeUnmount(() => {
     <div v-if="message.role === 'assistant'" class="message-wrapper ai-wrapper">
       <div class="message-meta-header ai-meta-header">
         <img
-          :src="aiAvatar"
+          :src="assistantAvatarMeta.src"
           alt="AI Avatar"
           @click="onAvatarClick('assistant', $event)"
+          @error="onAssistantAvatarError"
           class="chat-avatar-top ai-avatar"
         />
         <div class="meta-info-column">
           <div class="meta-name-row">
-            <span class="ai-name">{{ message.aiName }}</span>
+            <span class="ai-name">{{ assistantModelDisplayMeta.modelName }}</span>
+            <span
+              v-if="assistantModelDisplayMeta.providerInitial"
+              class="circle-action-btn meta-provider-badge"
+              :title="assistantModelDisplayMeta.providerName"
+              :aria-label="`Provider: ${assistantModelDisplayMeta.providerName}`"
+            >
+              {{ assistantModelDisplayMeta.providerInitial }}
+            </span>
             <span v-if="message.voiceName" class="voice-name">({{ message.voiceName }})</span>
           </div>
           <span class="timestamp-row" v-if="message.completedTimestamp">{{
@@ -633,30 +732,170 @@ onBeforeUnmount(() => {
           isLastMessage &&
           isLoading &&
           renderedMarkdownContent === ' ' &&
-          (!message.tool_calls || message.tool_calls.length === 0)
+          (!message.tool_calls || message.tool_calls.length === 0) &&
+          assistantTimelineSegments.length === 0
         "
       >
-        <template #header>
-          <Thinking
-            v-if="message.reasoning_content && message.reasoning_content.trim().length > 0"
-            maxWidth="90%"
-            :content="(message.reasoning_content || '').trim()"
-            :modelValue="false"
-            :status="message.status"
-          >
-          </Thinking>
-        </template>
         <template #content>
-          <div v-if="!isEditing" class="markdown-wrapper" :class="{ collapsed: isCollapsed }">
-            <XMarkdown
-              :markdown="renderedMarkdownContent"
-              :is-dark="isDarkMode"
-              :enable-latex="true"
-              :mermaid-config="mermaidConfig"
-              :default-theme-mode="isDarkMode ? 'dark' : 'light'"
-              :themes="{ light: 'one-light', dark: 'vesper' }"
-              :allow-html="true"
+          <template v-for="segment in assistantTimelineSegments" :key="segment.id">
+            <DeepThinkingCard
+              v-if="segment.type === 'reasoning'"
+              :content="segment.content"
+              :loading="segment.status === 'thinking'"
+              :status="segment.status"
+              :expanded="isReasoningExpanded(segment.id)"
+              :reasoning-started-at="segment.reasoningStartedAt"
+              :reasoning-finished-at="segment.reasoningFinishedAt"
+              :is-dark-mode="isDarkMode"
+              @toggle="toggleReasoningExpanded(segment.id)"
             />
+
+            <div v-else-if="segment.type === 'tool_calls'" class="tool-calls-container">
+              <div
+                v-for="toolCall in segment.toolCalls"
+                :key="toolCall.id"
+                :class="['single-tool-wrapper', { 'is-dark': isDarkMode }]"
+              >
+                <el-collapse
+                  class="tool-collapse"
+                  :model-value="
+                    !isAutoApprove &&
+                    (toolCall.approvalStatus === 'waiting' ||
+                      toolCall.approvalStatus === 'executing')
+                      ? [toolCall.id]
+                      : []
+                  "
+                >
+                  <el-collapse-item :name="toolCall.id">
+                    <template #title>
+                      <div class="tool-call-title">
+                        <Wrench :size="15" class="tool-icon" />
+                        <span class="tool-name">{{ toolCall.name }}</span>
+                        <div class="tool-header-right">
+                          <el-tag
+                            v-if="toolCall.approvalStatus === 'waiting'"
+                            type="warning"
+                            size="small"
+                            effect="light"
+                            round
+                            >等待批准</el-tag
+                          >
+                          <el-tag
+                            v-else-if="toolCall.approvalStatus === 'executing'"
+                            type="primary"
+                            size="small"
+                            effect="light"
+                            round
+                            >执行中</el-tag
+                          >
+                          <el-tag
+                            v-else-if="toolCall.approvalStatus === 'rejected'"
+                            type="danger"
+                            size="small"
+                            effect="plain"
+                            round
+                            >已拒绝</el-tag
+                          >
+                          <el-tag
+                            v-else-if="toolCall.approvalStatus === 'finished'"
+                            type="success"
+                            size="small"
+                            effect="plain"
+                            round
+                            >完成</el-tag
+                          >
+                          <el-tooltip
+                            content="停止执行"
+                            placement="top"
+                            v-if="toolCall.approvalStatus === 'executing'"
+                          >
+                            <div
+                              class="stop-btn-wrapper"
+                              @click.stop="$emit('cancel-tool-call', toolCall.id)"
+                            >
+                              <Square :size="14" />
+                            </div>
+                          </el-tooltip>
+                        </div>
+                        <svg
+                          class="tool-chevron"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          aria-hidden="true"
+                        >
+                          <polyline points="9 18 15 12 9 6" />
+                        </svg>
+                      </div>
+                    </template>
+                    <div class="tool-call-details">
+                      <div class="tool-detail-section">
+                        <strong>参数:</strong>
+                        <pre><code>{{ formatToolArgs(toolCall.args) }}</code></pre>
+                      </div>
+                      <div
+                        class="tool-detail-section"
+                        v-if="
+                          toolCall.result &&
+                          toolCall.result !== '等待批准...' &&
+                          toolCall.result !== '执行中...'
+                        "
+                      >
+                        <strong>结果:</strong>
+                        <div class="tool-result-wrapper">
+                          <pre><code>{{ toolCall.result }}</code></pre>
+                        </div>
+                      </div>
+                    </div>
+                  </el-collapse-item>
+                </el-collapse>
+                <div v-if="toolCall.approvalStatus === 'waiting'" class="tool-approval-actions">
+                  <div class="actions-left">
+                    <el-button
+                      type="primary"
+                      size="small"
+                      @click="$emit('confirm-tool', toolCall.id, true)"
+                    >
+                      <template #icon>
+                        <Check :size="14" />
+                      </template>
+                      确认
+                    </el-button>
+                    <el-button size="small" @click="$emit('reject-tool', toolCall.id, false)">
+                      <template #icon>
+                        <X :size="14" />
+                      </template>
+                      取消
+                    </el-button>
+                  </div>
+                  <div class="actions-right">
+                    <el-checkbox
+                      :model-value="isAutoApprove"
+                      @change="(val) => $emit('update-auto-approve', val)"
+                      label="自动批准后续调用"
+                      size="small"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </template>
+
+          <div v-if="!isEditing" class="markdown-wrapper" :class="{ collapsed: isCollapsed }">
+            <MessageOutline
+              v-if="shouldShowOutline"
+              :enabled="shouldShowOutline"
+              :message-style="assistantMessageStyle"
+            />
+            <div class="message-content-container">
+              <MarkdownRenderer
+                :markdown="renderedMarkdownContent"
+                :is-dark="isDarkMode"
+                :enable-latex="true"
+                :mermaid-config="mermaidConfig"
+                :allow-html="true"
+                :heading-id-prefix="headingIdPrefix"
+              />
+            </div>
           </div>
           <div v-else class="editing-wrapper">
             <el-input
@@ -677,131 +916,9 @@ onBeforeUnmount(() => {
               </el-button>
             </div>
           </div>
-          <div
-            v-if="message.tool_calls && message.tool_calls.length > 0"
-            class="tool-calls-container"
-          >
-            <div
-              v-for="toolCall in message.tool_calls"
-              :key="toolCall.id"
-              class="single-tool-wrapper"
-            >
-              <el-collapse
-                class="tool-collapse"
-                :model-value="
-                  !isAutoApprove &&
-                  (toolCall.approvalStatus === 'waiting' || toolCall.approvalStatus === 'executing')
-                    ? [toolCall.id]
-                    : []
-                "
-              >
-                <el-collapse-item :name="toolCall.id">
-                  <template #title>
-                    <div class="tool-call-title">
-                      <Wrench :size="15" class="tool-icon" />
-                      <span class="tool-name">{{ toolCall.name }}</span>
-                      <div class="tool-header-right">
-                        <el-tag
-                          v-if="toolCall.approvalStatus === 'waiting'"
-                          type="warning"
-                          size="small"
-                          effect="light"
-                          round
-                          >等待批准</el-tag
-                        >
-                        <el-tag
-                          v-else-if="toolCall.approvalStatus === 'executing'"
-                          type="primary"
-                          size="small"
-                          effect="light"
-                          round
-                          >执行中</el-tag
-                        >
-                        <el-tag
-                          v-else-if="toolCall.approvalStatus === 'rejected'"
-                          type="danger"
-                          size="small"
-                          effect="plain"
-                          round
-                          >已拒绝</el-tag
-                        >
-                        <el-tag
-                          v-else-if="toolCall.approvalStatus === 'finished'"
-                          type="success"
-                          size="small"
-                          effect="plain"
-                          round
-                          >完成</el-tag
-                        >
-                        <el-tooltip
-                          content="停止执行"
-                          placement="top"
-                          v-if="toolCall.approvalStatus === 'executing'"
-                        >
-                          <div
-                            class="stop-btn-wrapper"
-                            @click.stop="$emit('cancel-tool-call', toolCall.id)"
-                          >
-                            <Square :size="14" />
-                          </div>
-                        </el-tooltip>
-                      </div>
-                    </div>
-                  </template>
-                  <div class="tool-call-details">
-                    <div class="tool-detail-section">
-                      <strong>参数:</strong>
-                      <pre><code>{{ formatToolArgs(toolCall.args) }}</code></pre>
-                    </div>
-                    <div
-                      class="tool-detail-section"
-                      v-if="
-                        toolCall.result &&
-                        toolCall.result !== '等待批准...' &&
-                        toolCall.result !== '执行中...'
-                      "
-                    >
-                      <strong>结果:</strong>
-                      <div class="tool-result-wrapper">
-                        <pre><code>{{ toolCall.result }}</code></pre>
-                      </div>
-                    </div>
-                  </div>
-                </el-collapse-item>
-              </el-collapse>
-              <div v-if="toolCall.approvalStatus === 'waiting'" class="tool-approval-actions">
-                <div class="actions-left">
-                  <el-button
-                    type="primary"
-                    size="small"
-                    @click="$emit('confirm-tool', toolCall.id, true)"
-                  >
-                    <template #icon>
-                      <Check :size="14" />
-                    </template>
-                    确认
-                  </el-button>
-                  <el-button size="small" @click="$emit('reject-tool', toolCall.id, false)">
-                    <template #icon>
-                      <X :size="14" />
-                    </template>
-                    取消
-                  </el-button>
-                </div>
-                <div class="actions-right">
-                  <el-checkbox
-                    :model-value="isAutoApprove"
-                    @change="(val) => $emit('update-auto-approve', val)"
-                    label="自动批准后续调用"
-                    size="small"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
         </template>
         <template #footer>
-          <div class="message-footer">
+          <div class="message-footer ai-footer" v-if="!(isLoading && isLastMessage)">
             <div class="footer-actions">
               <button
                 class="footer-action-btn"
@@ -809,7 +926,6 @@ onBeforeUnmount(() => {
                 :class="{ 'is-copied': isCopied }"
                 :title="isCopied ? '已复制' : '复制'"
                 :aria-label="isCopied ? '已复制' : '复制'"
-                :disabled="isLoading && isLastMessage"
                 @click="onCopy"
               >
                 <transition name="copy-icon-swap" mode="out-in">
@@ -826,7 +942,7 @@ onBeforeUnmount(() => {
                 type="button"
                 title="编辑"
                 aria-label="编辑"
-                @click="emit('edit-message-requested', index)"
+                @click="emit('edit-message-requested', message.id)"
               >
                 <Pencil class="footer-action-icon" />
               </button>
@@ -841,7 +957,7 @@ onBeforeUnmount(() => {
                 <component :is="isCollapsed ? ChevronDown : ChevronUp" class="footer-action-icon" />
               </button>
               <button
-                v-if="isLastMessage"
+                v-if="isLastMessage && message.role === 'assistant'"
                 class="footer-action-btn"
                 type="button"
                 title="重新生成"
@@ -860,6 +976,34 @@ onBeforeUnmount(() => {
                 <Trash2 class="footer-action-icon" />
               </button>
             </div>
+            <el-tooltip
+              v-if="assistantResponseMetrics"
+              placement="top-end"
+              effect="light"
+              popper-class="token-metrics-tooltip"
+            >
+              <template #content>
+                <div class="token-tooltip-content">
+                  <div class="token-tooltip-row">
+                    <AlarmClockCheck :size="13" class="token-tooltip-icon" />
+                    <span>{{ assistantFirstTokenLatencyDisplay }}</span>
+                    <span class="token-tooltip-divider">·</span>
+                    <span class="token-tooltip-speed">{{ assistantTokenSpeedDisplay }}</span>
+                  </div>
+                </div>
+              </template>
+              <div class="footer-token-metrics">
+                <span class="token-total">{{ assistantResponseTotalTokensDisplay }}</span>
+                <ArrowUp :size="12" class="token-direction-icon" />
+                <span class="token-direction-value">{{
+                  assistantResponseMetrics.promptTokens
+                }}</span>
+                <ArrowDown :size="12" class="token-direction-icon" />
+                <span class="token-direction-value">{{
+                  assistantResponseMetrics.completionTokens
+                }}</span>
+              </div>
+            </el-tooltip>
           </div>
         </template>
       </Bubble>
@@ -873,7 +1017,7 @@ onBeforeUnmount(() => {
   margin: 12px 0 0;
   display: flex;
   flex-direction: column;
-  overflow-x: hidden;
+  overflow: visible;
   padding: 0;
 }
 
@@ -895,6 +1039,7 @@ onBeforeUnmount(() => {
   align-items: flex-start;
   margin-left: 4%;
   margin-right: 8%;
+  width: calc(100% - 12%);
   max-width: 100%;
 }
 
@@ -965,15 +1110,33 @@ onBeforeUnmount(() => {
   text-overflow: ellipsis;
 }
 
+.meta-provider-badge.circle-action-btn {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  padding: 0 !important;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-accent) !important;
+  user-select: none;
+}
+
 .chat-message .user-bubble {
+  :deep(.el-bubble-content-wrapper) {
+    border-radius: 16px !important;
+  }
+
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    border-radius: 24px;
-    background-color: var(--el-bg-color-userbubble);
-    border: 1px solid var(--el-border-color-lighter);
-    padding-top: 10px;
-    padding-bottom: 10px;
+    border-radius: 16px !important;
+    background-color: #f3f3f3 !important;
+    border: none !important;
+    padding: 10px 18px;
     margin-bottom: 0;
-    padding-right: 14px;
     box-shadow: none;
   }
 
@@ -984,17 +1147,32 @@ onBeforeUnmount(() => {
 
 html.dark .chat-message .user-bubble {
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
-    background: var(--el-bg-color-userbubble);
-    border: 1px solid var(--el-border-color-lighter);
+    background: #242424 !important;
+    border: none !important;
   }
 }
 
 .chat-message .ai-bubble {
+  width: 100%;
+  max-width: 100%;
+  align-self: stretch;
+  display: block;
+
   :deep(.el-bubble-content-wrapper) {
     background: transparent;
     box-shadow: none;
     border: none;
     padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: 100%;
+    overflow: visible;
+  }
+
+  :deep(.el-bubble-content-wrapper .el-bubble-header) {
+    width: 100%;
   }
 
   :deep(.el-bubble-content-wrapper .el-bubble-content) {
@@ -1003,6 +1181,8 @@ html.dark .chat-message .user-bubble {
     border-radius: 0;
     padding: 0;
     box-shadow: none;
+    width: 100%;
+    overflow: visible;
   }
 
   :deep(.el-bubble-content-wrapper .el-bubble-arrow),
@@ -1013,6 +1193,38 @@ html.dark .chat-message .user-bubble {
 
   :deep(.el-bubble-content-wrapper .el-bubble-footer) {
     margin-top: 0;
+    width: 100%;
+  }
+
+  :deep(.el-bubble-content-wrapper .el-bubble-content-loading .el-bubble-loading-wrap) {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+    height: 16px;
+  }
+
+  :deep(.el-bubble-content-wrapper .el-bubble-content-loading .dot) {
+    width: 8px;
+    height: 8px;
+    background-color: var(--text-accent);
+    border-radius: 50%;
+    animation: bubble-dot-wave 1.1s infinite ease-in-out;
+    transition:
+      transform 0.1s ease-out,
+      opacity 0.1s ease-out;
+  }
+
+  :deep(.el-bubble-content-wrapper .el-bubble-content-loading .dot:nth-child(1)) {
+    animation-delay: 0s;
+  }
+
+  :deep(.el-bubble-content-wrapper .el-bubble-content-loading .dot:nth-child(2)) {
+    animation-delay: 0.24s;
+  }
+
+  :deep(.el-bubble-content-wrapper .el-bubble-content-loading .dot:nth-child(3)) {
+    animation-delay: 0.48s;
   }
 }
 
@@ -1033,8 +1245,15 @@ html.dark .chat-message .ai-bubble {
 .markdown-wrapper {
   width: 100%;
   min-width: 0;
+  position: relative;
+  overflow: visible;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
+
+  .message-content-container {
+    width: 100%;
+    min-width: 0;
+  }
 
   :deep(.elx-xmarkdown-container) {
     background: transparent !important;
@@ -1665,7 +1884,21 @@ html.dark .ai-name {
   align-items: center;
   width: 100%;
   margin-top: 6px;
-  min-height: 20px;
+  min-height: 22px;
+}
+
+.ai-footer {
+  justify-content: flex-start;
+  gap: 8px;
+  width: 100%;
+}
+
+.ai-bubble .ai-footer .footer-actions {
+  margin-right: 0;
+}
+
+.ai-footer .footer-token-metrics {
+  margin-left: auto;
 }
 
 .footer-actions {
@@ -1734,6 +1967,99 @@ html.dark .ai-name {
   height: 15px;
 }
 
+.footer-token-metrics {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  min-height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background-color: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+  transition:
+    color 0.16s ease,
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    background-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.message-wrapper:hover .footer-token-metrics,
+.message-wrapper:focus-within .footer-token-metrics {
+  opacity: 0.86;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.token-total {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.token-direction-icon {
+  color: var(--text-tertiary);
+}
+
+.token-direction-value {
+  color: var(--text-secondary);
+}
+
+.footer-token-metrics:hover {
+  color: var(--el-text-color-primary);
+  opacity: 1;
+  background-color: var(--el-color-primary-light-9);
+  box-shadow: 0 5px 10px -7px color-mix(in srgb, var(--el-color-primary) 36%, transparent);
+}
+
+:deep(.token-metrics-tooltip) {
+  padding: 8px 10px !important;
+}
+
+:deep(.token-metrics-tooltip .token-tooltip-content) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: auto;
+}
+
+:deep(.token-metrics-tooltip .token-tooltip-row) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--el-text-color-primary);
+}
+
+:deep(.token-metrics-tooltip .token-tooltip-row > span) {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+:deep(.token-metrics-tooltip .token-tooltip-icon) {
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+:deep(.token-metrics-tooltip .token-tooltip-speed) {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+:deep(.token-metrics-tooltip .token-tooltip-divider) {
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+
 .copy-icon-swap-enter-active,
 .copy-icon-swap-leave-active {
   transition:
@@ -1750,6 +2076,12 @@ html.dark .ai-name {
 @media (hover: none) {
   .footer-actions {
     opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .footer-token-metrics {
+    opacity: 0.82;
     visibility: visible;
     pointer-events: auto;
   }
@@ -1778,114 +2110,73 @@ html.dark .ai-name {
   flex-shrink: 0;
 }
 
-.ai-bubble :deep(.el-thinking .trigger) {
-  background-color: color-mix(in srgb, var(--el-fill-color-light) 86%, var(--el-bg-color) 14%);
-  color: var(--el-text-color-regular);
-  border-color: var(--el-border-color-lighter);
-}
-
-.ai-bubble :deep(.el-thinking .el-icon) {
-  color: var(--el-text-color-secondary);
-}
-
-.ai-bubble :deep(.el-thinking-popper) {
-  max-width: 85vw;
-  background-color: color-mix(
-    in srgb,
-    var(--el-fill-color-light) 90%,
-    var(--el-bg-color) 10%
-  ) !important;
-  border-color: var(--el-border-color) !important;
-}
-
-.ai-bubble :deep(.el-thinking-popper .el-popper__arrow::before) {
-  background: color-mix(in srgb, var(--el-fill-color-light) 90%, var(--el-bg-color) 10%) !important;
-  border-color: var(--el-border-color) !important;
-}
-
-html.dark .ai-bubble :deep(.el-thinking .trigger) {
-  background-color: var(--el-fill-color-darker, #2c2e33);
-  color: var(--el-text-color-primary, #f9fafb);
-  border-color: var(--el-border-color-dark, #373a40);
-}
-
-html.dark .ai-bubble :deep(.el-thinking .el-icon) {
-  color: var(--el-text-color-secondary, #a0a5b1);
-}
-
-html.dark .ai-bubble :deep(.el-thinking-popper) {
-  max-width: 85vw;
-  background-color: var(--bg-tertiary, #2c2e33) !important;
-  border-color: var(--border-primary, #373a40) !important;
-}
-
-html.dark .ai-bubble :deep(.el-thinking-popper .el-popper__arrow::before) {
-  background: var(--bg-tertiary, #2c2e33) !important;
-  border-color: var(--border-primary, #373a40) !important;
-}
-
-.ai-bubble :deep(.el-thinking .content pre) {
-  max-width: 100%;
-  margin-bottom: 10px;
-  white-space: pre-wrap;
-  word-break: break-word;
-  box-sizing: border-box;
-  background-color: color-mix(in srgb, var(--el-fill-color-light) 94%, var(--el-bg-color) 6%);
-  border: 1px solid var(--el-border-color-lighter);
-}
-
-html.dark .ai-bubble :deep(.el-thinking .content pre) {
-  background-color: var(--el-fill-color-darker);
-  color: var(--el-text-color-regular, #e5e7eb);
-  border: 1px solid var(--border-primary, #373a40);
-}
-
 .tool-calls-container {
-  margin-top: 8px;
+  width: 100%;
+  margin: 0 0 8px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 8px;
 }
 
 .single-tool-wrapper {
   width: 100%;
-  max-width: 85vw;
-  min-width: 250px;
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--el-border-color-lighter) 78%, transparent);
+  background: color-mix(in srgb, var(--el-fill-color-light) 86%, transparent);
+  color: var(--el-text-color-primary);
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.single-tool-wrapper.is-dark {
+  background: color-mix(in srgb, var(--el-fill-color-darker, #2c2e33) 84%, transparent);
+  border-color: color-mix(in srgb, var(--el-border-color-dark, #373a40) 80%, transparent);
 }
 
 .tool-collapse {
   width: 100%;
   border: none;
-  --el-collapse-header-height: 38px;
+  background: transparent;
+  --el-collapse-header-height: auto;
+}
 
-  :deep(.el-collapse-item__header) {
-    background-color: var(--el-fill-color-light);
-    border: 1px solid var(--el-border-color-lighter);
-    border-radius: 8px;
-    padding: 0 12px;
-    font-size: 13px;
-    transition: border-radius 0.2s;
+.tool-collapse :deep(.el-collapse-item__header) {
+  background: transparent;
+  border: none;
+  border-bottom: none !important;
+  border-radius: 13px;
+  padding: 8px 10px;
+  min-height: 36px;
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: inherit;
+  transition: background-color 0.2s ease;
+}
 
-    &:active {
-      border-bottom-left-radius: 0;
-      border-bottom-right-radius: 0;
-      border-bottom-color: transparent;
-    }
-  }
+.tool-collapse :deep(.el-collapse-item__header:hover) {
+  background-color: color-mix(in srgb, var(--el-fill-color) 70%, transparent);
+}
 
-  :deep(.el-collapse-item__wrap) {
-    background-color: transparent;
-    border: 1px solid var(--el-border-color-lighter);
-    border-top: none;
-    border-bottom-left-radius: 8px;
-    border-bottom-right-radius: 8px;
-  }
+.single-tool-wrapper.is-dark .tool-collapse :deep(.el-collapse-item__header:hover) {
+  background-color: color-mix(in srgb, var(--el-fill-color-dark, #323844) 68%, transparent);
+}
 
-  :deep(.el-collapse-item__content) {
-    padding: 12px;
-  }
+.tool-collapse :deep(.el-collapse-item__wrap) {
+  background: transparent;
+  border: none;
+}
+
+.tool-collapse :deep(.el-collapse-item__content) {
+  padding: 0 10px 10px;
+}
+
+.tool-collapse :deep(.el-collapse-item__arrow) {
+  display: none !important;
 }
 
 .tool-call-title {
@@ -1896,20 +2187,39 @@ html.dark .ai-bubble :deep(.el-thinking .content pre) {
 }
 
 .tool-name {
-  font-weight: 500;
-  color: var(--el-text-color-primary);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--el-text-color-regular);
 }
 
 .tool-icon {
-  color: var(--el-text-color-secondary);
+  color: var(--text-accent);
+  flex-shrink: 0;
 }
 
 .tool-header-right {
   margin-left: auto;
-  margin-right: 12px;
+  margin-right: 0;
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.tool-chevron {
+  width: 16px;
+  height: 16px;
+  color: var(--el-text-color-secondary);
+  stroke: currentColor;
+  stroke-width: 2.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.tool-collapse :deep(.el-collapse-item__header.is-active .tool-chevron) {
+  transform: rotate(90deg);
 }
 
 .stop-btn-wrapper {
@@ -1945,15 +2255,12 @@ html.dark .stop-btn-wrapper {
 }
 
 .tool-approval-actions {
-  margin-top: -2px;
-  margin-left: 1px;
-  margin-right: 1px;
-  padding: 8px 12px;
-  background-color: var(--el-fill-color-lighter);
-  border: 1px solid var(--el-border-color-lighter);
-  border-top: 1px dashed var(--el-border-color-lighter);
-  border-bottom-left-radius: 8px;
-  border-bottom-right-radius: 8px;
+  margin: 0 10px 10px;
+  padding: 8px 10px;
+  background: color-mix(in srgb, var(--el-fill-color) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--el-border-color-lighter) 78%, transparent);
+  border-top: 1px dashed color-mix(in srgb, var(--el-border-color-lighter) 78%, transparent);
+  border-radius: 10px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -2005,7 +2312,8 @@ html.dark .stop-btn-wrapper {
       margin: 0;
       padding: 8px;
       border-radius: 6px;
-      background-color: var(--el-fill-color-light);
+      background-color: color-mix(in srgb, var(--el-fill-color) 76%, transparent);
+      border: 1px solid var(--el-border-color-lighter);
       max-height: 150px;
       overflow: auto;
       font-size: 12px;
@@ -2033,7 +2341,7 @@ html.dark .stop-btn-wrapper {
 .tool-call-details .tool-detail-section pre::-webkit-scrollbar-thumb {
   background: var(--el-text-color-disabled, #c0c4cc);
   border-radius: 4px;
-  border: 2px solid var(--el-fill-color-light);
+  border: 2px solid color-mix(in srgb, var(--el-fill-color) 76%, transparent);
   background-clip: content-box;
 }
 
@@ -2051,40 +2359,31 @@ html.dark .stop-btn-wrapper {
   flex-grow: 1;
 }
 
-html.dark .tool-collapse {
-  :deep(.el-collapse-item__header) {
-    background-color: var(--el-fill-color-darker);
-    border-color: var(--el-border-color-dark);
-  }
-
-  :deep(.el-collapse-item__wrap) {
-    border-color: var(--el-border-color-dark);
-  }
-}
-
 html.dark .stop-btn-wrapper:hover {
   background-color: rgba(245, 108, 108, 0.2);
   color: #f56c6c;
 }
 
-html.dark .tool-approval-actions {
-  background-color: var(--el-fill-color-dark);
-  border-color: var(--el-border-color-dark);
-  border-top-color: var(--el-border-color-dark);
+.single-tool-wrapper.is-dark .tool-approval-actions {
+  background: color-mix(in srgb, var(--el-fill-color-dark, #323844) 74%, transparent);
+  border-color: color-mix(in srgb, var(--el-border-color-dark, #373a40) 80%, transparent);
+  border-top-color: color-mix(in srgb, var(--el-border-color-dark, #373a40) 80%, transparent);
 }
 
-html.dark .tool-call-details {
-  .tool-detail-section pre {
-    background-color: var(--el-fill-color-darker);
-  }
+.single-tool-wrapper.is-dark .tool-call-details .tool-detail-section pre {
+  background-color: color-mix(in srgb, var(--el-fill-color-darker, #262a31) 84%, transparent);
+  border-color: var(--el-border-color-dark, #373a40);
 }
 
-html.dark .tool-call-details .tool-detail-section pre::-webkit-scrollbar-thumb {
+.single-tool-wrapper.is-dark .tool-call-details .tool-detail-section pre::-webkit-scrollbar-thumb {
   background: #6b6b6b;
-  border-color: var(--el-fill-color-darker);
+  border-color: color-mix(in srgb, var(--el-fill-color-darker, #262a31) 84%, transparent);
 }
 
-html.dark .tool-call-details .tool-detail-section pre::-webkit-scrollbar-thumb:hover {
+.single-tool-wrapper.is-dark
+  .tool-call-details
+  .tool-detail-section
+  pre::-webkit-scrollbar-thumb:hover {
   background: #999;
 }
 
@@ -2102,5 +2401,17 @@ html.dark .tool-call-details .tool-detail-section pre::-webkit-scrollbar-thumb:h
   opacity: 0.8;
   background-color: rgba(var(--el-color-primary-rgb), 0.1);
   border-radius: 4px;
+}
+
+@keyframes bubble-dot-wave {
+  0%,
+  100% {
+    transform: scale(0.82);
+    opacity: 0.42;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 0.9;
+  }
 }
 </style>

@@ -240,7 +240,7 @@
       "reasoningEffort": "Устанавливает вычислительный бюджет для процесса рассуждения модели. Более высокие значения могут дать более подробные ответы, но увеличат задержку и стоимость.",
       "isAlwaysOnTopTooltip": "Включить, чтобы окно всегда оставалось поверх других окон.",
       "autoCloseOnBlurTooltip": "Включить, чтобы автоматически закрывать отдельное окно при потере им фокуса.",
-      "autoSaveChatTooltip": "При включении беседы будут автоматически сохраняться локально каждые 15 секунд (требуется настройка локального пути в настройках).",
+      "autoSaveChatTooltip": "При включении беседы автоматически сохраняются через кэш-слой базы данных (резервный цикл — 15 секунд).",
       "defaultMcpServers": "Если установлено, выбранные службы MCP будут автоматически включены при открытии этого ассистента в отдельном окне.",
       "defaultSkills": "Если установлено, эти навыки будут автоматически доступны ИИ при открытии этого ассистента в отдельном окне."
     },
@@ -362,6 +362,31 @@
       "default": "По умолч.",
       "leaveEmpty": "Оставьте пустым для значения по умолчанию",
       "response": "Результат:"
+    },
+    "runtime": {
+      "entry": "Среда runtime",
+      "title": "Среда выполнения MCP",
+      "fallbackHint": "Если в системе отсутствуют npx/uv/uvx, MCP автоматически переключится на встроенные Bun/UV.",
+      "platform": "Платформа",
+      "binDir": "Каталог установки",
+      "openDir": "Открыть каталог",
+      "refresh": "Обновить статус",
+      "installed": "Установлено",
+      "notInstalled": "Не установлено",
+      "notFound": "Не найдено",
+      "systemNpx": "Системный npx",
+      "systemUv": "Системный uv",
+      "systemUvx": "Системный uvx",
+      "builtinBun": "Встроенный Bun",
+      "builtinUv": "Встроенный UV",
+      "builtinUvx": "Встроенный uvx",
+      "installBun": "Установить Bun",
+      "installUv": "Установить UV",
+      "installAll": "Установить Bun + UV",
+      "installSuccess": "Установка runtime завершена",
+      "installFailed": "Не удалось установить runtime",
+      "loadFailed": "Не удалось загрузить статус runtime",
+      "apiUnavailable": "API установки runtime недоступен в этой сборке"
     }
   },
   "skills": {
@@ -452,6 +477,13 @@
     "moveUpTooltip": "Переместить вверх",
     "moveDownTooltip": "Переместить вниз",
     "deleteProviderTooltip": "Удалить провайдера",
+    "deepseekUserTokenLabel": "Token",
+    "deepseekUserTokenPlaceholder": "Введите userToken DeepSeek (или заполните автоматически после входа)",
+    "deepseekUserTokenDescription": "Официальный канал DeepSeek использует авторизацию по userToken; ручная вставка также поддерживается.",
+    "deepseekLoginBtn": "Войти в DeepSeek",
+    "deepseekBuiltinChannelHint": "Встроенный официальный канал: локальный прокси и авторизация управляются автоматически.",
+    "deepseekProxyUrlLabel": "URL прокси",
+    "deepseekProxyUrlPlaceholder": "Управляется приложением автоматически",
     "apiKeyLabel": "Ключ API",
     "apiKeyPlaceholder": "Введите ключ API (можно несколько, через запятую)",
     "apiKeyDescription": "Вы можете ввести несколько ключей API, разделенных запятыми.",
@@ -497,6 +529,12 @@
       "fetchModelsFailedDefault": "Не удалось получить модели.",
       "configSaveFailed": "Не удалось сохранить конфигурацию.",
       "saveFailed": "Ошибка сохранения",
+      "deepseekProxyStartFailed": "Не удалось запустить прокси DeepSeek.",
+      "deepseekProxyStartFailedWithReason": "Не удалось запустить прокси DeepSeek: {message}",
+      "deepseekLoginSuccess": "Вход в DeepSeek выполнен, userToken сохранён.",
+      "deepseekLoginCancelled": "Вход в DeepSeek отменён.",
+      "deepseekLoginFailed": "Не удалось войти в DeepSeek.",
+      "deepseekLoginFailedWithReason": "Не удалось войти в DeepSeek: {message}",
       "modelMetadataLoadFailed": "Не удалось загрузить метаданные моделей. Используется отображение по умолчанию."
     }
   },
@@ -542,6 +580,16 @@
     "ctrlEnter": {
       "label": "Отправка по Ctrl+Enter",
       "description": "Включить, чтобы отправлять сообщения нажатием Ctrl+Enter."
+    },
+    "messageNavigation": {
+      "label": "Режим навигации сообщений",
+      "description": "Управляет отображением якорной линии сообщений справа в чате.",
+      "anchor": "Якорная линия",
+      "none": "Выключено"
+    },
+    "showMessageOutline": {
+      "label": "Показывать структуру сообщения",
+      "description": "Показывать слева у AI-сообщений структуру заголовков."
     },
     "notification": {
       "label": "Показывать уведомление об успехе",
@@ -641,6 +689,14 @@
       "saveFailedPrefix": "Ошибка сохранения настройки: "
     }
   },
+  "defaultModel": {
+    "title": "Модель по умолчанию",
+    "quickModel": {
+      "label": "Быстрая модель",
+      "description": "Модель для автоматической генерации названия диалога.",
+      "placeholder": "Выберите модель"
+    }
+  },
   "common": {
     "cancel": "Отмена",
     "confirm": "Подтвердить",
@@ -664,5 +720,46 @@
     "deleteFailedMultiple": "Ошибка при удалении выбранных файлов.",
     "saveSuccess": "Успешно сохранено",
     "saveFailed": "Ошибка сохранения"
+  },
+  "mainSettings": {
+    "entry": "Настройки",
+    "backToChat": "Назад к чату",
+    "navigationTitle": "Настройки",
+    "tabs": {
+      "history": "История чатов",
+      "prompts": "Быстрые ассистенты",
+      "mcp": "MCP серверы",
+      "skills": "Навыки",
+      "providers": "Провайдеры",
+      "defaultModel": "Модель по умолчанию",
+      "system": "Системные настройки"
+    }
+  },
+  "mainChat": {
+    "actions": {
+      "refresh": "Обновить список сессий",
+      "showSidebar": "Показать боковую панель",
+      "hideSidebar": "Скрыть боковую панель",
+      "newConversation": "Новый диалог"
+    },
+    "sources": {
+      "local": "Локально",
+      "cloud": "Облако"
+    },
+    "empty": {
+      "assistants": "Нет включенных ассистентов",
+      "assistantSessions": "Для этого ассистента нет истории"
+    },
+    "errors": {
+      "loadSessionFailed": "Не удалось загрузить сессию",
+      "indexFailed": "Не удалось загрузить индекс истории"
+    },
+    "sessionMenu": {
+      "rename": "Переименовать вручную",
+      "regenerate": "Сгенерировать снова",
+      "renameSuccess": "Название сессии обновлено",
+      "regenerateSuccess": "Название сессии сгенерировано заново",
+      "regenerateFailed": "Генерация не удалась, применено название \"新对话\""
+    }
   }
 }

@@ -738,13 +738,6 @@ onBeforeUnmount(() => {
   background: color-mix(in srgb, #ffffff 5%, transparent);
 }
 
-.launcher-shell:focus-within .launcher-container {
-  border-color: color-mix(in srgb, var(--text-accent) 44%, var(--border-primary));
-  box-shadow:
-    var(--shadow-md),
-    0 0 0 1px color-mix(in srgb, var(--text-accent) 16%, transparent);
-}
-
 .launcher-container.has-list {
   border-radius: 20px;
 }

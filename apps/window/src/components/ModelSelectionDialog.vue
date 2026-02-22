@@ -1,11 +1,13 @@
 <script setup lang="ts">
 // -nocheck
 import { ref, computed } from 'vue';
-import { ElDialog, ElTable, ElTableColumn, ElButton, ElInput, ElTooltip } from 'element-plus';
+import { ElInput } from 'element-plus';
 import { Search } from 'lucide-vue-next';
+import { handleModelLogoError, resolveModelLogoUrl } from '../utils/modelLogos';
+import AppDialogCard from './ui/AppDialogCard.vue';
 
 const props = defineProps({
-  modelValue: Boolean, // for v-model
+  modelValue: Boolean,
   modelList: Array,
   currentModel: String,
 });
@@ -14,6 +16,15 @@ const emit = defineEmits(['update:modelValue', 'select', 'save-model']);
 
 const searchQuery = ref('');
 const searchInputRef = ref(null);
+const dialogVisible = computed({
+  get: () => props.modelValue,
+  set: (value: boolean) => {
+    if (!value) {
+      searchQuery.value = '';
+    }
+    emit('update:modelValue', value);
+  },
+});
 
 const handleOpened = () => {
   if (searchInputRef.value) {
@@ -23,130 +34,228 @@ const handleOpened = () => {
 
 const filteredModelList = computed(() => {
   if (!searchQuery.value) {
-    return props.modelList;
+    return props.modelList || [];
   }
   const lowerCaseQuery = searchQuery.value.toLowerCase();
-  return props.modelList.filter((model) => model.label.toLowerCase().includes(lowerCaseQuery));
+  return (props.modelList || []).filter((model) =>
+    model.label.toLowerCase().includes(lowerCaseQuery),
+  );
 });
 
-const tableSpanMethod = ({ row, column, rowIndex, columnIndex }) => {
-  if (columnIndex === 0) {
-    if (
-      rowIndex > 0 &&
-      filteredModelList.value[rowIndex - 1].label.split('|')[0] === row.label.split('|')[0]
-    ) {
-      return { rowspan: 0, colspan: 0 };
+const groupedModelList = computed(() => {
+  const groups = new Map();
+  for (const model of filteredModelList.value) {
+    const [provider = '', ...nameParts] = String(model.label || '').split('|');
+    const [providerId = '', ...idParts] = String(model.value || '').split('|');
+    const modelName = nameParts.join('|') || model.value || model.label;
+    const modelId = idParts.join('|') || modelName;
+    if (!groups.has(provider)) {
+      groups.set(provider, []);
     }
-    let rowspan = 1;
-    for (let i = rowIndex + 1; i < filteredModelList.value.length; i++) {
-      if (filteredModelList.value[i].label.split('|')[0] === row.label.split('|')[0]) {
-        rowspan++;
-      } else {
-        break;
-      }
-    }
-    return { rowspan: rowspan, colspan: 1 };
+    groups.get(provider).push({
+      ...model,
+      provider,
+      providerId,
+      modelName,
+      logoUrl: resolveModelLogoUrl(modelId, {
+        providerName: provider,
+        metadataProviderId: providerId,
+      }),
+    });
   }
-};
+
+  return Array.from(groups.entries()).map(([provider, models]) => ({
+    provider,
+    models,
+  }));
+});
 
 const onModelClick = (model) => {
   if (model.value === props.currentModel) {
-    // 如果点击的是当前模型，触发保存事件
     emit('save-model', model.value);
   } else {
-    // 否则，触发选择事件
     emit('select', model.value);
   }
-};
-
-const handleClose = () => {
-  searchQuery.value = ''; // 关闭时清空搜索词
-  emit('update:modelValue', false);
 };
 </script>
 
 <template>
-  <el-dialog
-    :model-value="modelValue"
-    @update:model-value="handleClose"
-    width="80%"
-    custom-class="model-dialog no-header-dialog"
+  <AppDialogCard
+    v-model="dialogVisible"
+    width="min(640px, 88vw)"
+    variant="standard"
+    hide-header
+    dialog-class="model-dialog"
+    :close-on-click-modal="true"
     @opened="handleOpened"
     :show-close="false"
   >
-    <!-- 移除默认标题栏 -->
-    <template #header>
-      <div style="display: none"></div>
-    </template>
+    <div class="model-dialog-content custom-scrollbar">
+      <div class="model-search-area">
+        <Search :size="16" class="search-icon" />
+        <input
+          ref="searchInputRef"
+          v-model="searchQuery"
+          type="text"
+          class="model-search-input"
+          placeholder="搜索服务商或模型名称..."
+        />
+      </div>
 
-    <div class="model-search-container">
-      <el-input
-        ref="searchInputRef"
-        v-model="searchQuery"
-        placeholder="搜索服务商或模型名称..."
-        clearable
-      >
-        <template #prefix>
-          <Search :size="14" />
-        </template>
-      </el-input>
-    </div>
+      <div class="model-list-area">
+        <div v-if="groupedModelList.length === 0" class="model-empty">暂无匹配模型</div>
 
-    <el-table
-      :data="filteredModelList"
-      stripe
-      style="width: 100%"
-      max-height="50vh"
-      :border="true"
-      :span-method="tableSpanMethod"
-      width="100%"
-    >
-      <el-table-column label="服务商" align="center" prop="provider" width="120">
-        <template #default="scope">
-          <strong>{{ scope.row.label.split('|')[0] }}</strong>
-        </template>
-      </el-table-column>
-      <el-table-column label="模型" align="center" prop="modelName">
-        <template #default="scope">
-          <el-tooltip
-            :content="
-              scope.row.value === currentModel ? '当前模型，再次点击可保存为默认' : '选择此模型'
-            "
-            placement="top"
-            :enterable="false"
+        <div v-for="group in groupedModelList" :key="group.provider" class="provider-group">
+          <div class="provider-title">{{ group.provider || '未命名服务商' }}</div>
+
+          <button
+            v-for="model in group.models"
+            :key="model.value"
+            type="button"
+            class="model-tag"
+            :class="{ 'is-selected': model.value === currentModel }"
+            @click="onModelClick(model)"
           >
-            <el-button
-              link
-              size="large"
-              @click="onModelClick(scope.row)"
-              :class="{ 'is-current-model': scope.row.value === currentModel }"
-            >
-              {{ scope.row.label.split('|')[1] }}
-            </el-button>
-          </el-tooltip>
-        </template>
-      </el-table-column>
-    </el-table>
-    <template #footer>
-      <el-button @click="handleClose">关闭</el-button>
-    </template>
-  </el-dialog>
+            <img
+              class="model-logo"
+              :src="model.logoUrl"
+              :alt="model.modelName"
+              loading="lazy"
+              @error="handleModelLogoError"
+            />
+            <span class="model-name">{{ model.modelName }}</span>
+            <span v-if="model.value === currentModel" class="model-current-badge">当前</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </AppDialogCard>
 </template>
 
+<style>
+/* Global (non-scoped) styles for model-dialog because el-dialog uses append-to-body */
+.app-dialog-card.model-dialog .el-dialog__body {
+  padding: 0 !important;
+}
+</style>
+
 <style scoped>
-.model-search-container {
-  padding: 0 0 15px 0;
-}
-.el-button.is-link.is-current-model {
-  color: #e6a23c; /* Element Plus 的金色/黄色 */
-  font-weight: bold;
-}
-
-.el-button.is-link.is-current-model:hover {
-  color: #ebb563;
+.model-dialog-content {
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  overflow-y: auto;
 }
 
-:deep(.el-dialog__header) {
-  padding-bottom: 0 !important;
+.model-search-area {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  background-color: var(--bg-secondary);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.search-icon {
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+  margin-right: 10px;
+}
+
+.model-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+
+.model-search-input::placeholder {
+  color: var(--text-tertiary);
+}
+
+.model-list-area {
+  padding: 8px 14px 14px;
+}
+
+.model-empty {
+  color: var(--text-tertiary);
+  text-align: center;
+  padding: 24px 8px;
+  font-size: 13px;
+}
+
+.provider-group + .provider-group {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-secondary);
+}
+
+.provider-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  padding: 4px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.model-tag {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-primary);
+  background-color: var(--bg-tertiary);
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.model-tag:last-child {
+  margin-bottom: 0;
+}
+
+.model-tag:hover {
+  background-color: color-mix(in srgb, var(--bg-tertiary) 82%, var(--bg-secondary));
+}
+
+.model-logo {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  border-radius: 50%;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.model-name {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 13px;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.model-current-badge {
+  font-size: 11px;
+  color: var(--text-accent);
+  background-color: color-mix(in srgb, var(--text-accent) 12%, transparent);
+  padding: 2px 8px;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+
+.model-tag.is-selected {
+  border-color: color-mix(in srgb, var(--text-accent) 38%, var(--border-primary));
 }
 </style>

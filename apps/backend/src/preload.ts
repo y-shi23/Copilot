@@ -19,9 +19,14 @@ const {
   savePromptWindowSettings,
   saveMcpToolCache,
   getMcpToolCache,
+  getCachedBackgroundImage,
+  cacheBackgroundImage,
 } = require('./data');
 
-const { getRandomItem } = require('./input');
+const {
+  getRandomItem,
+  generateConversationTitle: generateConversationTitleCore,
+} = require('./input');
 
 const loadRuntimeModule = (moduleFileName) => {
   return require(path.join(__dirname, 'runtime', moduleFileName));
@@ -71,6 +76,8 @@ const invokeMcpTool = (...args) => getMcpRuntime().invokeMcpTool(...args);
 const closeMcpClient = (...args) => getMcpRuntime().closeMcpClient(...args);
 const connectAndFetchTools = (...args) => getMcpRuntime().connectAndFetchTools(...args);
 const connectAndInvokeTool = (...args) => getMcpRuntime().connectAndInvokeTool(...args);
+const getMcpRuntimeStatus = (...args) => getMcpRuntime().getMcpRuntimeStatus(...args);
+const installMcpRuntime = (...args) => getMcpRuntime().installMcpRuntime(...args);
 
 const listSkills = (...args) => getSkillRuntime().listSkills(...args);
 const getSkillDetails = (...args) => getSkillRuntime().getSkillDetails(...args);
@@ -186,6 +193,24 @@ window.api = {
   },
   invokeMcpTool,
   closeMcpClient,
+  getMcpRuntimeStatus: async () => {
+    try {
+      const data = await getMcpRuntimeStatus();
+      return { success: true, data };
+    } catch (error) {
+      console.error('[Preload] getMcpRuntimeStatus error:', error);
+      return { success: false, error: String(error?.message || error) };
+    }
+  },
+  installMcpRuntime: async (target = 'all') => {
+    try {
+      const data = await installMcpRuntime(target);
+      return { success: true, data };
+    } catch (error) {
+      console.error('[Preload] installMcpRuntime error:', error);
+      return { success: false, error: String(error?.message || error) };
+    }
+  },
   isFileTypeSupported,
   parseFileObject,
   copyLocalPath: async (src, dest) => {
@@ -226,6 +251,73 @@ window.api = {
   // 在文件管理器中显示文件
   shellShowItemInFolder: (fullPath) => {
     utools.shellShowItemInFolder(fullPath);
+  },
+  shellOpenPath: (fullPath) => {
+    utools.shellOpenPath(fullPath);
+  },
+  getCachedBackgroundImage,
+  cacheBackgroundImage: (url) => {
+    cacheBackgroundImage(url).catch((e) => console.error(e));
+  },
+  ensureDeepSeekProxy: async () => {
+    return ipcRenderer.invoke('deepseek:ensure-proxy');
+  },
+  loginDeepSeek: async () => {
+    return ipcRenderer.invoke('deepseek:login');
+  },
+  listConversations: async (filter = {}) => {
+    return ipcRenderer.invoke('storage:conversation-list', filter);
+  },
+  getConversation: async (conversationId) => {
+    return ipcRenderer.invoke('storage:conversation-get', conversationId);
+  },
+  upsertConversation: async (payload) => {
+    return ipcRenderer.invoke('storage:conversation-upsert', payload);
+  },
+  renameConversation: async (conversationId, conversationName) => {
+    return ipcRenderer.invoke('storage:conversation-rename', { conversationId, conversationName });
+  },
+  deleteConversations: async (ids = []) => {
+    return ipcRenderer.invoke('storage:conversation-delete', ids);
+  },
+  cleanConversations: async (days = 30) => {
+    return ipcRenderer.invoke('storage:conversation-clean', days);
+  },
+  getStorageHealth: async () => {
+    return ipcRenderer.invoke('storage:health-get');
+  },
+  testPostgresConnection: async (connectionString) => {
+    return ipcRenderer.invoke('storage:postgres-test', connectionString);
+  },
+  triggerStorageSync: async () => {
+    return ipcRenderer.invoke('storage:sync-now');
+  },
+  onConversationsChanged: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const handler = (_event, payload = {}) => {
+      callback(payload || {});
+    };
+    ipcRenderer.on('storage:conversations-changed', handler);
+    return () => {
+      ipcRenderer.removeListener('storage:conversations-changed', handler);
+    };
+  },
+  generateConversationTitle: async (payload = {}) => {
+    try {
+      const configResult = await getConfig();
+      const configData = configResult?.config || {};
+      return await generateConversationTitleCore({
+        ...payload,
+        config: configData,
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        title: '新对话',
+        reason: 'preload_error',
+        error: String(error?.message || error),
+      };
+    }
   },
   // 生成 Skill Tool 定义 (供前端构建请求参数时使用)
   getSkillToolDefinition: async (rootPath, enabledSkillNames = []) => {
@@ -284,6 +376,41 @@ window.api = {
       2,
     );
   },
+  toggleSkillForkMode: async (rootPath, skillId, enableFork) => {
+    try {
+      const details = getSkillDetails(rootPath, skillId);
+      const meta = details.metadata;
+      const body = details.content;
+
+      if (enableFork) {
+        meta['context'] = 'fork';
+      } else {
+        delete meta['context'];
+      }
+
+      const lines = ['---'];
+      if (meta.name) lines.push(`name: ${meta.name}`);
+      if (meta.description) lines.push(`description: ${meta.description}`);
+      if (meta['disable-model-invocation'] === true) lines.push('disable-model-invocation: true');
+      if (meta.context === 'fork') lines.push('context: fork');
+
+      if (meta['allowed-tools']) {
+        let tools = meta['allowed-tools'];
+        if (typeof tools === 'string') lines.push(`allowed-tools: [${tools}]`);
+        else if (Array.isArray(tools)) lines.push(`allowed-tools: [${tools.join(', ')}]`);
+      }
+
+      lines.push('---');
+      lines.push('');
+      lines.push(body || '');
+
+      const content = lines.join('\n');
+      return saveSkill(rootPath, skillId, content);
+    } catch (e) {
+      console.error('Toggle Fork Mode Error:', e);
+      throw e;
+    }
+  },
   // 暴露 path.join 给前端创建新 Skill 文件夹用
   pathJoin: (...args) => require('path').join(...args),
 };
@@ -292,6 +419,31 @@ if (!window.utools) {
   window.utools = {};
 }
 window.utools.shellOpenExternal = utools.shellOpenExternal;
+
+window.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('click', (event) => {
+    let target = event.target;
+    while (target && target.tagName !== 'A') {
+      target = target.parentNode;
+    }
+
+    if (target && target.tagName === 'A') {
+      const filePath = target.getAttribute('data-filepath');
+      if (filePath) {
+        event.preventDefault();
+        event.stopPropagation();
+        const cleanPath = decodeURIComponent(filePath);
+        utools.shellOpenPath(cleanPath);
+        return;
+      }
+
+      if (target.href && target.href.startsWith('http')) {
+        event.preventDefault();
+        utools.shellOpenExternal(target.href);
+      }
+    }
+  });
+});
 
 const commandHandlers = {
   'Sanft Settings': async () => {

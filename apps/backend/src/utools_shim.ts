@@ -15,39 +15,12 @@ function safeFileName(id) {
 }
 
 const dataRoot = ipcRenderer.sendSync('utools:get-user-data-path');
-const docsFile = path.join(dataRoot, 'documents.json');
 const attachmentsDir = path.join(dataRoot, 'attachments');
 const nativeIdFile = path.join(dataRoot, 'native-id.txt');
 
 function ensureStore() {
   if (!fs.existsSync(dataRoot)) fs.mkdirSync(dataRoot, { recursive: true });
   if (!fs.existsSync(attachmentsDir)) fs.mkdirSync(attachmentsDir, { recursive: true });
-  if (!fs.existsSync(docsFile)) fs.writeFileSync(docsFile, JSON.stringify({}, null, 2), 'utf8');
-}
-
-function readDocs() {
-  ensureStore();
-  try {
-    const raw = fs.readFileSync(docsFile, 'utf8');
-    const parsed = raw ? JSON.parse(raw) : {};
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch (error) {
-    console.error('[uTools Shim] Failed to read documents:', error);
-    return {};
-  }
-}
-
-function writeDocs(docs) {
-  ensureStore();
-  const tempFile = `${docsFile}.tmp`;
-  fs.writeFileSync(tempFile, JSON.stringify(docs, null, 2), 'utf8');
-  fs.renameSync(tempFile, docsFile);
-}
-
-function nextRev(currentRev) {
-  const currentNumber = currentRev ? Number(String(currentRev).split('-')[0]) : 0;
-  const nextNumber = Number.isFinite(currentNumber) ? currentNumber + 1 : 1;
-  return `${nextNumber}-${crypto.randomUUID().replace(/-/g, '').slice(0, 8)}`;
 }
 
 function attachmentPath(attachmentId) {
@@ -56,62 +29,72 @@ function attachmentPath(attachmentId) {
 
 const db = {
   get(id) {
-    const docs = readDocs();
-    const doc = docs[String(id)];
-    return doc ? deepClone(doc) : null;
+    try {
+      const doc = ipcRenderer.sendSync('storage:doc-get-sync', String(id));
+      return doc ? deepClone(doc) : null;
+    } catch (error) {
+      console.error('[uTools Shim] storage:doc-get-sync failed:', error);
+      return null;
+    }
   },
 
   put(doc) {
-    if (!doc || !doc._id) {
-      return { ok: false, error: true, name: 'bad_request', message: 'Missing _id' };
+    try {
+      return ipcRenderer.sendSync('storage:doc-put-sync', deepClone(doc));
+    } catch (error) {
+      console.error('[uTools Shim] storage:doc-put-sync failed:', error);
+      return {
+        ok: false,
+        error: true,
+        name: 'ipc_error',
+        message: String(error?.message || error),
+      };
     }
-
-    const id = String(doc._id);
-    const docs = readDocs();
-    const existing = docs[id];
-
-    if (existing && doc._rev && doc._rev !== existing._rev) {
-      return { ok: false, error: true, name: 'conflict', message: 'Document update conflict' };
-    }
-
-    const rev = nextRev(existing ? existing._rev : null);
-    docs[id] = {
-      _id: id,
-      _rev: rev,
-      data: deepClone(doc.data),
-    };
-    writeDocs(docs);
-    return { ok: true, id, rev };
   },
 
   remove(id) {
-    const key = String(id);
-    const docs = readDocs();
+    const key = String(id || '');
+    try {
+      const result = ipcRenderer.sendSync('storage:doc-remove-sync', key);
+      if (result?.ok) {
+        return result;
+      }
 
-    if (docs[key]) {
-      delete docs[key];
-      writeDocs(docs);
-      return { ok: true, id: key };
+      const file = attachmentPath(key);
+      if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+        return { ok: true, id: key };
+      }
+      return result;
+    } catch (error) {
+      console.error('[uTools Shim] storage:doc-remove-sync failed:', error);
+      const file = attachmentPath(key);
+      if (fs.existsSync(file)) {
+        try {
+          fs.unlinkSync(file);
+          return { ok: true, id: key };
+        } catch (_removeError) {
+          // ignore
+        }
+      }
+      return {
+        ok: false,
+        error: true,
+        name: 'ipc_error',
+        message: String(error?.message || error),
+      };
     }
-
-    const file = attachmentPath(key);
-    if (fs.existsSync(file)) {
-      fs.unlinkSync(file);
-      return { ok: true, id: key };
-    }
-
-    return { ok: false, error: true, name: 'not_found', message: `Document ${key} not found` };
   },
 
   promises: {
     async get(id) {
-      return db.get(id);
+      return Promise.resolve(db.get(id));
     },
     async put(doc) {
-      return db.put(doc);
+      return Promise.resolve(db.put(doc));
     },
     async remove(id) {
-      return db.remove(id);
+      return Promise.resolve(db.remove(id));
     },
     async postAttachment(attachmentId, buffer) {
       ensureStore();

@@ -240,7 +240,7 @@
       "reasoningEffort": "モデルの思考プロセスの計算予算を設定します。高い値はより詳細な回答をもたらす可能性がありますが、遅延とコストが増加します。",
       "isAlwaysOnTopTooltip": "ウィンドウを常に他のウィンドウより手前に表示します。",
       "autoCloseOnBlurTooltip": "独立したウィンドウがフォーカスを失ったときに自動的に閉じるようにします。",
-      "autoSaveChatTooltip": "オンにすると、チャットは15秒ごとにローカルに自動保存されます（設定でローカルチャットパスの設定が必要）。",
+      "autoSaveChatTooltip": "オンにすると、会話はデータベースのキャッシュ層経由で自動保存されます（15秒のフォールバック間隔）。",
       "defaultMcpServers": "設定すると、このアシスタントをスタンドアロンウィンドウで開いたときに、選択したMCPサービスが自動的に有効になります。",
       "defaultSkills": "設定すると、このアシスタントを独立したウィンドウで開いたときに、これらのスキルが自動的にAIから見えるようになります。"
     },
@@ -362,6 +362,31 @@
       "default": "デフォルト",
       "leaveEmpty": "空の場合はデフォルト値を使用",
       "response": "応答結果:"
+    },
+    "runtime": {
+      "entry": "ランタイム",
+      "title": "MCP ランタイム環境",
+      "fallbackHint": "システムに npx/uv/uvx がない場合、MCP は内蔵 Bun/UV に自動フォールバックします。",
+      "platform": "プラットフォーム",
+      "binDir": "インストール先",
+      "openDir": "フォルダーを開く",
+      "refresh": "状態を更新",
+      "installed": "インストール済み",
+      "notInstalled": "未インストール",
+      "notFound": "未検出",
+      "systemNpx": "システム npx",
+      "systemUv": "システム uv",
+      "systemUvx": "システム uvx",
+      "builtinBun": "内蔵 Bun",
+      "builtinUv": "内蔵 UV",
+      "builtinUvx": "内蔵 uvx",
+      "installBun": "Bun をインストール",
+      "installUv": "UV をインストール",
+      "installAll": "Bun + UV を一括インストール",
+      "installSuccess": "ランタイムのインストールが完了しました",
+      "installFailed": "ランタイムのインストールに失敗しました",
+      "loadFailed": "ランタイム状態の取得に失敗しました",
+      "apiUnavailable": "このビルドではランタイムインストール API を利用できません"
     }
   },
   "skills": {
@@ -452,6 +477,13 @@
     "moveUpTooltip": "上に移動",
     "moveDownTooltip": "下に移動",
     "deleteProviderTooltip": "サービスプロバイダーを削除",
+    "deepseekUserTokenLabel": "Token",
+    "deepseekUserTokenPlaceholder": "DeepSeek userToken を入力（ログイン後の自動入力にも対応）",
+    "deepseekUserTokenDescription": "DeepSeek 公式チャネルは userToken で認証します。手動貼り付けにも対応しています。",
+    "deepseekLoginBtn": "DeepSeek にログイン",
+    "deepseekBuiltinChannelHint": "公式内蔵チャネル：ローカルプロキシと認証を自動管理します。",
+    "deepseekProxyUrlLabel": "プロキシ URL",
+    "deepseekProxyUrlPlaceholder": "アプリが自動管理します",
     "apiKeyLabel": "APIキー",
     "apiKeyPlaceholder": "APIキーを入力（複数可、カンマ区切り）",
     "apiKeyDescription": "複数のAPIキーをカンマで区切って入力できます。",
@@ -497,6 +529,12 @@
       "fetchModelsFailedDefault": "モデルの取得に失敗しました。",
       "configSaveFailed": "設定の保存に失敗しました。",
       "saveFailed": "保存に失敗しました",
+      "deepseekProxyStartFailed": "DeepSeek プロキシの起動に失敗しました。",
+      "deepseekProxyStartFailedWithReason": "DeepSeek プロキシの起動に失敗しました: {message}",
+      "deepseekLoginSuccess": "DeepSeek へのログインに成功し、userToken を保存しました。",
+      "deepseekLoginCancelled": "DeepSeek ログインをキャンセルしました。",
+      "deepseekLoginFailed": "DeepSeek ログインに失敗しました。",
+      "deepseekLoginFailedWithReason": "DeepSeek ログインに失敗しました: {message}",
       "modelMetadataLoadFailed": "モデルメタデータの読み込みに失敗したため、既定表示を使用します。"
     }
   },
@@ -542,6 +580,16 @@
     "ctrlEnter": {
       "label": "Ctrl+Enterで送信",
       "description": "Ctrl+Enterを押してメッセージを送信するようにします。"
+    },
+    "messageNavigation": {
+      "label": "メッセージナビゲーション",
+      "description": "チャット右側のメッセージアンカー表示方式を制御します。",
+      "anchor": "アンカーライン",
+      "none": "オフ"
+    },
+    "showMessageOutline": {
+      "label": "メッセージ大綱を表示",
+      "description": "AI メッセージ左側に見出し大綱アンカーを表示します。"
     },
     "notification": {
       "label": "成功通知を表示",
@@ -641,6 +689,14 @@
       "saveFailedPrefix": "設定の保存に失敗しました: "
     }
   },
+  "defaultModel": {
+    "title": "デフォルトモデル",
+    "quickModel": {
+      "label": "クイックモデル",
+      "description": "会話タイトルを自動生成する際に使用するモデルです。",
+      "placeholder": "モデルを選択"
+    }
+  },
   "common": {
     "cancel": "キャンセル",
     "confirm": "確認",
@@ -664,5 +720,46 @@
     "deleteFailedMultiple": "選択したファイルの削除中にエラーが発生しました。",
     "saveSuccess": "保存しました",
     "saveFailed": "保存に失敗しました"
+  },
+  "mainSettings": {
+    "entry": "設定",
+    "backToChat": "チャットに戻る",
+    "navigationTitle": "設定",
+    "tabs": {
+      "history": "対話履歴",
+      "prompts": "クイックアシスタント",
+      "mcp": "MCPサーバー",
+      "skills": "スキル",
+      "providers": "サービスプロバイダー",
+      "defaultModel": "デフォルトモデル",
+      "system": "システム設定"
+    }
+  },
+  "mainChat": {
+    "actions": {
+      "refresh": "セッション一覧を更新",
+      "showSidebar": "サイドバーを表示",
+      "hideSidebar": "サイドバーを閉じる",
+      "newConversation": "新しい会話"
+    },
+    "sources": {
+      "local": "ローカル",
+      "cloud": "クラウド"
+    },
+    "empty": {
+      "assistants": "有効なアシスタントがありません",
+      "assistantSessions": "このアシスタントの履歴はありません"
+    },
+    "errors": {
+      "loadSessionFailed": "セッションの読み込みに失敗しました",
+      "indexFailed": "履歴インデックスの読み込みに失敗しました"
+    },
+    "sessionMenu": {
+      "rename": "手動リネーム",
+      "regenerate": "タイトルを再生成",
+      "renameSuccess": "セッション名を更新しました",
+      "regenerateSuccess": "セッション名を再生成しました",
+      "regenerateFailed": "生成に失敗したため「新对话」を使用しました"
+    }
   }
 }

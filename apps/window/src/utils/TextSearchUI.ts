@@ -156,7 +156,6 @@ export default class TextSearchUI {
       mark.search-highlight.current {
         background-color: var(--ts-highlight-current);
         color: var(--ts-highlight-text);
-        outline: 2px solid rgba(255, 255, 255, 0.3);
       }
     `;
 

@@ -1,0 +1,177 @@
+.el-overlay.app-dialog-overlay {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+}
+
+.el-overlay.app-dialog-overlay .el-overlay-dialog {
+  overflow: hidden !important;
+  overscroll-behavior: contain;
+}
+
+.app-dialog-card.el-dialog {
+  border-radius: 16px !important;
+  border: 1px solid var(--el-border-color-light) !important;
+  overflow: hidden;
+  box-shadow: var(--el-box-shadow) !important;
+  background-color: #fbfbfb !important;
+  max-height: min(90vh, calc(100vh - 20px));
+  display: flex;
+  flex-direction: column;
+}
+
+html.dark .app-dialog-card.el-dialog {
+  background-color: #282828 !important;
+}
+
+.app-container.has-bg .app-dialog-card.el-dialog {
+  background-color: #fbfbfb !important;
+}
+
+html.dark .app-container.has-bg .app-dialog-card.el-dialog {
+  background-color: #282828 !important;
+}
+
+@media (max-height: 680px) {
+  .el-overlay.app-dialog-overlay .el-overlay-dialog {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+  }
+
+  .app-dialog-card.el-dialog {
+    margin: 0 !important;
+    top: auto !important;
+    transform: none !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100vh - 16px) !important;
+  }
+}
+
+.app-dialog-card .el-dialog__header {
+  border-bottom: 1px solid var(--el-border-color-lighter);
+  margin-right: 0 !important;
+  padding: 14px 18px !important;
+  flex: 0 0 auto;
+}
+
+.app-dialog-card .el-dialog__body {
+  padding: 12px 18px !important;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+.app-dialog-card .el-dialog__footer {
+  padding: 8px 18px 14px !important;
+  flex: 0 0 auto;
+}
+
+html.app-dialog-open,
+body.app-dialog-open {
+  overflow: hidden !important;
+}
+
+body.app-dialog-open .window-root,
+body.app-dialog-open .workspace-content,
+body.app-dialog-open .app-container,
+body.app-dialog-open .common-layout {
+  overflow: hidden !important;
+}
+
+.app-dialog-card--compact .el-dialog__header {
+  padding: 5px !important;
+}
+
+.app-dialog-card--compact .el-dialog__body {
+  padding: 15px 20px 10px 20px !important;
+}
+
+.app-dialog-card--compact .el-dialog__footer {
+  padding: 5px !important;
+}
+
+.app-dialog-card--no-header .el-dialog__header {
+  display: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+}
+
+.app-dialog-card--no-header .el-dialog__body {
+  padding-top: 10px !important;
+}
+
+.app-dialog-card .el-dialog__headerbtn {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background-color: transparent !important;
+  top: 12px !important;
+  right: 12px !important;
+  transition: background-color 0.2s ease;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.app-dialog-card .el-dialog__headerbtn:hover {
+  background-color: #ebebef !important;
+}
+
+html.dark .app-dialog-card .el-dialog__headerbtn:hover {
+  background-color: #1e1e1e !important;
+}
+
+.app-dialog-card .el-dialog__headerbtn .el-dialog__close {
+  color: var(--text-secondary) !important;
+  font-size: 16px !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.app-dialog-card .el-dialog__headerbtn:hover .el-dialog__close {
+  color: var(--text-primary) !important;
+}
+
+:where(.app-dialog-card--tools, .chat-tools-dialog).el-dialog {
+  max-width: calc(100vw - 32px) !important;
+}
+
+:where(.app-dialog-card--tools, .chat-tools-dialog) .mcp-server-item-wrapper {
+  border: 1px solid var(--border-secondary) !important;
+  border-radius: var(--radius-lg) !important;
+  box-shadow: none !important;
+  background-color: var(--bg-secondary) !important;
+}
+
+:where(.app-dialog-card--tools, .chat-tools-dialog) .mcp-server-item-wrapper:hover {
+  border-color: var(--border-primary) !important;
+  background-color: color-mix(in srgb, var(--bg-secondary) 72%, transparent) !important;
+}
+
+:where(.app-dialog-card--tools, .chat-tools-dialog) .mcp-server-item {
+  padding: 8px 16px 6px !important;
+}
+
+:where(.app-dialog-card--tools, .chat-tools-dialog) .mcp-server-icon {
+  background-color: var(--bg-tertiary) !important;
+  color: var(--text-secondary) !important;
+}
+
+:where(.app-dialog-card--tools, .chat-tools-dialog) .mcp-server-name,
+:where(.app-dialog-card--tools, .chat-tools-dialog) .mcp-tool-name,
+:where(.app-dialog-card--tools, .chat-tools-dialog) .skill-name-fixed {
+  color: var(--text-primary) !important;
+}
+
+:where(.app-dialog-card--tools, .chat-tools-dialog) .mcp-server-description,
+:where(.app-dialog-card--tools, .chat-tools-dialog) .mcp-tool-desc,
+:where(.app-dialog-card--tools, .chat-tools-dialog) .skill-desc-inline {
+  color: var(--text-secondary) !important;
+}
+
+:where(.app-dialog-card--tools, .chat-tools-dialog) .mcp-dialog-footer-search {
+  border-top: 1px solid var(--border-primary) !important;
+}

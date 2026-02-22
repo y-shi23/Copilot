@@ -29,6 +29,7 @@ export interface ProviderConfig {
   api_key?: string | string[];
   modelList?: string[];
   enable?: boolean;
+  channel?: string;
   [key: string]: any;
 }
 
@@ -37,8 +38,11 @@ export interface AppConfig {
   providerOrder: string[];
   prompts: Record<string, PromptConfig>;
   mcpServers?: Record<string, JsonValue>;
+  quickModel?: string;
   skillPath?: string;
   language?: string;
+  messageNavigation?: 'none' | 'anchor';
+  showMessageOutline?: boolean;
   isDarkMode?: boolean;
   zoom?: number;
   launcherEnabled?: boolean;

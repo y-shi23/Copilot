@@ -5,6 +5,8 @@ const {
   closeMcpClient,
   connectAndFetchTools,
   connectAndInvokeTool,
+  getMcpRuntimeStatus,
+  installMcpRuntime,
 } = require('../mcp');
 
 const {
@@ -18,4 +20,6 @@ module.exports = {
   connectAndFetchTools,
   connectAndInvokeTool,
   invokeBuiltinTool,
+  getMcpRuntimeStatus,
+  installMcpRuntime,
 };

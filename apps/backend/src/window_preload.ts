@@ -4,7 +4,10 @@ global.utools = require('./utools_shim');
 const { ipcRenderer } = require('electron');
 const path = require('path');
 
-const { getRandomItem } = require('./input');
+const {
+  getRandomItem,
+  generateConversationTitle: generateConversationTitleCore,
+} = require('./input');
 
 const {
   getConfig,
@@ -62,6 +65,8 @@ const invokeBuiltinTool = (...args) => getMcpRuntime().invokeBuiltinTool(...args
 const initializeMcpClient = (...args) => getMcpRuntime().initializeMcpClient(...args);
 const invokeMcpTool = (...args) => getMcpRuntime().invokeMcpTool(...args);
 const closeMcpClient = (...args) => getMcpRuntime().closeMcpClient(...args);
+const getMcpRuntimeStatus = (...args) => getMcpRuntime().getMcpRuntimeStatus(...args);
+const installMcpRuntime = (...args) => getMcpRuntime().installMcpRuntime(...args);
 
 const listSkills = (...args) => getSkillRuntime().listSkills(...args);
 const getSkillDetails = (...args) => getSkillRuntime().getSkillDetails(...args);
@@ -148,6 +153,24 @@ window.api = {
   },
   saveMcpToolCache,
   closeMcpClient,
+  getMcpRuntimeStatus: async () => {
+    try {
+      const data = await getMcpRuntimeStatus();
+      return { success: true, data };
+    } catch (error) {
+      console.error('[WindowPreload] getMcpRuntimeStatus error:', error);
+      return { success: false, error: String(error?.message || error) };
+    }
+  },
+  installMcpRuntime: async (target = 'all') => {
+    try {
+      const data = await installMcpRuntime(target);
+      return { success: true, data };
+    } catch (error) {
+      console.error('[WindowPreload] installMcpRuntime error:', error);
+      return { success: false, error: String(error?.message || error) };
+    }
+  },
   isFileTypeSupported,
   parseFileObject,
   shellOpenPath: (fullPath) => {
@@ -184,6 +207,66 @@ window.api = {
   cacheBackgroundImage: (url) => {
     // 异步执行，不阻塞 UI
     cacheBackgroundImage(url).catch((e) => console.error(e));
+  },
+  ensureDeepSeekProxy: async () => {
+    return ipcRenderer.invoke('deepseek:ensure-proxy');
+  },
+  loginDeepSeek: async () => {
+    return ipcRenderer.invoke('deepseek:login');
+  },
+  listConversations: async (filter = {}) => {
+    return ipcRenderer.invoke('storage:conversation-list', filter);
+  },
+  getConversation: async (conversationId) => {
+    return ipcRenderer.invoke('storage:conversation-get', conversationId);
+  },
+  upsertConversation: async (payload) => {
+    return ipcRenderer.invoke('storage:conversation-upsert', payload);
+  },
+  renameConversation: async (conversationId, conversationName) => {
+    return ipcRenderer.invoke('storage:conversation-rename', { conversationId, conversationName });
+  },
+  deleteConversations: async (ids = []) => {
+    return ipcRenderer.invoke('storage:conversation-delete', ids);
+  },
+  cleanConversations: async (days = 30) => {
+    return ipcRenderer.invoke('storage:conversation-clean', days);
+  },
+  getStorageHealth: async () => {
+    return ipcRenderer.invoke('storage:health-get');
+  },
+  testPostgresConnection: async (connectionString) => {
+    return ipcRenderer.invoke('storage:postgres-test', connectionString);
+  },
+  triggerStorageSync: async () => {
+    return ipcRenderer.invoke('storage:sync-now');
+  },
+  onConversationsChanged: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const handler = (_event, payload = {}) => {
+      callback(payload || {});
+    };
+    ipcRenderer.on('storage:conversations-changed', handler);
+    return () => {
+      ipcRenderer.removeListener('storage:conversations-changed', handler);
+    };
+  },
+  generateConversationTitle: async (payload = {}) => {
+    try {
+      const configResult = await getConfig();
+      const configData = configResult?.config || {};
+      return await generateConversationTitleCore({
+        ...payload,
+        config: configData,
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        title: '新对话',
+        reason: 'preload_error',
+        error: String(error?.message || error),
+      };
+    }
   },
 
   // Skill 相关 API

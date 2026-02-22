@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // -nocheck
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue';
-import { ElTooltip, ElIcon, ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
+import { ElTooltip, ElDropdown, ElDropdownMenu, ElDropdownItem } from 'element-plus';
 import {
   Download,
   Maximize2,
@@ -10,7 +10,7 @@ import {
   Menu,
   Check,
   Lock,
-  Circle,
+  LockOpen,
   Pin,
   PinOff,
 } from 'lucide-vue-next';
@@ -98,7 +98,7 @@ onBeforeUnmount(() => {
         <el-tooltip content="点击保存会话" placement="bottom" :show-after="500">
           <div class="conversation-inner">
             <span class="conversation-title">{{ displayConversationName }}</span>
-            <el-icon class="download-icon"><Download :size="13" /></el-icon>
+            <Download :size="13" class="download-icon" />
           </div>
         </el-tooltip>
       </div>
@@ -115,7 +115,7 @@ onBeforeUnmount(() => {
         >
           <div class="func-btn" @click="emit('toggle-pin')" :class="{ active: !autoCloseOnBlur }">
             <Lock v-if="!autoCloseOnBlur" :size="16" />
-            <Circle v-else :size="16" />
+            <LockOpen v-else :size="16" />
           </div>
         </el-tooltip>
 
@@ -139,13 +139,13 @@ onBeforeUnmount(() => {
       <div v-else class="function-group no-drag">
         <el-dropdown trigger="click" placement="bottom-end" popper-class="title-bar-dropdown">
           <div class="func-btn" title="更多选项">
-            <el-icon><Menu :size="16" /></el-icon>
+            <Menu :size="16" />
           </div>
           <template #dropdown>
-            <el-dropdown-menu>
+            <el-dropdown-menu class="app-dropdown-surface">
               <!-- 1. 保存/重命名会话 -->
-              <el-dropdown-item @click="emit('save-session')">
-                <el-icon><Download :size="16" /></el-icon>
+              <el-dropdown-item class="app-dropdown-item" @click="emit('save-session')">
+                <Download :size="16" />
                 <div class="dropdown-text-col">
                   <span>保存/重命名</span>
                   <span class="dropdown-subtext">{{ displayConversationName }}</span>
@@ -153,22 +153,22 @@ onBeforeUnmount(() => {
               </el-dropdown-item>
 
               <!-- 2. 失焦关闭开关 -->
-              <el-dropdown-item @click="emit('toggle-pin')">
+              <el-dropdown-item class="app-dropdown-item" @click="emit('toggle-pin')">
                 <div class="dropdown-check-row">
                   <div class="dropdown-text-col">
                     <span>失焦自动关闭</span>
                   </div>
-                  <el-icon v-if="autoCloseOnBlur" class="check-icon"><Check :size="14" /></el-icon>
+                  <Check v-if="autoCloseOnBlur" :size="14" class="check-icon" />
                 </div>
               </el-dropdown-item>
 
               <!-- 3. 置顶开关 -->
-              <el-dropdown-item @click="emit('toggle-always-on-top')">
+              <el-dropdown-item class="app-dropdown-item" @click="emit('toggle-always-on-top')">
                 <div class="dropdown-check-row">
                   <div class="dropdown-text-col">
                     <span>窗口置顶</span>
                   </div>
-                  <el-icon v-if="isAlwaysOnTop" class="check-icon"><Check :size="14" /></el-icon>
+                  <Check v-if="isAlwaysOnTop" :size="14" class="check-icon" />
                 </div>
               </el-dropdown-item>
             </el-dropdown-menu>
@@ -181,26 +181,26 @@ onBeforeUnmount(() => {
       <!-- Windows 窗口控制 -->
       <div v-if="isWin" class="window-controls win-controls no-drag">
         <div class="win-btn minimize" @click="emit('minimize')" title="最小化">
-          <el-icon><Minus :size="14" /></el-icon>
+          <Minus :size="14" />
         </div>
         <div class="win-btn maximize" @click="emit('maximize')" title="最大化">
-          <el-icon><Maximize2 :size="14" /></el-icon>
+          <Maximize2 :size="14" />
         </div>
         <div class="win-btn close" @click="emit('close')" title="关闭">
-          <el-icon><X :size="14" /></el-icon>
+          <X :size="14" />
         </div>
       </div>
 
       <!-- Linux 窗口控制 -->
       <div v-if="isLinux" class="window-controls linux-controls no-drag">
         <div class="linux-btn minimize" @click="emit('minimize')">
-          <el-icon><Minus :size="14" /></el-icon>
+          <Minus :size="14" />
         </div>
         <div class="linux-btn maximize" @click="emit('maximize')">
-          <el-icon><Maximize2 :size="14" /></el-icon>
+          <Maximize2 :size="14" />
         </div>
         <div class="linux-btn close" @click="emit('close')">
-          <el-icon><X :size="14" /></el-icon>
+          <X :size="14" />
         </div>
       </div>
     </div>
@@ -208,40 +208,25 @@ onBeforeUnmount(() => {
 </template>
 
 <style>
-.title-bar-dropdown {
-  --el-bg-color-overlay: var(--el-bg-color);
-  --el-border-color-light: var(--el-border-color);
-  --el-text-color-regular: var(--el-text-color-primary);
+.title-bar-dropdown.el-popper {
+  border: none !important;
+  padding: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
-html.dark .title-bar-dropdown {
-  background-color: #2c2c2c !important;
-  border-color: #444 !important;
+.title-bar-dropdown .app-dropdown-surface {
+  min-width: 240px;
 }
 
-.title-bar-dropdown .el-dropdown-menu__item {
-  border-radius: 6px !important;
-  margin: 0 !important;
-  padding: 0 12px !important;
-  height: 32px !important;
-  line-height: 32px !important;
-  display: flex !important;
-  align-items: center !important;
-  transition: background-color 0.15s ease !important;
-}
-
-.title-bar-dropdown .el-dropdown-menu__item + .el-dropdown-menu__item {
-  margin-top: 2px !important;
-}
-
-.title-bar-dropdown .el-dropdown-menu__item:hover {
-  background-color: #eeeeee !important;
-  color: var(--el-text-color-primary) !important;
-}
-
-html.dark .title-bar-dropdown .el-dropdown-menu__item:hover {
-  background-color: #444 !important;
-  color: var(--el-text-color-primary) !important;
+.title-bar-dropdown .app-dropdown-item {
+  min-height: 34px;
+  height: auto;
+  line-height: 1.3;
+  gap: 10px;
+  align-items: center;
+  padding-top: 8px;
+  padding-bottom: 8px;
 }
 </style>
 

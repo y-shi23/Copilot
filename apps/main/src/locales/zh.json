@@ -240,7 +240,7 @@
       "reasoningEffort": "设置模型思考过程的计算预算。更高的值可能会产生更详尽的回答，但会增加延迟和成本。",
       "isAlwaysOnTopTooltip": "启用以使窗口始终保持在最上层。",
       "autoCloseOnBlurTooltip": "启用以在独立窗口失去焦点时将其关闭。",
-      "autoSaveChatTooltip": "开启后，对话将每隔15秒自动保存到本地（需先在设置中配置本地对话路径）。",
+      "autoSaveChatTooltip": "开启后，对话会自动保存到数据库缓存（默认每15秒执行一次兜底保存）。",
       "defaultMcpServers": "设置后，在独立窗口打开此助手时将自动启用所选的MCP服务。",
       "defaultSkills": "设置后，在独立窗口打开此助手时，这些技能将自动对 AI 可见。"
     },
@@ -362,6 +362,31 @@
       "default": "默认",
       "leaveEmpty": "留空使用默认值",
       "response": "响应结果:"
+    },
+    "runtime": {
+      "entry": "运行时环境",
+      "title": "MCP 运行时环境",
+      "fallbackHint": "当系统缺少 npx/uv/uvx 时，MCP 将自动回退到内置 Bun/UV。",
+      "platform": "平台",
+      "binDir": "安装目录",
+      "openDir": "打开目录",
+      "refresh": "刷新状态",
+      "installed": "已安装",
+      "notInstalled": "未安装",
+      "notFound": "未检测到",
+      "systemNpx": "系统 npx",
+      "systemUv": "系统 uv",
+      "systemUvx": "系统 uvx",
+      "builtinBun": "内置 Bun",
+      "builtinUv": "内置 UV",
+      "builtinUvx": "内置 uvx",
+      "installBun": "安装 Bun",
+      "installUv": "安装 UV",
+      "installAll": "一键安装 Bun + UV",
+      "installSuccess": "运行时安装完成",
+      "installFailed": "运行时安装失败",
+      "loadFailed": "读取运行时状态失败",
+      "apiUnavailable": "当前版本暂不支持运行时安装接口"
     }
   },
   "skills": {
@@ -452,6 +477,13 @@
     "moveUpTooltip": "上移",
     "moveDownTooltip": "下移",
     "deleteProviderTooltip": "删除服务商",
+    "deepseekUserTokenLabel": "Token",
+    "deepseekUserTokenPlaceholder": "输入 DeepSeek userToken（可在登录后自动填充）",
+    "deepseekUserTokenDescription": "DeepSeek 官方渠道使用 userToken 鉴权，也支持手动粘贴。",
+    "deepseekLoginBtn": "登录 DeepSeek",
+    "deepseekBuiltinChannelHint": "内置官方渠道：将自动启动本地代理并同步鉴权。",
+    "deepseekProxyUrlLabel": "代理 URL",
+    "deepseekProxyUrlPlaceholder": "由系统自动维护，无需手动填写",
     "apiKeyLabel": "API 密钥",
     "apiKeyPlaceholder": "输入 API 密钥 (可输入多个，用逗号分隔)",
     "apiKeyDescription": "可以输入多个 API 密钥，用逗号分隔",
@@ -497,6 +529,12 @@
       "fetchModelsFailedDefault": "获取模型失败",
       "configSaveFailed": "保存配置失败",
       "saveFailed": "保存失败",
+      "deepseekProxyStartFailed": "DeepSeek 代理启动失败",
+      "deepseekProxyStartFailedWithReason": "DeepSeek 代理启动失败：{message}",
+      "deepseekLoginSuccess": "DeepSeek 登录成功，userToken 已写入。",
+      "deepseekLoginCancelled": "已取消 DeepSeek 登录。",
+      "deepseekLoginFailed": "DeepSeek 登录失败。",
+      "deepseekLoginFailedWithReason": "DeepSeek 登录失败：{message}",
       "modelMetadataLoadFailed": "模型元数据加载失败，将使用默认展示。"
     }
   },
@@ -542,6 +580,16 @@
     "ctrlEnter": {
       "label": "Ctrl+Enter 发送",
       "description": "启用以通过按 Ctrl+Enter 发送消息"
+    },
+    "messageNavigation": {
+      "label": "消息导航模式",
+      "description": "控制聊天页面右侧的消息导航锚点线显示方式",
+      "anchor": "锚点线",
+      "none": "关闭"
+    },
+    "showMessageOutline": {
+      "label": "显示消息大纲",
+      "description": "在 AI 消息左侧显示标题锚点大纲"
     },
     "notification": {
       "label": "显示成功通知",
@@ -641,6 +689,14 @@
       "saveFailedPrefix": "保存设置失败: "
     }
   },
+  "defaultModel": {
+    "title": "默认模型",
+    "quickModel": {
+      "label": "快速模型",
+      "description": "用于自动生成会话名称的模型",
+      "placeholder": "请选择模型"
+    }
+  },
   "common": {
     "cancel": "取消",
     "confirm": "确认",
@@ -664,5 +720,46 @@
     "deleteFailedMultiple": "删除选中的文件时出错",
     "saveSuccess": "保存成功",
     "saveFailed": "保存失败"
+  },
+  "mainSettings": {
+    "entry": "设置",
+    "backToChat": "返回聊天",
+    "navigationTitle": "设置",
+    "tabs": {
+      "history": "历史对话",
+      "prompts": "快捷助手",
+      "mcp": "MCP 服务",
+      "skills": "Skill 技能",
+      "providers": "服务商",
+      "defaultModel": "默认模型",
+      "system": "系统设置"
+    }
+  },
+  "mainChat": {
+    "actions": {
+      "refresh": "刷新会话列表",
+      "showSidebar": "显示侧栏",
+      "hideSidebar": "收起侧栏",
+      "newConversation": "新建对话"
+    },
+    "sources": {
+      "local": "本地",
+      "cloud": "云端"
+    },
+    "empty": {
+      "assistants": "暂无已启用的快捷助手",
+      "assistantSessions": "该助手暂无历史对话"
+    },
+    "errors": {
+      "loadSessionFailed": "加载会话失败",
+      "indexFailed": "加载历史索引失败"
+    },
+    "sessionMenu": {
+      "rename": "手动命名",
+      "regenerate": "再次生成名称",
+      "renameSuccess": "会话名称已更新",
+      "regenerateSuccess": "会话名称已重新生成",
+      "regenerateFailed": "生成失败，已使用“新对话”"
+    }
   }
 }

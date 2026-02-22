@@ -21,7 +21,12 @@ a:hover {
   background: transparent !important;
 }
 
-:where(.page-container, .chats-page-container, .providers-page-container, .settings-page-container) {
+:where(
+  .page-container,
+  .chats-page-container,
+  .providers-page-container,
+  .settings-page-container
+) {
   background: transparent !important;
 }
 
@@ -51,6 +56,7 @@ a:hover {
 :where(.chats-page-container) {
   padding-left: 0 !important;
   padding-right: 0 !important;
+  background: transparent !important;
 }
 
 :where(.search-input-container, .search-bar-container, .path-bar-container) {
@@ -59,7 +65,8 @@ a:hover {
   background: transparent !important;
 }
 
-:where(.search-input-container, .search-bar-container, .path-bar-container) :where(.el-input__wrapper) {
+:where(.search-input-container, .search-bar-container, .path-bar-container)
+  :where(.el-input__wrapper) {
   border-radius: var(--radius-md) !important;
   min-height: 40px;
   padding-left: 14px !important;
@@ -99,7 +106,9 @@ a:hover {
 }
 
 :where(.mcp-card, .skill-card, .prompt-card) {
-  transition: border-color 0.18s ease, background-color 0.18s ease;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease;
 }
 
 :where(.mcp-card, .skill-card, .prompt-card):hover {
@@ -111,7 +120,13 @@ a:hover {
   letter-spacing: 0.01em;
 }
 
-:where(.tab-count, .mcp-provider, .skill-id-sub, .setting-option-description, .form-item-description) {
+:where(
+  .tab-count,
+  .mcp-provider,
+  .skill-id-sub,
+  .setting-option-description,
+  .form-item-description
+) {
   color: var(--text-tertiary) !important;
 }
 
@@ -130,7 +145,9 @@ a:hover {
   border: none !important;
   border-radius: var(--radius-lg) !important;
   background: color-mix(in srgb, var(--bg-secondary) 92%, transparent) !important;
-  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-primary) !important;
+  box-shadow:
+    var(--shadow-lg),
+    0 0 0 1px var(--border-primary) !important;
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   overflow: hidden !important;
@@ -155,7 +172,8 @@ html.dark .settings-select-popper .el-select-dropdown__item:hover {
 }
 
 :where(pre, code) {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-family:
+    ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
 }
 
 :where(pre) {
@@ -166,7 +184,9 @@ html.dark .settings-select-popper .el-select-dropdown__item:hover {
 .app-dropdown-surface {
   border: none;
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg), 0 0 0 1px var(--border-primary);
+  box-shadow:
+    var(--shadow-lg),
+    0 0 0 1px var(--border-primary);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   padding: 6px;
@@ -207,13 +227,13 @@ html.dark .app-dropdown-item:hover {
 }
 
 .circle-action-btn {
-  background-color: #EBEBEF !important;
+  background-color: #ebebef !important;
   border: none !important;
   color: var(--text-primary) !important;
 }
 
 html.dark .circle-action-btn {
-  background-color: #1E1E1E !important;
+  background-color: #1e1e1e !important;
 }
 
 .circle-action-btn:hover {
@@ -233,31 +253,28 @@ html.dark .circle-action-btn {
   background-color: transparent !important;
   color: var(--text-secondary) !important;
   padding: 0 !important;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
 }
 
 .circle-action-btn-sm:hover {
-  background-color: #EBEBEF !important;
+  background-color: #ebebef !important;
   color: var(--text-primary) !important;
 }
 
 html.dark .circle-action-btn-sm:hover {
-  background-color: #1E1E1E !important;
-}
-
-.circle-action-btn-sm:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--bg-accent) 55%, transparent);
-  outline-offset: 1px;
+  background-color: #1e1e1e !important;
 }
 
 .rounded-action-btn {
   width: 32px !important;
   height: 32px !important;
   border-radius: 10px !important;
-  background-color: #EBEBEF !important;
+  background-color: #ebebef !important;
   border: none !important;
   color: var(--text-primary) !important;
 }
@@ -273,36 +290,4 @@ html.dark .rounded-action-btn {
 .rounded-action-btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-.el-dialog__headerbtn {
-  width: 32px !important;
-  height: 32px !important;
-  border-radius: 50% !important;
-  background-color: transparent !important;
-  top: 12px !important;
-  right: 12px !important;
-  transition: background-color 0.2s ease;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.el-dialog__headerbtn:hover {
-  background-color: #EBEBEF !important;
-}
-
-html.dark .el-dialog__headerbtn:hover {
-  background-color: #1E1E1E !important;
-}
-
-.el-dialog__headerbtn .el-dialog__close {
-  color: var(--text-secondary) !important;
-  font-size: 16px !important;
-  width: 16px !important;
-  height: 16px !important;
-}
-
-.el-dialog__headerbtn:hover .el-dialog__close {
-  color: var(--text-primary) !important;
 }

@@ -240,7 +240,7 @@
       "reasoningEffort": "Sets the computational budget for the model's reasoning process. Higher values may yield more thorough answers but increase latency and cost.",
       "isAlwaysOnTopTooltip": "Enable to keep the window always on top of other windows.",
       "autoCloseOnBlurTooltip": "Enable to close the standalone window when it loses focus.",
-      "autoSaveChatTooltip": "When enabled, conversations will be automatically saved to local storage every 15 seconds (requires local chat path configured in settings).",
+      "autoSaveChatTooltip": "When enabled, conversations are automatically saved through the database cache layer (with a 15-second fallback cycle).",
       "defaultMcpServers": "When set, the selected MCP services will be automatically enabled when this assistant is opened in a standalone window.",
       "defaultSkills": "When set, these skills will be automatically visible to AI when this assistant is opened in a standalone window."
     },
@@ -362,6 +362,31 @@
       "default": "Default",
       "leaveEmpty": "Leave empty for default",
       "response": "Response Result:"
+    },
+    "runtime": {
+      "entry": "Runtime",
+      "title": "MCP Runtime Environment",
+      "fallbackHint": "When npx/uv/uvx is missing from system PATH, MCP will automatically fall back to built-in Bun/UV.",
+      "platform": "Platform",
+      "binDir": "Install Directory",
+      "openDir": "Open Directory",
+      "refresh": "Refresh Status",
+      "installed": "Installed",
+      "notInstalled": "Not Installed",
+      "notFound": "Not Found",
+      "systemNpx": "System npx",
+      "systemUv": "System uv",
+      "systemUvx": "System uvx",
+      "builtinBun": "Built-in Bun",
+      "builtinUv": "Built-in UV",
+      "builtinUvx": "Built-in uvx",
+      "installBun": "Install Bun",
+      "installUv": "Install UV",
+      "installAll": "Install Bun + UV",
+      "installSuccess": "Runtime installation completed",
+      "installFailed": "Runtime installation failed",
+      "loadFailed": "Failed to load runtime status",
+      "apiUnavailable": "Runtime installation API is unavailable in this build"
     }
   },
   "skills": {
@@ -452,6 +477,13 @@
     "moveUpTooltip": "Move Up",
     "moveDownTooltip": "Move Down",
     "deleteProviderTooltip": "Delete Provider",
+    "deepseekUserTokenLabel": "Token",
+    "deepseekUserTokenPlaceholder": "Enter DeepSeek userToken (or auto-fill after login)",
+    "deepseekUserTokenDescription": "DeepSeek official channel uses userToken authentication; manual paste is also supported.",
+    "deepseekLoginBtn": "Sign in to DeepSeek",
+    "deepseekBuiltinChannelHint": "Built-in official channel: local proxy and authentication are managed automatically.",
+    "deepseekProxyUrlLabel": "Proxy URL",
+    "deepseekProxyUrlPlaceholder": "Managed by the app automatically",
     "apiKeyLabel": "API Key",
     "apiKeyPlaceholder": "Enter API Key (multiple can be entered, separated by commas)",
     "apiKeyDescription": "You can enter multiple API keys separated by commas.",
@@ -497,6 +529,12 @@
       "fetchModelsFailedDefault": "Failed to fetch models.",
       "configSaveFailed": "Failed to save configuration.",
       "saveFailed": "Save failed",
+      "deepseekProxyStartFailed": "Failed to start DeepSeek proxy.",
+      "deepseekProxyStartFailedWithReason": "Failed to start DeepSeek proxy: {message}",
+      "deepseekLoginSuccess": "DeepSeek login successful. userToken has been saved.",
+      "deepseekLoginCancelled": "DeepSeek login cancelled.",
+      "deepseekLoginFailed": "DeepSeek login failed.",
+      "deepseekLoginFailedWithReason": "DeepSeek login failed: {message}",
       "modelMetadataLoadFailed": "Failed to load model metadata. Falling back to default display."
     }
   },
@@ -542,6 +580,16 @@
     "ctrlEnter": {
       "label": "Ctrl+Enter to Send",
       "description": "Enable to send messages by pressing Ctrl+Enter."
+    },
+    "messageNavigation": {
+      "label": "Message Navigation Mode",
+      "description": "Controls how the message anchor line is shown on the right side of chat.",
+      "anchor": "Anchor Line",
+      "none": "Off"
+    },
+    "showMessageOutline": {
+      "label": "Show Message Outline",
+      "description": "Show a heading outline on the left side of AI messages."
     },
     "notification": {
       "label": "Show Success Notification",
@@ -641,6 +689,14 @@
       "saveFailedPrefix": "Failed to save setting: "
     }
   },
+  "defaultModel": {
+    "title": "Default Model",
+    "quickModel": {
+      "label": "Quick Model",
+      "description": "Model used to auto-generate conversation titles.",
+      "placeholder": "Select a model"
+    }
+  },
   "common": {
     "cancel": "Cancel",
     "confirm": "Confirm",
@@ -664,5 +720,46 @@
     "deleteFailedMultiple": "Error deleting selected files.",
     "saveSuccess": "Saved successfully",
     "saveFailed": "Save failed"
+  },
+  "mainSettings": {
+    "entry": "Settings",
+    "backToChat": "Back to Chat",
+    "navigationTitle": "Settings",
+    "tabs": {
+      "history": "Chat History",
+      "prompts": "Agent Prompts",
+      "mcp": "MCP Servers",
+      "skills": "Skills",
+      "providers": "Providers",
+      "defaultModel": "Default Model",
+      "system": "System Settings"
+    }
+  },
+  "mainChat": {
+    "actions": {
+      "refresh": "Refresh sessions",
+      "showSidebar": "Show sidebar",
+      "hideSidebar": "Hide sidebar",
+      "newConversation": "New conversation"
+    },
+    "sources": {
+      "local": "Local",
+      "cloud": "Cloud"
+    },
+    "empty": {
+      "assistants": "No enabled assistants",
+      "assistantSessions": "No history for this assistant"
+    },
+    "errors": {
+      "loadSessionFailed": "Failed to load session",
+      "indexFailed": "Failed to load history index"
+    },
+    "sessionMenu": {
+      "rename": "Rename",
+      "regenerate": "Regenerate Title",
+      "renameSuccess": "Session title updated",
+      "regenerateSuccess": "Session title regenerated",
+      "regenerateFailed": "Generation failed, fallback title set to \"新对话\""
+    }
   }
 }

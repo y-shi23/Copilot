@@ -18,6 +18,7 @@ import {
 } from 'lucide-vue-next';
 import { useI18n } from 'vue-i18n';
 import { ElMessage } from 'element-plus';
+import AppDialogCard from '@window/components/ui/AppDialogCard.vue';
 
 const { t } = useI18n();
 
@@ -1096,14 +1097,13 @@ async function refreshPromptsConfig() {
       />
     </div>
 
-    <el-dialog
+    <AppDialogCard
       v-model="showPromptEditDialog"
       :title="isNewPrompt ? t('prompts.addNewPrompt') : t('prompts.editPrompt')"
       width="700px"
-      :close-on-click-modal="false"
       top="5vh"
-      custom-class="edit-prompt-dialog"
-      append-to-body
+      variant="compact"
+      dialog-class="edit-prompt-dialog"
     >
       <el-scrollbar max-height="60vh" class="prompt-dialog-scrollbar">
         <el-form :model="editingPrompt" @submit.prevent="savePrompt" class="edit-prompt-form">
@@ -1311,8 +1311,7 @@ async function refreshPromptsConfig() {
                   <div class="param-item reasoning-effort-param">
                     <span class="param-label">{{ t('prompts.reasoningEffortLabel') }}</span>
                     <el-tooltip :content="t('prompts.tooltips.reasoningEffort')" placement="top"
-                      ><el-icon class="tip-icon">
-                        <QuestionFilled /> </el-icon
+                      ><el-icon class="tip-icon"> <QuestionFilled /> </el-icon
                     ></el-tooltip>
                     <div class="spacer"></div>
                     <el-select
@@ -1350,8 +1349,7 @@ async function refreshPromptsConfig() {
                   <div class="param-item">
                     <span class="param-label">{{ t('prompts.sendDirectLabel') }}</span>
                     <el-tooltip :content="t('prompts.tooltips.sendDirect')" placement="top"
-                      ><el-icon class="tip-icon">
-                        <QuestionFilled /> </el-icon
+                      ><el-icon class="tip-icon"> <QuestionFilled /> </el-icon
                     ></el-tooltip>
                     <div class="spacer"></div>
                     <el-switch v-model="editingPrompt.isDirectSend_normal" />
@@ -1359,8 +1357,7 @@ async function refreshPromptsConfig() {
                   <div class="param-item">
                     <span class="param-label">{{ t('prompts.sendFileLabel') }}</span>
                     <el-tooltip :content="t('prompts.tooltips.sendFile')" placement="top"
-                      ><el-icon class="tip-icon">
-                        <QuestionFilled /> </el-icon
+                      ><el-icon class="tip-icon"> <QuestionFilled /> </el-icon
                     ></el-tooltip>
                     <div class="spacer"></div>
                     <el-switch v-model="editingPrompt.isDirectSend_file" />
@@ -1368,8 +1365,7 @@ async function refreshPromptsConfig() {
                   <div class="param-item">
                     <span class="param-label">{{ t('prompts.ifTextNecessary') }}</span>
                     <el-tooltip :content="t('prompts.tooltips.ifTextNecessary')" placement="top"
-                      ><el-icon class="tip-icon">
-                        <QuestionFilled /> </el-icon
+                      ><el-icon class="tip-icon"> <QuestionFilled /> </el-icon
                     ></el-tooltip>
                     <div class="spacer"></div>
                     <el-switch v-model="editingPrompt.ifTextNecessary" />
@@ -1379,8 +1375,7 @@ async function refreshPromptsConfig() {
                     <el-tooltip
                       :content="t('prompts.tooltips.isAlwaysOnTopTooltip')"
                       placement="top"
-                      ><el-icon class="tip-icon">
-                        <QuestionFilled /> </el-icon
+                      ><el-icon class="tip-icon"> <QuestionFilled /> </el-icon
                     ></el-tooltip>
                     <div class="spacer"></div>
                     <el-switch v-model="editingPrompt.isAlwaysOnTop" />
@@ -1390,8 +1385,7 @@ async function refreshPromptsConfig() {
                     <el-tooltip
                       :content="t('prompts.tooltips.autoCloseOnBlurTooltip')"
                       placement="top"
-                      ><el-icon class="tip-icon">
-                        <QuestionFilled /> </el-icon
+                      ><el-icon class="tip-icon"> <QuestionFilled /> </el-icon
                     ></el-tooltip>
                     <div class="spacer"></div>
                     <el-switch v-model="editingPrompt.autoCloseOnBlur" />
@@ -1399,8 +1393,7 @@ async function refreshPromptsConfig() {
                   <div v-if="editingPrompt.showMode === 'window'" class="param-item">
                     <span class="param-label">{{ t('prompts.autoSaveChatLabel') }}</span>
                     <el-tooltip :content="t('prompts.tooltips.autoSaveChatTooltip')" placement="top"
-                      ><el-icon class="tip-icon">
-                        <QuestionFilled /> </el-icon
+                      ><el-icon class="tip-icon"> <QuestionFilled /> </el-icon
                     ></el-tooltip>
                     <div class="spacer"></div>
                     <el-switch v-model="editingPrompt.autoSaveChat" />
@@ -1409,8 +1402,7 @@ async function refreshPromptsConfig() {
                   <div class="param-item voice-param">
                     <span class="param-label">{{ t('prompts.voiceLabel') }}</span>
                     <el-tooltip :content="t('prompts.voiceTooltip')" placement="top"
-                      ><el-icon class="tip-icon">
-                        <QuestionFilled /> </el-icon
+                      ><el-icon class="tip-icon"> <QuestionFilled /> </el-icon
                     ></el-tooltip>
                     <div class="spacer"></div>
                     <el-select
@@ -1431,8 +1423,7 @@ async function refreshPromptsConfig() {
                   <div v-if="editingPrompt.showMode === 'window'" class="param-item">
                     <span class="param-label">{{ t('prompts.defaultMcpServersLabel') }}</span>
                     <el-tooltip :content="t('prompts.tooltips.defaultMcpServers')" placement="top"
-                      ><el-icon class="tip-icon">
-                        <QuestionFilled /> </el-icon
+                      ><el-icon class="tip-icon"> <QuestionFilled /> </el-icon
                     ></el-tooltip>
                     <div class="spacer"></div>
                     <el-select
@@ -1455,8 +1446,7 @@ async function refreshPromptsConfig() {
                   <div v-if="editingPrompt.showMode === 'window'" class="param-item">
                     <span class="param-label">{{ t('prompts.defaultSkillsLabel') }}</span>
                     <el-tooltip :content="t('prompts.tooltips.defaultSkills')" placement="top"
-                      ><el-icon class="tip-icon">
-                        <QuestionFilled /> </el-icon
+                      ><el-icon class="tip-icon"> <QuestionFilled /> </el-icon
                     ></el-tooltip>
                     <div class="spacer"></div>
                     <el-select
@@ -1589,15 +1579,14 @@ async function refreshPromptsConfig() {
         <el-button @click="showPromptEditDialog = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" @click="savePrompt">{{ t('common.confirm') }}</el-button>
       </template>
-    </el-dialog>
+    </AppDialogCard>
 
     <!-- 图标编辑器弹窗 -->
-    <el-dialog
+    <AppDialogCard
       v-model="showIconEditDialog"
       :title="t('prompts.editPrompt')"
       width="400px"
-      :close-on-click-modal="false"
-      append-to-body
+      variant="compact"
     >
       <div class="icon-edit-container">
         <div class="canvas-wrapper">
@@ -1646,14 +1635,13 @@ async function refreshPromptsConfig() {
           t('prompts.iconEditor.confirm')
         }}</el-button>
       </template>
-    </el-dialog>
+    </AppDialogCard>
 
-    <el-dialog
+    <AppDialogCard
       v-model="showAddTagDialog"
       :title="t('prompts.addNewTag')"
       width="400px"
-      :close-on-click-modal="false"
-      append-to-body
+      variant="compact"
     >
       <el-form @submit.prevent="addTag">
         <el-form-item :label="t('prompts.tagNameLabel')" required>
@@ -1664,14 +1652,13 @@ async function refreshPromptsConfig() {
         <el-button @click="showAddTagDialog = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" @click="addTag">{{ t('common.addTag') }}</el-button>
       </template>
-    </el-dialog>
+    </AppDialogCard>
 
-    <el-dialog
+    <AppDialogCard
       v-model="showAssignPromptDialog"
       :title="t('prompts.assignPromptsToTag', { tagName: assignPromptForm.targetTagName })"
       width="600px"
-      :close-on-click-modal="false"
-      append-to-body
+      variant="compact"
     >
       <el-form :model="assignPromptForm" label-position="top">
         <el-form-item :label="t('prompts.selectPromptsToAddLabel')">
@@ -1708,14 +1695,13 @@ async function refreshPromptsConfig() {
           >{{ t('common.assignSelected') }}</el-button
         >
       </template>
-    </el-dialog>
+    </AppDialogCard>
 
-    <el-dialog
+    <AppDialogCard
       v-model="showReplaceModelDialog"
       :title="t('prompts.replaceModelsDialog.title')"
       width="600px"
-      :close-on-click-modal="false"
-      append-to-body
+      variant="compact"
     >
       <el-form :model="replaceModelForm" label-position="top">
         <el-row :gutter="20">
@@ -1759,7 +1745,7 @@ async function refreshPromptsConfig() {
         <el-button @click="showReplaceModelDialog = false">{{ t('common.cancel') }}</el-button>
         <el-button type="primary" @click="replaceModels">{{ t('common.confirm') }}</el-button>
       </template>
-    </el-dialog>
+    </AppDialogCard>
   </div>
 </template>
 
@@ -1801,10 +1787,6 @@ html.dark .main-content-scrollbar :deep(.el-scrollbar__thumb:hover) {
 
 .search-bar-container :deep(.el-input__wrapper) {
   box-shadow: 0 0 0 1px var(--border-primary) inset !important;
-}
-
-.search-bar-container :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px var(--text-accent) inset !important;
 }
 
 .prompts-header {
@@ -2412,20 +2394,8 @@ html.dark .canvas-wrapper {
   margin-bottom: 0;
 }
 
-:deep(.el-dialog__body) {
-  padding: 15px 20px 10px 20px !important;
-}
-
-:deep(.el-dialog__footer) {
-  padding: 5px;
-}
-
 .dimensions-group-row :deep(.el-form-item__label) {
   margin-bottom: 6px !important;
-}
-
-:deep(.el-dialog__header) {
-  padding: 5px !important;
 }
 
 .prompt-dialog-scrollbar :deep(.el-scrollbar__view) {
@@ -2447,11 +2417,6 @@ html.dark .canvas-wrapper {
   border-radius: var(--radius-md);
   background-color: var(--bg-tertiary);
   transition: all 0.2s;
-}
-
-.prompt-textarea-scrollbar:focus-within {
-  border-color: var(--text-accent);
-  box-shadow: 0 0 0 1px var(--text-accent) inset;
 }
 
 .prompt-textarea-scrollbar :deep(.el-textarea__inner) {
