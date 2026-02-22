@@ -129,6 +129,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
 
@@ -168,9 +169,9 @@ jobs:
           # Small cooldown before calling Release APIs to reduce secondary rate-limit hits.
           sleep 15
 
-          if gh release view "${TAG}" >/dev/null 2>&1; then
-            retry_gh release upload "${TAG}" "${FILES[@]}" --clobber
-            retry_gh release edit "${TAG}" --draft
+          if gh release view "${TAG}" -R "${GH_REPO}" >/dev/null 2>&1; then
+            retry_gh release upload "${TAG}" "${FILES[@]}" --clobber -R "${GH_REPO}"
+            retry_gh release edit "${TAG}" --draft -R "${GH_REPO}"
           else
-            retry_gh release create "${TAG}" "${FILES[@]}" --draft --generate-notes
+            retry_gh release create "${TAG}" "${FILES[@]}" --draft --generate-notes -R "${GH_REPO}"
           fi
