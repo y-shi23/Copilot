@@ -76,22 +76,39 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Signing mode summary
+      - name: Build release package
         shell: bash
         env:
-          CSC_LINK: ${{ matrix.platform == 'win' && secrets.WIN_CSC_LINK || matrix.platform == 'mac' && secrets.MAC_CSC_LINK || '' }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
         run: |
-          if [[ -n "${CSC_LINK}" ]]; then
-            echo "Signing enabled for platform=${{ matrix.platform }} (certificate secret detected)."
-          else
-            echo "Signing disabled for platform=${{ matrix.platform }} (no certificate secret configured)."
+          set -euo pipefail
+
+          platform="${{ matrix.platform }}"
+          cert_link=""
+          cert_password=""
+
+          if [[ "${platform}" == "win" ]]; then
+            cert_link="$(printf '%s' "${WIN_CSC_LINK:-}" | tr -d '\r')"
+            cert_password="$(printf '%s' "${WIN_CSC_KEY_PASSWORD:-}" | tr -d '\r')"
+          elif [[ "${platform}" == "mac" ]]; then
+            cert_link="$(printf '%s' "${MAC_CSC_LINK:-}" | tr -d '\r')"
+            cert_password="$(printf '%s' "${MAC_CSC_KEY_PASSWORD:-}" | tr -d '\r')"
           fi
 
-      - name: Build release package
-        env:
-          CSC_LINK: ${{ matrix.platform == 'win' && secrets.WIN_CSC_LINK || matrix.platform == 'mac' && secrets.MAC_CSC_LINK || '' }}
-          CSC_KEY_PASSWORD: ${{ matrix.platform == 'win' && secrets.WIN_CSC_KEY_PASSWORD || matrix.platform == 'mac' && secrets.MAC_CSC_KEY_PASSWORD || '' }}
-        run: pnpm ${{ matrix.dist_script }}
+          if [[ -n "${cert_link}" && -n "${cert_password}" ]]; then
+            export CSC_LINK="${cert_link}"
+            export CSC_KEY_PASSWORD="${cert_password}"
+            echo "Signing enabled for platform=${platform}."
+          else
+            unset CSC_LINK CSC_KEY_PASSWORD WIN_CSC_LINK WIN_CSC_KEY_PASSWORD MAC_CSC_LINK MAC_CSC_KEY_PASSWORD
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            echo "Signing disabled for platform=${platform} (certificate or password is empty)."
+          fi
+
+          pnpm ${{ matrix.dist_script }}
 
       - name: Verify pg is bundled into electron main
         shell: bash

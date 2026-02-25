@@ -252,6 +252,7 @@ chmod +x dev.sh
 - 当前仅启用 macOS 签名，不启用 notarization（公证）。
 - Windows 使用 OV 证书签名后，初期仍可能出现 SmartScreen 提示，属证书信誉累积阶段的常见现象。
 - macOS 未启用 notarization 时，Gatekeeper 仍可能出现安全提示。
+- 若只配置了证书或只配置了密码（配置不完整），工作流会自动降级为未签名构建，避免因空值导致打包失败。
 
 ### 开发模式（热重载）
 
