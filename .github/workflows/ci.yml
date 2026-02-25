@@ -1,44 +1,103 @@
 name: CI
 
 on:
+  pull_request:
+    branches:
+      - main
   push:
     branches:
-      - '**'
-  pull_request:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10.28.0'
+  ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+  ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
+  quality:
+    name: quality
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
-          cache: 'pnpm'
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
 
-      - name: Install root deps
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.ELECTRON_CACHE }}
+            ${{ env.ELECTRON_BUILDER_CACHE }}
+          key: ${{ runner.os }}-electron-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install app deps
-        run: pnpm run install:all
+      - name: Run quality gate
+        run: pnpm ci:quality
 
-      - name: Lint
-        run: pnpm run lint
+  build-smoke-linux:
+    name: build-smoke-linux
+    needs: quality
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Typecheck
-        run: pnpm run typecheck
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
 
-      - name: Test
-        run: pnpm run test
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
 
-      - name: Structural checks
-        run: pnpm run check
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.ELECTRON_CACHE }}
+            ${{ env.ELECTRON_BUILDER_CACHE }}
+          key: ${{ runner.os }}-electron-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
 
-      - name: Build
-        run: pnpm run build
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Linux smoke package
+        run: pnpm dist:linux
+
+      - name: Upload smoke artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-linux-${{ github.sha }}
+          path: |
+            release/*.AppImage
+          retention-days: 7
+          if-no-files-found: error

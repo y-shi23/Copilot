@@ -1,7 +1,8 @@
 {
   "name": "sanft-desktop",
-  "version": "2.0.0",
+  "version": "0.0.1",
   "private": true,
+  "packageManager": "pnpm@10.28.0",
   "description": "Sanft - AI Chat Desktop App powered by Electron.",
   "main": "electron/main.js",
   "scripts": {
@@ -27,9 +28,14 @@
     "check:no-js-source": "node scripts/check-no-js-source.cjs",
     "check:no-inline-js": "node scripts/check-no-inline-js.cjs",
     "check": "pnpm check:no-js-source && pnpm check:no-inline-js",
-    "ci": "pnpm lint && pnpm typecheck && pnpm test && pnpm check && pnpm build",
+    "ci:quality": "pnpm lint && pnpm typecheck && pnpm test && pnpm check",
+    "ci": "pnpm ci:quality && pnpm build",
     "pack": "pnpm build && electron-builder --dir",
-    "dist": "pnpm build && electron-builder"
+    "dist": "pnpm build && electron-builder",
+    "dist:win": "pnpm build && electron-builder --win nsis --publish never",
+    "dist:mac": "pnpm build && electron-builder --mac dmg --publish never",
+    "dist:linux": "pnpm build && electron-builder --linux AppImage --publish never",
+    "dist:all:ci": "pnpm build && electron-builder --publish never"
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",
@@ -85,7 +91,8 @@
         "AppImage",
         "deb"
       ],
-      "icon": "build"
+      "icon": "build",
+      "maintainer": "Sanft Team <y-shi23tsinghua@outlook.com>"
     }
   },
   "lint-staged": {
@@ -99,6 +106,11 @@
   "dependencies": {
     "@ziuchen/deepseek-api": "^1.1.0",
     "pg": "^8.16.3",
+    "pg-connection-string": "^2.9.1",
+    "pg-pool": "^3.10.1",
+    "pg-protocol": "^1.10.3",
+    "pg-types": "^2.2.0",
+    "pgpass": "^1.0.5",
     "sql.js": "^1.13.0"
   }
 }

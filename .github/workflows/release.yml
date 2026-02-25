@@ -1,0 +1,180 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v2.0.1). Required if running from a branch.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '10.28.0'
+  ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
+  ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+jobs:
+  build:
+    name: build-${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win
+            dist_script: dist:win
+            artifact_paths: |
+              release/*Setup*.exe
+          - os: macos-14
+            platform: mac
+            dist_script: dist:mac
+            artifact_paths: |
+              release/*.dmg
+          - os: ubuntu-22.04
+            platform: linux
+            dist_script: dist:linux
+            artifact_paths: |
+              release/*.AppImage
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.ELECTRON_CACHE }}
+            ${{ env.ELECTRON_BUILDER_CACHE }}
+          key: ${{ runner.os }}-electron-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build release package
+        run: pnpm ${{ matrix.dist_script }}
+
+      - name: Upload platform artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanft-${{ matrix.platform }}-${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || github.sha }}
+          path: ${{ matrix.artifact_paths }}
+          retention-days: 14
+          if-no-files-found: error
+
+  publish:
+    name: publish-draft-release
+    runs-on: ubuntu-22.04
+    needs: build
+    steps:
+      - name: Resolve release tag
+        id: meta
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            TAG_INPUT="${{ inputs.tag }}"
+            if [[ -n "${TAG_INPUT}" ]]; then
+              TAG="${TAG_INPUT}"
+            elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+              TAG="${GITHUB_REF#refs/tags/}"
+            else
+              echo "workflow_dispatch from branch requires inputs.tag (e.g. v2.0.1)." >&2
+              exit 1
+            fi
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+
+          if [[ ! "${TAG}" =~ ^v ]]; then
+            echo "Tag must start with 'v'. Received: ${TAG}" >&2
+            exit 1
+          fi
+
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: sanft-*
+          path: release-assets
+
+      - name: Create or update draft GitHub release (with retry)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          TAG="${{ steps.meta.outputs.tag }}"
+
+          mapfile -t FILES < <(find release-assets -type f \( -name '*Setup*.exe' -o -name '*.dmg' -o -name '*.AppImage' \) | sort)
+
+          if (( ${#FILES[@]} == 0 )); then
+            echo "No installer files found under release-assets." >&2
+            exit 1
+          fi
+
+          echo "Installer files to publish (${#FILES[@]}):"
+          printf ' - %s\n' "${FILES[@]}"
+
+          retry_gh() {
+            local max_attempts=6
+            local attempt=1
+            local base_delay=20
+            while true; do
+              if gh "$@"; then
+                return 0
+              fi
+
+              if (( attempt >= max_attempts )); then
+                echo "Command failed after ${max_attempts} attempts: gh $*" >&2
+                return 1
+              fi
+
+              local delay=$((base_delay * attempt))
+              echo "gh $* failed (attempt ${attempt}/${max_attempts}); retrying in ${delay}s..."
+              sleep "${delay}"
+              attempt=$((attempt + 1))
+            done
+          }
+
+          # Small cooldown before calling Release APIs to reduce secondary rate-limit hits.
+          sleep 15
+
+          if gh release view "${TAG}" -R "${GH_REPO}" >/dev/null 2>&1; then
+            mapfile -t EXISTING_ASSETS < <(gh release view "${TAG}" -R "${GH_REPO}" --json assets --jq '.assets[].name')
+            for asset_name in "${EXISTING_ASSETS[@]}"; do
+              retry_gh release delete-asset "${TAG}" "${asset_name}" -R "${GH_REPO}" --yes
+            done
+
+            retry_gh release upload "${TAG}" "${FILES[@]}" --clobber -R "${GH_REPO}"
+            retry_gh release edit "${TAG}" --draft -R "${GH_REPO}"
+          else
+            retry_gh release create "${TAG}" "${FILES[@]}" --draft --generate-notes -R "${GH_REPO}"
+          fi
