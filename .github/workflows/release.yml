@@ -23,37 +23,11 @@ env:
   PNPM_VERSION: '10.28.0'
   ELECTRON_CACHE: ${{ github.workspace }}/.cache/electron
   ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
+  CSC_IDENTITY_AUTO_DISCOVERY: 'false'
 
 jobs:
-  validate-signing-secrets:
-    name: validate-signing-secrets
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Validate signing secrets are configured
-        shell: bash
-        env:
-          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
-          MAC_CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
-          MAC_CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-
-          missing=()
-          [[ -z "${WIN_CSC_LINK}" ]] && missing+=("WIN_CSC_LINK")
-          [[ -z "${WIN_CSC_KEY_PASSWORD}" ]] && missing+=("WIN_CSC_KEY_PASSWORD")
-          [[ -z "${MAC_CSC_LINK}" ]] && missing+=("MAC_CSC_LINK")
-          [[ -z "${MAC_CSC_KEY_PASSWORD}" ]] && missing+=("MAC_CSC_KEY_PASSWORD")
-
-          if (( ${#missing[@]} > 0 )); then
-            printf 'Missing required signing secret: %s\n' "${missing[@]}" >&2
-            echo "Tag release requires signing secrets for both Windows and macOS." >&2
-            exit 1
-          fi
-
   build:
     name: build-${{ matrix.platform }}
-    needs: validate-signing-secrets
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -101,6 +75,17 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Signing mode summary
+        shell: bash
+        env:
+          CSC_LINK: ${{ matrix.platform == 'win' && secrets.WIN_CSC_LINK || matrix.platform == 'mac' && secrets.MAC_CSC_LINK || '' }}
+        run: |
+          if [[ -n "${CSC_LINK}" ]]; then
+            echo "Signing enabled for platform=${{ matrix.platform }} (certificate secret detected)."
+          else
+            echo "Signing disabled for platform=${{ matrix.platform }} (no certificate secret configured)."
+          fi
 
       - name: Build release package
         env:

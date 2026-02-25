@@ -238,9 +238,9 @@ chmod +x dev.sh
 
 ### Release 签名配置（GitHub Actions）
 
-`v*` tag 发布时，Release 工作流会强制校验签名证书配置。若缺少 Windows 或 macOS 的签名 secrets，发布会直接失败。
+`v*` tag 发布时，Release 工作流支持可选签名。配置了证书就自动签名，未配置也会继续发布（但系统安全提示会更多）。
 
-必需 secrets：
+可选 secrets（配置后启用对应平台签名）：
 
 - `WIN_CSC_LINK`: Windows 代码签名证书（`.pfx/.p12`，base64 或文件 URL）
 - `WIN_CSC_KEY_PASSWORD`: Windows 证书密码
