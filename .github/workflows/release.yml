@@ -50,7 +50,7 @@ jobs:
               release/*.AppImage
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -58,13 +58,13 @@ jobs:
           version: ${{ env.PNPM_VERSION }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
 
       - name: Cache Electron binaries
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             ${{ env.ELECTRON_CACHE }}
@@ -80,7 +80,7 @@ jobs:
         run: pnpm ${{ matrix.dist_script }}
 
       - name: Upload platform artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: sanft-${{ matrix.platform }}-${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || github.sha }}
           path: ${{ matrix.artifact_paths }}
@@ -118,7 +118,7 @@ jobs:
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: sanft-*
           path: release-assets
