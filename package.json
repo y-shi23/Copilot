@@ -38,21 +38,21 @@
     "dist:all:ci": "pnpm build && electron-builder --publish never"
   },
   "devDependencies": {
-    "@eslint/js": "^9.20.0",
-    "@types/node": "^22.13.10",
-    "electron": "30.5.1",
-    "electron-builder": "^24.13.3",
-    "esbuild": "^0.25.2",
-    "eslint": "^9.20.1",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.3.0",
+    "electron": "40.6.1",
+    "electron-builder": "^26.8.1",
+    "esbuild": "^0.27.3",
+    "eslint": "^10.0.2",
     "eslint-config-prettier": "^10.0.1",
-    "eslint-plugin-vue": "^9.32.0",
-    "globals": "^15.15.0",
+    "eslint-plugin-vue": "^10.8.0",
+    "globals": "^17.3.0",
     "husky": "^9.1.7",
-    "lint-staged": "^15.4.3",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.5.2",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.24.1",
-    "vitest": "^3.0.8",
+    "typescript-eslint": "^8.56.1",
+    "vitest": "^4.0.18",
     "vue-eslint-parser": "^10.4.0"
   },
   "pnpm": {
@@ -109,7 +109,7 @@
     "pg-connection-string": "^2.9.1",
     "pg-pool": "^3.10.1",
     "pg-protocol": "^1.10.3",
-    "pg-types": "^2.2.0",
+    "pg-types": "^4.1.0",
     "pgpass": "^1.0.5",
     "sql.js": "^1.13.0"
   }
